@@ -4,26 +4,54 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, ArrowRight, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { AuthCard } from "@/components/auth/AuthCard";
 
 export default function VisitorLogin() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     rememberMe: false,
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Visitor login:", formData);
+    setError("");
+    setLoading(true);
 
-    localStorage.setItem("userRole", "visitor");
-    localStorage.setItem("isAuthenticated", "true");
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: formData.email, 
+          password: formData.password, 
+          role: 'visitor' 
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed');
+      }
+      
+      localStorage.setItem("userRole", "visitor");
+      localStorage.setItem("isAuthenticated", "true");
+      localStorage.setItem("userData", JSON.stringify(data.user));
 
-    router.push("/marketing");
+      router.push("/visitor/dashboard");
+
+    } catch (err: any) {
+      console.error("Login error:", err);
+      setError(err.message || "Invalid email or password. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -36,6 +64,18 @@ export default function VisitorLogin() {
           role="visitor"
         >
           <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Error Message */}
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex items-center gap-2"
+              >
+                <AlertCircle className="h-5 w-5 text-red-400" />
+                <p className="text-sm text-red-400">{error}</p>
+              </motion.div>
+            )}
+
             <div className="space-y-2">
               <label className="block text-sm font-medium text-white/80">
                 Email Address
@@ -109,10 +149,20 @@ export default function VisitorLogin() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               type="submit"
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-accent hover:bg-accent/90 text-white rounded-xl transition-all font-medium"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-accent hover:bg-accent/90 text-white rounded-xl transition-all font-medium disabled:opacity-50"
             >
-              Sign In
-              <ArrowRight className="h-5 w-5" />
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  Signing in...
+                </>
+              ) : (
+                <>
+                  Sign In
+                  <ArrowRight className="h-5 w-5" />
+                </>
+              )}
             </motion.button>
           </form>
 
