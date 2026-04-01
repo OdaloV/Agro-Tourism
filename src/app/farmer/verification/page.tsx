@@ -189,7 +189,7 @@ export default function FarmerVerificationPage() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link
-              href="/farmer/dashboard"
+              href="/auth/register/farmer"
               className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700"
             >
               <ChevronLeft className="h-5 w-5" />

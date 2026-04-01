@@ -23,7 +23,7 @@ export default function FarmerLogin() {
     localStorage.setItem("userRole", "farmer");
     localStorage.setItem("isAuthenticated", "true");
 
-    router.push("/farmer/dashboard");
+    router.push("/auth/register/farmer");
   };
 
   return (
@@ -119,7 +119,7 @@ export default function FarmerLogin() {
           <p className="mt-6 text-center text-sm text-white/40">
             New to HarvestHost?{" "}
             <Link
-              href="/auth/register/farmer"
+              href="/auth/login/farmer"
               className="text-accent hover:text-accent/80 font-medium hover:underline"
             >
               Register your farm

@@ -21,7 +21,7 @@ const roles = [
     icon: Sprout,
     color: "text-green-500",
     bgColor: "bg-green-500/10",
-    href: "/auth/login/farmer"
+    href: "/auth/register/farmer"
   },
   {
     id: "visitor",

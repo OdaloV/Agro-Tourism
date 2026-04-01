@@ -16,7 +16,7 @@ import { useAuth } from "@/lib/context/AuthContext";
 
 const navigationItems = [
   {
-    href: "/farmer/dashboard",
+    href: "/auth/register/farmer",
     label: "Dashboard",
     icon: Home,
   },
@@ -69,7 +69,7 @@ export default function FarmerLayout({
             {/* Logo */}
             <div className="flex items-center h-16 px-6 border-b border-emerald-100">
               <Link
-                href="/farmer/dashboard"
+                href="/auth/register/farmer"
                 className="flex items-center gap-2"
               >
                 <Tractor className="h-6 w-6 text-accent" />
