@@ -38,6 +38,12 @@ export default function Farmereg() {
   const [step, setStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [uploading, setUploading] = useState({
+    photo: false,
+    document: false
+  });
 
   const [formData, setFormData] = useState({
     name: "",
@@ -49,6 +55,7 @@ export default function Farmereg() {
     farmSize: "",
     yearEst: "",
     location: "",
+    farmDescription: "",
     coordinates: "-1.2921, 36.8219",
     farmType: "",
     activities: [] as string[],
@@ -77,6 +84,8 @@ export default function Farmereg() {
     farmName: "",
     farmSize: "",
     location: "",
+    farmDescription: "",
+    maxGuests: "",
   });
 
   const farmTypes = [
@@ -100,28 +109,34 @@ export default function Farmereg() {
   ];
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  const handleFileUpload = (field: string, file: File) => {
-    if (field.startsWith("documents.")) {
+  const handleFileUpload = async (field: string, file: File) => {
+    if (field === "photos") {
+      setUploading(prev => ({ ...prev, photo: true }));
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setFormData(prev => ({
+        ...prev,
+        photos: [...prev.photos, file]
+      }));
+      setUploading(prev => ({ ...prev, photo: false }));
+    } else if (field.startsWith("documents.")) {
+      setUploading(prev => ({ ...prev, document: true }));
+      await new Promise(resolve => setTimeout(resolve, 500));
       const docField = field.split(".")[1];
-      setFormData((prev) => ({
+      setFormData(prev => ({
         ...prev,
         documents: {
           ...prev.documents,
-          [docField]: file,
-        },
+          [docField]: file
+        }
       }));
-    } else if (field === "photos") {
-      setFormData((prev) => ({
-        ...prev,
-        photos: [...prev.photos, file],
-      }));
+      setUploading(prev => ({ ...prev, document: false }));
     }
   };
 
@@ -170,6 +185,15 @@ export default function Farmereg() {
       if (!formData.farmName) newErrors.farmName = "Farm name is required";
       if (!formData.farmSize) newErrors.farmSize = "Farm size is required";
       if (!formData.location) newErrors.location = "Location is required";
+      if (!formData.farmDescription) newErrors.farmDescription = "Farm description is required";
+    }
+
+    if (step === 3) {
+      if (formData.accommodation && !formData.maxGuests) {
+        newErrors.maxGuests = "Please enter the maximum number of guests you can accommodate";
+      } else if (formData.accommodation && formData.maxGuests && parseInt(formData.maxGuests) <= 0) {
+        newErrors.maxGuests = "Max guests must be greater than 0";
+      }
     }
 
     setErrors(newErrors);
@@ -182,12 +206,58 @@ export default function Farmereg() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (validateStep()) {
+      setSubmitting(true);
+      
       const allActivities = [...formData.activities, ...formData.customActivities];
-      console.log("Farmer registration:", { ...formData, allActivities });
-      router.push("/auth/register/farmer");
+      
+      const farmerData = {
+        farmName: formData.farmName,
+        location: formData.location,
+        farmSize: formData.farmSize,
+        yearEst: formData.yearEst,
+        farmDescription: formData.farmDescription,
+        farmType: formData.farmType,
+        accommodation: formData.accommodation,
+        maxGuests: formData.maxGuests,
+        allActivities: allActivities,
+        facilities: formData.facilities,
+      };
+      
+      try {
+        const response = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: formData.name,
+            email: formData.email,
+            phone: formData.phone,
+            password: formData.password,
+            role: 'farmer',
+            farmerData: farmerData
+          }),
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error || 'Registration failed');
+        }
+        
+        localStorage.setItem('pendingVerificationEmail', formData.email);
+        router.push('/farmer/dashboard');
+        
+      } catch (error: any) {
+        console.error('Registration error:', error);
+        setError(error.message);
+      } finally {
+        setSubmitting(false);
+      }
     }
   };
 
@@ -199,6 +269,10 @@ export default function Farmereg() {
     { number: 3, title: "Activities & Facilities", description: "What visitors can enjoy" },
     { number: 4, title: "Media & Verification", description: "Showcase your farm" },
   ];
+
+  const isDocUploaded = (docKey: string) => {
+    return formData.documents[docKey as keyof typeof formData.documents] !== null;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-950 via-emerald-900 to-amber-950 py-8 px-4">
@@ -254,6 +328,12 @@ export default function Farmereg() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="bg-red-500/20 border border-red-500/30 rounded-xl p-3">
+                <p className="text-red-400 text-sm text-center">{error}</p>
+              </div>
+            )}
+
             <AnimatePresence mode="wait">
               {/* Step 1: Account Setup */}
               {step === 1 && (
@@ -386,7 +466,6 @@ export default function Farmereg() {
                     <p className="text-sm text-red-400">{errors.password || errors.confirmPassword}</p>
                   )}
 
-                  {/* Login Button Section */}
                   <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">
                       <div className="w-full border-t border-white/20"></div>
@@ -425,13 +504,15 @@ export default function Farmereg() {
                 >
                   <div className="space-y-2">
                     <label className="block text-white/80 font-medium text-base">
-                      Farm Name
+                      Farm Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       name="farmName"
                       value={formData.farmName}
                       onChange={handleChange}
-                      className="w-full px-5 py-3.5 bg-white/10 border border-white/20 rounded-2xl text-white text-base placeholder:text-white/30 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+                      className={`w-full px-5 py-3.5 bg-white/10 border ${
+                        errors.farmName ? 'border-red-400' : 'border-white/20'
+                      } rounded-2xl text-white text-base placeholder:text-white/30 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20`}
                       placeholder="Green Acres Farm"
                     />
                     {errors.farmName && <p className="text-sm text-red-400">{errors.farmName}</p>}
@@ -440,7 +521,7 @@ export default function Farmereg() {
                   <div className="grid md:grid-cols-2 gap-5">
                     <div className="space-y-2">
                       <label className="block text-white/80 font-medium text-base">
-                        Farm Size (acres)
+                        Farm Size (acres) <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
                         <Ruler className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />
@@ -449,10 +530,13 @@ export default function Farmereg() {
                           type="number"
                           value={formData.farmSize}
                           onChange={handleChange}
-                          className="w-full pl-12 pr-4 py-3.5 bg-white/10 border border-white/20 rounded-2xl text-white text-base placeholder:text-white/30 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+                          className={`w-full pl-12 pr-4 py-3.5 bg-white/10 border ${
+                            errors.farmSize ? 'border-red-400' : 'border-white/20'
+                          } rounded-2xl text-white text-base placeholder:text-white/30 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20`}
                           placeholder="5"
                         />
                       </div>
+                      {errors.farmSize && <p className="text-sm text-red-400">{errors.farmSize}</p>}
                     </div>
 
                     <div className="space-y-2">
@@ -475,7 +559,7 @@ export default function Farmereg() {
 
                   <div className="space-y-2">
                     <label className="block text-white/80 font-medium text-base">
-                      Farm Location
+                      Farm Location <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />
@@ -483,11 +567,35 @@ export default function Farmereg() {
                         name="location"
                         value={formData.location}
                         onChange={handleChange}
-                        className="w-full pl-12 pr-4 py-3.5 bg-white/10 border border-white/20 rounded-2xl text-white text-base placeholder:text-white/30 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+                        className={`w-full pl-12 pr-4 py-3.5 bg-white/10 border ${
+                          errors.location ? 'border-red-400' : 'border-white/20'
+                        } rounded-2xl text-white text-base placeholder:text-white/30 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20`}
                         placeholder="Kiambu, Kenya"
                       />
                     </div>
                     {errors.location && <p className="text-sm text-red-400">{errors.location}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-white/80 font-medium text-base">
+                      Farm Description <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      name="farmDescription"
+                      rows={4}
+                      value={formData.farmDescription}
+                      onChange={handleChange}
+                      className={`w-full px-5 py-3.5 bg-white/10 border ${
+                        errors.farmDescription ? 'border-red-400' : 'border-white/20'
+                      } rounded-2xl text-white text-base placeholder:text-white/30 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20`}
+                      placeholder="Describe your farm, what makes it special, what visitors can expect..."
+                    />
+                    {errors.farmDescription && (
+                      <p className="text-sm text-red-400 flex items-center gap-1">
+                        <AlertCircle className="h-4 w-4" />
+                        {errors.farmDescription}
+                      </p>
+                    )}
                   </div>
 
                   <div className="bg-white/5 rounded-2xl p-5 border border-white/10">
@@ -518,7 +626,6 @@ export default function Farmereg() {
                   exit={{ opacity: 0, x: -20 }}
                   className="space-y-6"
                 >
-                  {/* Farm Type */}
                   <div>
                     <label className="block text-white/80 font-medium text-base mb-3">
                       Farm Type
@@ -542,7 +649,6 @@ export default function Farmereg() {
                     </div>
                   </div>
 
-                  {/* Activities Section */}
                   <div>
                     <label className="block text-white/80 font-medium text-base mb-3">
                       Activities Offered
@@ -574,7 +680,6 @@ export default function Farmereg() {
                       ))}
                     </div>
 
-                    {/* Custom Activity Input */}
                     <div className="mt-4 bg-white/5 rounded-xl p-4">
                       <p className="text-white/60 text-sm mb-3">Don't see your activity? Add a custom one:</p>
                       <div className="grid grid-cols-2 gap-3 mb-3">
@@ -607,7 +712,6 @@ export default function Farmereg() {
                       </button>
                     </div>
 
-                    {/* Selected Activities Tags */}
                     {allSelectedActivities.length > 0 && (
                       <div className="mt-4">
                         <p className="text-white/60 text-sm mb-2">Selected Activities:</p>
@@ -641,7 +745,6 @@ export default function Farmereg() {
                     )}
                   </div>
 
-                  {/* Facilities */}
                   <div>
                     <label className="block text-white/80 font-medium text-base mb-3">
                       Facilities
@@ -675,7 +778,6 @@ export default function Farmereg() {
                     </div>
                   </div>
 
-                  {/* Accommodation */}
                   <div className="grid md:grid-cols-2 gap-5">
                     <div>
                       <label className="block text-white/80 font-medium text-base mb-2">
@@ -705,16 +807,27 @@ export default function Farmereg() {
 
                     <div>
                       <label className="block text-white/80 font-medium text-base mb-2">
-                        Max Guests
+                        Max Guests {formData.accommodation && <span className="text-red-400 text-sm">*</span>}
                       </label>
                       <input
                         name="maxGuests"
                         type="number"
                         value={formData.maxGuests}
                         onChange={handleChange}
-                        className="w-full px-4 py-2.5 bg-white/10 border border-white/20 rounded-xl text-white text-base placeholder:text-white/30 focus:outline-none focus:border-accent"
-                        placeholder="20"
+                        className={`w-full px-4 py-2.5 bg-white/10 border ${
+                          errors.maxGuests ? 'border-red-400' : 'border-white/20'
+                        } rounded-xl text-white text-base placeholder:text-white/30 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20`}
+                        placeholder={formData.accommodation ? "e.g., 20 (required)" : "Optional"}
                       />
+                      {errors.maxGuests && (
+                        <p className="mt-1 text-sm text-red-400 flex items-center gap-1">
+                          <AlertCircle className="h-4 w-4" />
+                          {errors.maxGuests}
+                        </p>
+                      )}
+                      {formData.accommodation && !errors.maxGuests && formData.maxGuests && (
+                        <p className="mt-1 text-xs text-green-400">✓ Can accommodate up to {formData.maxGuests} guests</p>
+                      )}
                     </div>
                   </div>
                 </motion.div>
@@ -734,14 +847,35 @@ export default function Farmereg() {
                       Farm Photos
                     </label>
                     <div className="grid grid-cols-4 gap-3">
-                      {[1, 2, 3, 4].map((i) => (
+                      {formData.photos.map((photo, index) => (
+                        <div key={index} className="aspect-square bg-accent/20 rounded-xl flex flex-col items-center justify-center">
+                          <CheckCircle className="h-6 w-6 text-green-400 mb-1" />
+                          <span className="text-xs text-white/60">Uploaded</span>
+                        </div>
+                      ))}
+                      {[...Array(Math.max(0, 4 - formData.photos.length))].map((_, i) => (
                         <label
                           key={i}
                           className="aspect-square bg-white/5 border-2 border-dashed border-white/20 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 transition-colors"
                         >
-                          <input type="file" accept="image/*" className="hidden" />
-                          <Camera className="h-6 w-6 text-white/40 mb-1" />
-                          <span className="text-xs text-white/40">Upload</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              if (e.target.files?.[0]) {
+                                handleFileUpload("photos", e.target.files[0]);
+                              }
+                            }}
+                          />
+                          {uploading.photo ? (
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                          ) : (
+                            <>
+                              <Camera className="h-6 w-6 text-white/40 mb-1" />
+                              <span className="text-xs text-white/40">Upload</span>
+                            </>
+                          )}
                         </label>
                       ))}
                     </div>
@@ -777,22 +911,35 @@ export default function Farmereg() {
                             <span className="text-2xl">{doc.icon}</span>
                             <span className="text-white/80">{doc.label}</span>
                           </div>
-                          <label className="cursor-pointer">
-                            <input
-                              type="file"
-                              accept=".pdf,.jpg,.jpeg,.png"
-                              className="hidden"
-                              onChange={(e) => {
-                                if (e.target.files?.[0]) {
-                                  handleFileUpload(`documents.${doc.key}`, e.target.files[0]);
-                                }
-                              }}
-                            />
-                            <div className="flex items-center gap-1 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-white text-sm transition-colors">
-                              <Upload className="h-4 w-4" />
-                              Upload
+                          {isDocUploaded(doc.key) ? (
+                            <div className="flex items-center gap-2 text-green-400">
+                              <CheckCircle className="h-4 w-4" />
+                              <span className="text-sm">Uploaded</span>
                             </div>
-                          </label>
+                          ) : (
+                            <label className="cursor-pointer">
+                              <input
+                                type="file"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                className="hidden"
+                                onChange={(e) => {
+                                  if (e.target.files?.[0]) {
+                                    handleFileUpload(`documents.${doc.key}`, e.target.files[0]);
+                                  }
+                                }}
+                              />
+                              <div className="flex items-center gap-1 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-white text-sm transition-colors">
+                                {uploading.document ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                ) : (
+                                  <>
+                                    <Upload className="h-4 w-4" />
+                                    Upload
+                                  </>
+                                )}
+                              </div>
+                            </label>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -832,10 +979,20 @@ export default function Farmereg() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   type="submit"
-                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-accent hover:bg-accent/90 text-white rounded-xl font-medium transition-all"
+                  disabled={submitting}
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-accent hover:bg-accent/90 text-white rounded-xl font-medium transition-all disabled:opacity-50"
                 >
-                  Submit for Review
-                  <Shield className="h-5 w-5" />
+                  {submitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      Submit for Review
+                      <Shield className="h-5 w-5" />
+                    </>
+                  )}
                 </motion.button>
               )}
             </div>
