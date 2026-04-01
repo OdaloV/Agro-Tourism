@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield,
@@ -29,94 +30,188 @@ import {
   LogOut,
 } from "lucide-react";
 
-// Mock pending verifications
-const pendingVerifications = [
-  {
-    id: 1,
-    farmName: "Green Acres Farm",
-    farmerName: "John Mutua",
-    location: "Kiambu, Kenya",
-    submittedDate: "2024-03-18",
-    documents: {
-      titleDeed: { status: "pending", issue: null },
-      digitalSearch: { status: "pending", issue: null },
-      businessPermit: { status: "pending", issue: null },
-      nationalId: { status: "pending", issue: null },
-    },
-    status: "pending",
-  },
-  {
-    id: 2,
-    farmName: "Highland Orchard",
-    farmerName: "Mary Wanjiku",
-    location: "Nyeri, Kenya",
-    submittedDate: "2024-03-17",
-    documents: {
-      titleDeed: {
-        status: "rejected",
-        issue: "Blurry document - text not readable",
-      },
-      digitalSearch: { status: "pending", issue: null },
-      businessPermit: { status: "pending", issue: null },
-      nationalId: { status: "pending", issue: null },
-    },
-    status: "pending",
-  },
-];
+// Types
+type StatColor = 'amber' | 'green' | 'emerald' | 'accent';
 
-// Mock verified farms
-const verifiedFarms = [
-  {
-    id: 1,
-    farmName: "Sunrise Dairy",
-    farmerName: "Peter Omondi",
-    location: "Nakuru, Kenya",
-    verifiedDate: "2024-03-15",
-    rating: 4.8,
-    bookings: 24,
-    status: "active",
-  },
-];
+interface PendingFarm {
+  id: number;
+  profile_id: number;
+  farm_name: string;
+  farmer_name: string;
+  farm_location: string;
+  submitted_at: string;
+  verification_status: string;
+  user_id: number;
+  email: string;
+  phone: string;
+  documents: Array<{ type: string; url: string }>;
+}
+
+interface VerifiedFarm {
+  id: number;
+  farm_name: string;
+  farmer_name: string;
+  farm_location: string;
+  verified_date: string;
+  rating: number;
+  bookings: number;
+}
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<
-    "pending" | "verified" | "reports"
-  >("pending");
-  const [selectedFarm, setSelectedFarm] = useState<any>(null);
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<"pending" | "verified" | "reports">("pending");
+  const [pendingFarms, setPendingFarms] = useState<PendingFarm[]>([]);
+  const [verifiedFarms, setVerifiedFarms] = useState<VerifiedFarm[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedFarm, setSelectedFarm] = useState<PendingFarm | null>(null);
   const [rejectionNote, setRejectionNote] = useState("");
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [processingId, setProcessingId] = useState<number | null>(null);
 
-  const stats = {
-    pending: pendingVerifications.length,
-    verified: verifiedFarms.length,
-    totalFarmers: pendingVerifications.length + verifiedFarms.length,
-    totalBookings: 156,
-    totalRevenue: 245000,
+  // Check authentication on mount
+  useEffect(() => {
+    const userData = localStorage.getItem("userData");
+    const userRole = localStorage.getItem("userRole");
+    
+    if (!userData || userRole !== "admin") {
+      router.push("/auth/login/admin");
+      return;
+    }
+    
+    fetchPendingVerifications();
+    fetchVerifiedFarms();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+    
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("isAuthenticated");
+    localStorage.removeItem("userData");
+    
+    router.push("/auth");
   };
 
-  const handleApprove = (farm: any) => {
-    console.log("Approving farm:", farm);
-    // In real app, this would trigger notification and update status
-    alert(`Farm "${farm.farmName}" has been approved and is now live!`);
+  const fetchPendingVerifications = async () => {
+    try {
+      const response = await fetch('/api/admin/verifications?status=pending');
+      const data = await response.json();
+      setPendingFarms(data);
+    } catch (error) {
+      console.error("Error fetching pending farms:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleReject = (farm: any) => {
+  const fetchVerifiedFarms = async () => {
+    try {
+      const response = await fetch('/api/admin/verifications?status=approved');
+      const data = await response.json();
+      setVerifiedFarms(data.map((farm: any) => ({
+        id: farm.profile_id,
+        farm_name: farm.farm_name,
+        farmer_name: farm.farmer_name,
+        farm_location: farm.farm_location,
+        verified_date: farm.verified_at || farm.submitted_at,
+        rating: 4.5,
+        bookings: 0,
+      })));
+    } catch (error) {
+      console.error("Error fetching verified farms:", error);
+    }
+  };
+
+  const handleApprove = async (farm: PendingFarm) => {
+    setProcessingId(farm.profile_id);
+    try {
+      const response = await fetch('/api/admin/verifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profileId: farm.profile_id,
+          status: 'approved',
+          notes: '',
+          adminId: 1
+        })
+      });
+
+      if (response.ok) {
+        alert(`Farm "${farm.farm_name}" has been approved and is now live!`);
+        setPendingFarms(prev => prev.filter(f => f.profile_id !== farm.profile_id));
+        fetchVerifiedFarms();
+      } else {
+        throw new Error("Failed to approve");
+      }
+    } catch (error) {
+      console.error("Error approving farm:", error);
+      alert("Failed to approve farm. Please try again.");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleReject = async (farm: PendingFarm) => {
     if (!rejectionNote) {
       alert("Please provide a reason for rejection");
       return;
     }
-    console.log("Rejecting farm:", farm, "Reason:", rejectionNote);
-    setShowRejectModal(false);
-    setRejectionNote("");
-    alert(
-      `Farm "${farm.farmName}" has been rejected. Farmer will be notified.`,
-    );
+
+    setProcessingId(farm.profile_id);
+    try {
+      const response = await fetch('/api/admin/verifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profileId: farm.profile_id,
+          status: 'rejected',
+          notes: rejectionNote,
+          adminId: 1
+        })
+      });
+
+      if (response.ok) {
+        alert(`Farm "${farm.farm_name}" has been rejected. Farmer will be notified.`);
+        setShowRejectModal(false);
+        setRejectionNote("");
+        setPendingFarms(prev => prev.filter(f => f.profile_id !== farm.profile_id));
+      } else {
+        throw new Error("Failed to reject");
+      }
+    } catch (error) {
+      console.error("Error rejecting farm:", error);
+      alert("Failed to reject farm. Please try again.");
+    } finally {
+      setProcessingId(null);
+    }
   };
 
-  const handleViewDocuments = (farm: any) => {
-    setSelectedFarm(farm);
+  const stats = {
+    pending: pendingFarms.length,
+    verified: verifiedFarms.length,
+    totalFarmers: pendingFarms.length + verifiedFarms.length,
+    totalBookings: 156,
+    totalRevenue: 245000,
   };
+
+  const filteredPendingFarms = pendingFarms.filter(farm =>
+    farm.farm_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    farm.farmer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    farm.farm_location.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-emerald-100/30">
@@ -150,6 +245,15 @@ export default function AdminDashboard() {
               </div>
               <button className="p-2 hover:bg-emerald-50 rounded-xl transition-colors">
                 <Settings className="h-5 w-5 text-emerald-600" />
+              </button>
+              {/* Logout Button */}
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-600 rounded-xl transition-colors"
+                title="Logout"
+              >
+                <LogOut className="h-5 w-5" />
+                <span className="text-sm hidden sm:inline">Logout</span>
               </button>
             </div>
           </div>
@@ -213,20 +317,25 @@ export default function AdminDashboard() {
         {/* Pending Verifications Tab */}
         {activeTab === "pending" && (
           <div className="space-y-4">
-            {pendingVerifications.map((farm) => (
-              <VerificationCard
-                key={farm.id}
-                farm={farm}
-                onApprove={() => handleApprove(farm)}
-                onReject={() => setShowRejectModal(true)}
-                onViewDocuments={() => handleViewDocuments(farm)}
-              />
-            ))}
-            {pendingVerifications.length === 0 && (
+            {filteredPendingFarms.length === 0 ? (
               <div className="text-center py-12 bg-white rounded-2xl border border-emerald-100">
                 <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
                 <p className="text-emerald-600">No pending verifications</p>
               </div>
+            ) : (
+              filteredPendingFarms.map((farm) => (
+                <VerificationCard
+                  key={farm.profile_id}
+                  farm={farm}
+                  onApprove={() => handleApprove(farm)}
+                  onReject={() => {
+                    setSelectedFarm(farm);
+                    setShowRejectModal(true);
+                  }}
+                  onViewDocuments={() => setSelectedFarm(farm)}
+                  processing={processingId === farm.profile_id}
+                />
+              ))
             )}
           </div>
         )}
@@ -234,9 +343,16 @@ export default function AdminDashboard() {
         {/* Verified Farms Tab */}
         {activeTab === "verified" && (
           <div className="space-y-4">
-            {verifiedFarms.map((farm) => (
-              <VerifiedFarmCard key={farm.id} farm={farm} />
-            ))}
+            {verifiedFarms.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-2xl border border-emerald-100">
+                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
+                <p className="text-emerald-600">No verified farms yet</p>
+              </div>
+            ) : (
+              verifiedFarms.map((farm) => (
+                <VerifiedFarmCard key={farm.id} farm={farm} />
+              ))
+            )}
           </div>
         )}
 
@@ -285,12 +401,13 @@ export default function AdminDashboard() {
       )}
 
       {/* Rejection Modal */}
-      {showRejectModal && (
+      {showRejectModal && selectedFarm && (
         <RejectionModal
-          onConfirm={() =>
-            handleReject(selectedFarm || pendingVerifications[0])
-          }
-          onClose={() => setShowRejectModal(false)}
+          onConfirm={() => handleReject(selectedFarm)}
+          onClose={() => {
+            setShowRejectModal(false);
+            setRejectionNote("");
+          }}
           note={rejectionNote}
           setNote={setRejectionNote}
         />
@@ -299,9 +416,14 @@ export default function AdminDashboard() {
   );
 }
 
-// Helper Components
-function StatCard({ icon: Icon, label, value, color }: any) {
-  const colors = {
+// Stat Card Component
+function StatCard({ icon: Icon, label, value, color }: { 
+  icon: any;
+  label: string;
+  value: number;
+  color: StatColor;
+}) {
+  const colors: Record<StatColor, string> = {
     amber: "bg-amber-50 text-amber-600",
     green: "bg-green-50 text-green-600",
     emerald: "bg-emerald-50 text-emerald-600",
@@ -319,7 +441,14 @@ function StatCard({ icon: Icon, label, value, color }: any) {
   );
 }
 
-function TabButton({ active, onClick, icon: Icon, label, count }: any) {
+// Tab Button Component
+function TabButton({ active, onClick, icon: Icon, label, count }: { 
+  active: boolean;
+  onClick: () => void;
+  icon: any;
+  label: string;
+  count: number | null;
+}) {
   return (
     <button
       onClick={onClick}
@@ -346,14 +475,14 @@ function TabButton({ active, onClick, icon: Icon, label, count }: any) {
   );
 }
 
-function VerificationCard({ farm, onApprove, onReject, onViewDocuments }: any) {
-  const hasRejected = Object.values(farm.documents).some(
-    (doc: any) => doc.status === "rejected",
-  );
-  const rejectedDocs = Object.entries(farm.documents).filter(
-    ([_, doc]: any) => doc.status === "rejected",
-  );
-
+// Verification Card Component
+function VerificationCard({ farm, onApprove, onReject, onViewDocuments, processing }: { 
+  farm: PendingFarm;
+  onApprove: () => void;
+  onReject: () => void;
+  onViewDocuments: () => void;
+  processing: boolean;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -365,61 +494,29 @@ function VerificationCard({ farm, onApprove, onReject, onViewDocuments }: any) {
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
               <h3 className="text-lg font-heading font-semibold text-emerald-900">
-                {farm.farmName}
+                {farm.farm_name}
               </h3>
-              {hasRejected && (
-                <span className="flex items-center gap-1 text-xs px-2 py-0.5 bg-red-100 text-red-600 rounded-full">
-                  <AlertCircle className="h-3 w-3" />
-                  Action Required
-                </span>
-              )}
             </div>
             <p className="text-sm text-emerald-600">
-              {farm.farmerName} • {farm.location}
+              {farm.farmer_name} • {farm.farm_location}
             </p>
             <p className="text-xs text-emerald-400 mt-1">
-              Submitted: {farm.submittedDate}
+              Submitted: {new Date(farm.submitted_at).toLocaleDateString()}
             </p>
 
-            {/* Document Status */}
             <div className="flex flex-wrap gap-2 mt-4">
-              {Object.entries(farm.documents).map(([docName, doc]: any) => (
+              {farm.documents && farm.documents.map((doc: any, idx: number) => (
                 <span
-                  key={docName}
-                  className={`text-xs px-2 py-1 rounded-full ${
-                    doc.status === "verified"
-                      ? "bg-green-100 text-green-600"
-                      : doc.status === "rejected"
-                        ? "bg-red-100 text-red-600"
-                        : "bg-amber-100 text-amber-600"
-                  }`}
+                  key={idx}
+                  className="text-xs px-2 py-1 bg-emerald-100 text-emerald-600 rounded-full"
                 >
-                  {doc.status === "rejected"
-                    ? `❌ ${docName.replace(/([A-Z])/g, " $1").trim()}`
-                    : doc.status === "verified"
-                      ? `✓ ${docName.replace(/([A-Z])/g, " $1").trim()}`
-                      : `⏳ ${docName.replace(/([A-Z])/g, " $1").trim()}`}
+                  📄 {doc.type?.replace(/_/g, ' ')}
                 </span>
               ))}
+              {(!farm.documents || farm.documents.length === 0) && (
+                <span className="text-xs text-emerald-400">No documents uploaded</span>
+              )}
             </div>
-
-            {/* Rejection Details */}
-            {hasRejected && (
-              <div className="mt-4 p-3 bg-red-50 rounded-xl border border-red-200">
-                <p className="text-xs font-medium text-red-700 mb-2">
-                  Issues to fix:
-                </p>
-                {rejectedDocs.map(([docName, doc]: any) => (
-                  <p
-                    key={docName}
-                    className="text-xs text-red-600 flex items-start gap-1"
-                  >
-                    <AlertCircle className="h-3 w-3 flex-shrink-0 mt-0.5" />
-                    {docName.replace(/([A-Z])/g, " $1").trim()}: {doc.issue}
-                  </p>
-                ))}
-              </div>
-            )}
           </div>
 
           <div className="flex gap-2">
@@ -432,15 +529,17 @@ function VerificationCard({ farm, onApprove, onReject, onViewDocuments }: any) {
             </button>
             <button
               onClick={onReject}
-              className="px-4 py-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors text-sm font-medium"
+              disabled={processing}
+              className="px-4 py-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors text-sm font-medium disabled:opacity-50"
             >
               Reject
             </button>
             <button
               onClick={onApprove}
-              className="px-4 py-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-100 transition-colors text-sm font-medium"
+              disabled={processing}
+              className="px-4 py-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-100 transition-colors text-sm font-medium disabled:opacity-50"
             >
-              Approve
+              {processing ? "Processing..." : "Approve"}
             </button>
           </div>
         </div>
@@ -449,14 +548,15 @@ function VerificationCard({ farm, onApprove, onReject, onViewDocuments }: any) {
   );
 }
 
-function VerifiedFarmCard({ farm }: any) {
+// Verified Farm Card Component
+function VerifiedFarmCard({ farm }: { farm: VerifiedFarm }) {
   return (
     <div className="bg-white rounded-2xl border border-emerald-100 p-6">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
             <h3 className="text-lg font-heading font-semibold text-emerald-900">
-              {farm.farmName}
+              {farm.farm_name}
             </h3>
             <span className="flex items-center gap-1 text-xs px-2 py-0.5 bg-green-100 text-green-600 rounded-full">
               <CheckCircle className="h-3 w-3" />
@@ -464,7 +564,7 @@ function VerifiedFarmCard({ farm }: any) {
             </span>
           </div>
           <p className="text-sm text-emerald-600">
-            {farm.farmerName} • {farm.location}
+            {farm.farmer_name} • {farm.farm_location}
           </p>
           <div className="flex items-center gap-4 mt-2 text-sm text-emerald-500">
             <span className="flex items-center gap-1">
@@ -477,7 +577,7 @@ function VerifiedFarmCard({ farm }: any) {
             </span>
             <span className="flex items-center gap-1">
               <CheckCircle className="h-4 w-4" />
-              Verified {farm.verifiedDate}
+              Verified {new Date(farm.verified_date).toLocaleDateString()}
             </span>
           </div>
         </div>
@@ -489,7 +589,13 @@ function VerifiedFarmCard({ farm }: any) {
   );
 }
 
-function ReportCard({ title, description, icon: Icon, href }: any) {
+// Report Card Component
+function ReportCard({ title, description, icon: Icon, href }: { 
+  title: string;
+  description: string;
+  icon: any;
+  href: string;
+}) {
   return (
     <Link href={href}>
       <div className="p-4 border border-emerald-100 rounded-xl hover:shadow-md transition-all cursor-pointer group">
@@ -505,61 +611,58 @@ function ReportCard({ title, description, icon: Icon, href }: any) {
   );
 }
 
-function DocumentPreviewModal({ farm, onClose }: any) {
+// Document Preview Modal Component
+function DocumentPreviewModal({ farm, onClose }: { 
+  farm: PendingFarm;
+  onClose: () => void;
+}) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
         <div className="p-4 border-b border-emerald-100 flex items-center justify-between">
           <h3 className="text-lg font-heading font-semibold text-emerald-900">
-            {farm.farmName} - Verification Documents
+            {farm.farm_name} - Verification Documents
           </h3>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-emerald-50 rounded-lg"
-          >
+          <button onClick={onClose} className="p-1 hover:bg-emerald-50 rounded-lg">
             <XCircle className="h-5 w-5 text-emerald-500" />
           </button>
         </div>
         <div className="p-6 overflow-y-auto max-h-[calc(80vh-80px)] space-y-4">
-          {Object.entries(farm.documents).map(([docName, doc]: any) => (
-            <div
-              key={docName}
-              className="border border-emerald-100 rounded-xl p-4"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-medium text-emerald-900">
-                  {docName.replace(/([A-Z])/g, " $1").trim()}
-                </span>
-                <span
-                  className={`text-xs px-2 py-1 rounded-full ${
-                    doc.status === "verified"
-                      ? "bg-green-100 text-green-600"
-                      : doc.status === "rejected"
-                        ? "bg-red-100 text-red-600"
-                        : "bg-amber-100 text-amber-600"
-                  }`}
-                >
-                  {doc.status}
-                </span>
+          {farm.documents && farm.documents.length > 0 ? (
+            farm.documents.map((doc: any, idx: number) => (
+              <div key={idx} className="border border-emerald-100 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-medium text-emerald-900">
+                    {doc.type?.replace(/_/g, ' ').toUpperCase()}
+                  </span>
+                  <a
+                    href={doc.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-sm text-accent hover:underline"
+                  >
+                    <Eye className="h-4 w-4" />
+                    View Document
+                  </a>
+                </div>
               </div>
-              {doc.issue && (
-                <p className="text-sm text-red-600 mt-2 p-2 bg-red-50 rounded-lg">
-                  Issue: {doc.issue}
-                </p>
-              )}
-              <button className="mt-3 flex items-center gap-1 text-sm text-accent hover:underline">
-                <Eye className="h-4 w-4" />
-                View Document
-              </button>
-            </div>
-          ))}
+            ))
+          ) : (
+            <p className="text-center text-emerald-500 py-8">No documents uploaded</p>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function RejectionModal({ onConfirm, onClose, note, setNote }: any) {
+// Rejection Modal Component
+function RejectionModal({ onConfirm, onClose, note, setNote }: { 
+  onConfirm: () => void;
+  onClose: () => void;
+  note: string;
+  setNote: (note: string) => void;
+}) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl max-w-md w-full">
@@ -604,7 +707,7 @@ function RejectionModal({ onConfirm, onClose, note, setNote }: any) {
   );
 }
 
-// Add missing import for Activity
+// Activity Icon Component
 function Activity(props: any) {
   return (
     <svg
