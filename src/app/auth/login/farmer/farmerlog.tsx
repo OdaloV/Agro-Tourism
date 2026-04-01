@@ -24,43 +24,35 @@ export default function FarmerLogin() {
     setLoading(true);
 
     try {
-      // In production, call your API
-      // const response = await fetch('/api/auth/login', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ 
-      //     email: formData.email, 
-      //     password: formData.password, 
-      //     role: 'farmer' 
-      //   })
-      // });
-      // const data = await response.json();
-
-      // Mock API response for demo
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Call the actual API
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: formData.email, 
+          password: formData.password, 
+          role: 'farmer' 
+        })
+      });
       
-      // Mock farmer data (in production, this comes from your API)
-      const mockFarmer = {
-        id: 1,
-        name: "John Mwangi",
-        email: formData.email,
-        verificationStatus: "pending", // pending, approved, rejected
-        farmName: "Green Acres Farm",
-        farmLocation: "Kiambu, Kenya",
-        submittedAt: "2024-03-20",
-      };
-
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed');
+      }
+      
       // Store user data
       localStorage.setItem("userRole", "farmer");
       localStorage.setItem("isAuthenticated", "true");
-      localStorage.setItem("farmerData", JSON.stringify(mockFarmer));
-      localStorage.setItem("verificationStatus", mockFarmer.verificationStatus);
+      localStorage.setItem("userData", JSON.stringify(data.user)); // Use userData consistently
+      localStorage.setItem("verificationStatus", data.user.verificationStatus || 'pending');
 
       // Redirect to farmer dashboard
       router.push("/farmer/dashboard");
 
-    } catch (err) {
-      setError("Invalid email or password. Please try again.");
+    } catch (err: any) {
+      console.error("Login error:", err);
+      setError(err.message || "Invalid email or password. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -164,8 +156,17 @@ export default function FarmerLogin() {
               disabled={loading}
               className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-accent hover:bg-accent/90 text-white rounded-xl transition-all font-medium disabled:opacity-50"
             >
-              {loading ? "Signing in..." : "Sign In"}
-              <ArrowRight className="h-5 w-5" />
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  Signing in...
+                </>
+              ) : (
+                <>
+                  Sign In
+                  <ArrowRight className="h-5 w-5" />
+                </>
+              )}
             </motion.button>
           </form>
 
