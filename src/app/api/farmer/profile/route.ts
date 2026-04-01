@@ -15,18 +15,40 @@ export async function GET(request: Request) {
 
     const result = await pool.query(
       `SELECT 
-         u.id, u.name, u.email, u.phone,
-         fp.*,
+         u.id,
+         u.name,
+         u.email,
+         u.phone,
+         fp.farm_name as "farmName",
+         fp.farm_location as "farmLocation",
+         fp.farm_size as "farmSize",
+         fp.year_established as "yearEstablished",
+         fp.farm_description as "farmDescription",
+         fp.farm_type as "farmType",
+         fp.accommodation,
+         fp.max_guests as "maxGuests",
+         fp.verification_status as "verificationStatus",
+         fp.submitted_at as "submittedAt",
          COALESCE(array_agg(DISTINCT a.activity_name) FILTER (WHERE a.activity_name IS NOT NULL), '{}') as activities,
          COALESCE(array_agg(DISTINCT f.facility_name) FILTER (WHERE f.facility_name IS NOT NULL), '{}') as facilities,
-         COALESCE(array_agg(DISTINCT m.media_url) FILTER (WHERE m.media_url IS NOT NULL), '{}') as photos,
-         COALESCE(array_agg(DISTINCT d.document_type) FILTER (WHERE d.document_type IS NOT NULL), '{}') as documents
+         COUNT(DISTINCT m.id) as "farmPhotos",
+         fp.video_link as "videoLink",
+         json_build_object(
+           'businessLicense', EXISTS(SELECT 1 FROM farmer_documents d WHERE d.farmer_id = fp.id AND d.document_type = 'businessLicense'),
+           'nationalId', EXISTS(SELECT 1 FROM farmer_documents d WHERE d.farmer_id = fp.id AND d.document_type = 'nationalId'),
+           'insurance', EXISTS(SELECT 1 FROM farmer_documents d WHERE d.farmer_id = fp.id AND d.document_type = 'insurance'),
+           'certifications', EXISTS(SELECT 1 FROM farmer_documents d WHERE d.farmer_id = fp.id AND d.document_type = 'certifications')
+         ) as documents,
+         json_build_object(
+           'profileViews', 0,
+           'bookings', 0,
+           'rating', 0
+         ) as stats
        FROM users u
        LEFT JOIN farmer_profiles fp ON u.id = fp.user_id
        LEFT JOIN farmer_activities a ON fp.id = a.farmer_id
        LEFT JOIN farmer_facilities f ON fp.id = f.farmer_id
        LEFT JOIN farmer_media m ON fp.id = m.farmer_id AND m.media_type = 'photo'
-       LEFT JOIN farmer_documents d ON fp.id = d.farmer_id
        WHERE u.id = $1
        GROUP BY u.id, fp.id`,
       [userId]
@@ -62,15 +84,29 @@ export async function PUT(request: Request) {
       );
     }
 
-    // Build dynamic update query
     const fields = [];
     const values = [];
     let paramIndex = 1;
 
+    const fieldMappings: Record<string, string> = {
+      farmName: 'farm_name',
+      farmLocation: 'farm_location',
+      farmSize: 'farm_size',
+      yearEstablished: 'year_established',
+      farmDescription: 'farm_description',
+      farmType: 'farm_type',
+      accommodation: 'accommodation',
+      maxGuests: 'max_guests',
+      videoLink: 'video_link',
+    };
+
     for (const [key, value] of Object.entries(updateData)) {
-      fields.push(`${key} = $${paramIndex}`);
-      values.push(value);
-      paramIndex++;
+      const dbField = fieldMappings[key];
+      if (dbField && value !== undefined) {
+        fields.push(`${dbField} = $${paramIndex}`);
+        values.push(value);
+        paramIndex++;
+      }
     }
 
     if (fields.length === 0) {
