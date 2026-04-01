@@ -28,6 +28,7 @@ import {
   X,
   ChevronRight,
   ChevronLeft,
+  LogIn,
 } from "lucide-react";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { ACTIVITY_CATEGORIES } from "@/app/profile/farmerprofile/options";
@@ -192,7 +193,6 @@ export default function Farmereg() {
 
   const allSelectedActivities = [...formData.activities, ...formData.customActivities];
 
-  // Step titles for better readability
   const stepTitles = [
     { number: 1, title: "Account Setup", description: "Create your login credentials" },
     { number: 2, title: "Farm Details", description: "Tell us about your farm" },
@@ -209,7 +209,7 @@ export default function Farmereg() {
           icon={<Tractor className="w-10 h-10 text-accent" />}
           role="farmer"
         >
-          {/* Progress Steps - Simplified */}
+          {/* Progress Steps */}
           <div className="mb-10">
             <div className="flex items-center justify-between">
               {[1, 2, 3, 4].map((s) => (
@@ -385,6 +385,32 @@ export default function Farmereg() {
                   {(errors.password || errors.confirmPassword) && (
                     <p className="text-sm text-red-400">{errors.password || errors.confirmPassword}</p>
                   )}
+
+                  {/* Login Button Section */}
+                  <div className="relative my-6">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-white/20"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="px-4 bg-transparent text-white/40">Already have an account?</span>
+                    </div>
+                  </div>
+
+                  <Link href="/auth/login/farmer">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      type="button"
+                      className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-all font-medium border border-white/20"
+                    >
+                      <LogIn className="h-5 w-5" />
+                      Login to Existing Account
+                    </motion.button>
+                  </Link>
+
+                  <p className="text-center text-xs text-white/40 mt-4">
+                    Already verified? Login to access your farmer dashboard
+                  </p>
                 </motion.div>
               )}
 
@@ -483,7 +509,7 @@ export default function Farmereg() {
                 </motion.div>
               )}
 
-              {/* Step 3: Activities & Facilities - Cleaner Design */}
+              {/* Step 3: Activities & Facilities */}
               {step === 3 && (
                 <motion.div
                   key="step3"
