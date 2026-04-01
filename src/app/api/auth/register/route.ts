@@ -1,6 +1,18 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
+import { SignJWT } from 'jose';
 import pool from '@/lib/db';
+
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || 'your-secret-key-change-in-production'
+);
+
+// Convert empty strings / nullish values to null for integer DB columns
+const toIntOrNull = (val: any): number | null => {
+  if (val === '' || val === null || val === undefined) return null;
+  const n = Number(val);
+  return isNaN(n) ? null : n;
+};
 
 export async function POST(request: Request) {
   try {
@@ -59,12 +71,12 @@ export async function POST(request: Request) {
             userId,
             farmerData.farmName,
             farmerData.location,
-            farmerData.farmSize,
-            farmerData.yearEst,
+            toIntOrNull(farmerData.farmSize),       // was: farmerData.farmSize
+            toIntOrNull(farmerData.yearEst),         // was: farmerData.yearEst
             farmerData.farmDescription,
             farmerData.farmType,
             farmerData.accommodation,
-            farmerData.maxGuests,
+            toIntOrNull(farmerData.maxGuests),       // was: farmerData.maxGuests (confirmed culprit — $9)
             'pending',
             new Date()
           ]
@@ -100,11 +112,50 @@ export async function POST(request: Request) {
 
       await client.query('COMMIT');
 
-      return NextResponse.json({
+      // Create JWT token for auto-login after registration
+      const token = await new SignJWT({
+        id: userResult.rows[0].id,
+        email: userResult.rows[0].email,
+        role: userResult.rows[0].role
+      })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setExpirationTime('7d')
+        .sign(JWT_SECRET);
+
+      const user = userResult.rows[0];
+
+      // Create response with cookies
+      const response = NextResponse.json({
         success: true,
-        user: userResult.rows[0],
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          isVerified: false,
+          verificationStatus: 'pending'
+        },
         requiresVerification: role === 'farmer'
       });
+
+      // Set cookies for authentication
+      response.cookies.set('auth_token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+        path: '/',
+      });
+      
+      response.cookies.set('user_role', user.role, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7,
+        path: '/',
+      });
+
+      return response;
 
     } catch (error) {
       await client.query('ROLLBACK');
