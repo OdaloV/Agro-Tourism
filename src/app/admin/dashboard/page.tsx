@@ -128,68 +128,76 @@ export default function AdminDashboard() {
   };
 
   const handleApprove = async (farm: PendingFarm) => {
-    setProcessingId(farm.profile_id);
-    try {
-      const response = await fetch('/api/admin/verifications', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          profileId: farm.profile_id,
-          status: 'approved',
-          notes: '',
-          adminId: 1
-        })
-      });
+  setProcessingId(farm.profile_id);
+  try {
+    // Get the actual logged-in admin's ID from localStorage
+    const userData = localStorage.getItem("userData");
+    const adminId = userData ? JSON.parse(userData).id : null;
+    
+    const response = await fetch('/api/admin/verifications', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        profileId: farm.profile_id,
+        status: 'approved',
+        notes: '',
+        adminId: adminId  // ← Use actual admin ID (26)
+      })
+    });
 
-      if (response.ok) {
-        alert(`Farm "${farm.farm_name}" has been approved and is now live!`);
-        setPendingFarms(prev => prev.filter(f => f.profile_id !== farm.profile_id));
-        fetchVerifiedFarms();
-      } else {
-        throw new Error("Failed to approve");
-      }
-    } catch (error) {
-      console.error("Error approving farm:", error);
-      alert("Failed to approve farm. Please try again.");
-    } finally {
-      setProcessingId(null);
+    if (response.ok) {
+      alert(`Farm "${farm.farm_name}" has been approved and is now live!`);
+      setPendingFarms(prev => prev.filter(f => f.profile_id !== farm.profile_id));
+      fetchVerifiedFarms();
+    } else {
+      throw new Error("Failed to approve");
     }
-  };
+  } catch (error) {
+    console.error("Error approving farm:", error);
+    alert("Failed to approve farm. Please try again.");
+  } finally {
+    setProcessingId(null);
+  }
+};
 
-  const handleReject = async (farm: PendingFarm) => {
-    if (!rejectionNote) {
-      alert("Please provide a reason for rejection");
-      return;
+const handleReject = async (farm: PendingFarm) => {
+  if (!rejectionNote) {
+    alert("Please provide a reason for rejection");
+    return;
+  }
+
+  setProcessingId(farm.profile_id);
+  try {
+    // Get the actual logged-in admin's ID from localStorage
+    const userData = localStorage.getItem("userData");
+    const adminId = userData ? JSON.parse(userData).id : null;
+    
+    const response = await fetch('/api/admin/verifications', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        profileId: farm.profile_id,
+        status: 'rejected',
+        notes: rejectionNote,
+        adminId: adminId 
+      })
+    });
+
+    if (response.ok) {
+      alert(`Farm "${farm.farm_name}" has been rejected. Farmer will be notified.`);
+      setShowRejectModal(false);
+      setRejectionNote("");
+      setPendingFarms(prev => prev.filter(f => f.profile_id !== farm.profile_id));
+    } else {
+      throw new Error("Failed to reject");
     }
-
-    setProcessingId(farm.profile_id);
-    try {
-      const response = await fetch('/api/admin/verifications', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          profileId: farm.profile_id,
-          status: 'rejected',
-          notes: rejectionNote,
-          adminId: 1
-        })
-      });
-
-      if (response.ok) {
-        alert(`Farm "${farm.farm_name}" has been rejected. Farmer will be notified.`);
-        setShowRejectModal(false);
-        setRejectionNote("");
-        setPendingFarms(prev => prev.filter(f => f.profile_id !== farm.profile_id));
-      } else {
-        throw new Error("Failed to reject");
-      }
-    } catch (error) {
-      console.error("Error rejecting farm:", error);
-      alert("Failed to reject farm. Please try again.");
-    } finally {
-      setProcessingId(null);
-    }
-  };
+  } catch (error) {
+    console.error("Error rejecting farm:", error);
+    alert("Failed to reject farm. Please try again.");
+  } finally {
+    setProcessingId(null);
+  }
+};
 
   const stats = {
     pending: pendingFarms.length,
