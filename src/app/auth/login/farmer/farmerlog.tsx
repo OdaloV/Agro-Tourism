@@ -24,7 +24,6 @@ export default function FarmerLogin() {
     setLoading(true);
 
     try {
-      // Call the actual API
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -41,13 +40,11 @@ export default function FarmerLogin() {
         throw new Error(data.error || 'Login failed');
       }
       
-      // Store user data
       localStorage.setItem("userRole", "farmer");
       localStorage.setItem("isAuthenticated", "true");
-      localStorage.setItem("userData", JSON.stringify(data.user)); // Use userData consistently
+      localStorage.setItem("userData", JSON.stringify(data.user));
       localStorage.setItem("verificationStatus", data.user.verificationStatus || 'pending');
 
-      // Redirect to farmer dashboard
       router.push("/farmer/dashboard");
 
     } catch (err: any) {
