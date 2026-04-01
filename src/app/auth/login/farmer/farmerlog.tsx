@@ -4,26 +4,66 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Mail, Lock, ArrowRight, Eye, EyeOff, Tractor } from "lucide-react";
+import { Mail, Lock, ArrowRight, Eye, EyeOff, Tractor, AlertCircle } from "lucide-react";
 import { AuthCard } from "@/components/auth/AuthCard";
 
 export default function FarmerLogin() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     rememberMe: false,
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Farmer login:", formData);
+    setError("");
+    setLoading(true);
 
-    localStorage.setItem("userRole", "farmer");
-    localStorage.setItem("isAuthenticated", "true");
+    try {
+      // In production, call your API
+      // const response = await fetch('/api/auth/login', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ 
+      //     email: formData.email, 
+      //     password: formData.password, 
+      //     role: 'farmer' 
+      //   })
+      // });
+      // const data = await response.json();
 
-    router.push("/auth/register/farmer");
+      // Mock API response for demo
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Mock farmer data (in production, this comes from your API)
+      const mockFarmer = {
+        id: 1,
+        name: "John Mwangi",
+        email: formData.email,
+        verificationStatus: "pending", // pending, approved, rejected
+        farmName: "Green Acres Farm",
+        farmLocation: "Kiambu, Kenya",
+        submittedAt: "2024-03-20",
+      };
+
+      // Store user data
+      localStorage.setItem("userRole", "farmer");
+      localStorage.setItem("isAuthenticated", "true");
+      localStorage.setItem("farmerData", JSON.stringify(mockFarmer));
+      localStorage.setItem("verificationStatus", mockFarmer.verificationStatus);
+
+      // Redirect to farmer dashboard
+      router.push("/farmer/dashboard");
+
+    } catch (err) {
+      setError("Invalid email or password. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -36,6 +76,18 @@ export default function FarmerLogin() {
           role="farmer"
         >
           <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Error Message */}
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex items-center gap-2"
+              >
+                <AlertCircle className="h-5 w-5 text-red-400" />
+                <p className="text-sm text-red-400">{error}</p>
+              </motion.div>
+            )}
+
             <div className="space-y-2">
               <label className="block text-sm font-medium text-white/80">
                 Email Address
@@ -109,9 +161,10 @@ export default function FarmerLogin() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               type="submit"
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-accent hover:bg-accent/90 text-white rounded-xl transition-all font-medium"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-accent hover:bg-accent/90 text-white rounded-xl transition-all font-medium disabled:opacity-50"
             >
-              Sign In
+              {loading ? "Signing in..." : "Sign In"}
               <ArrowRight className="h-5 w-5" />
             </motion.button>
           </form>
@@ -119,7 +172,7 @@ export default function FarmerLogin() {
           <p className="mt-6 text-center text-sm text-white/40">
             New to HarvestHost?{" "}
             <Link
-              href="/auth/login/farmer"
+              href="/auth/register/farmer"
               className="text-accent hover:text-accent/80 font-medium hover:underline"
             >
               Register your farm
