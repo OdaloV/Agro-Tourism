@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
+import { SignJWT } from 'jose';
 import pool from '@/lib/db';
+
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || 'your-secret-key-change-in-production'
+);
 
 export async function POST(request: Request) {
   try {
@@ -13,7 +18,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get user with farmer profile if exists
     const result = await pool.query(
       `SELECT u.*, 
               fp.verification_status,
@@ -33,9 +37,8 @@ export async function POST(request: Request) {
     }
 
     const user = result.rows[0];
-
-    // Verify password
     const isValid = await bcrypt.compare(password, user.password_hash);
+
     if (!isValid) {
       return NextResponse.json(
         { error: 'Invalid credentials' },
@@ -43,10 +46,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // Remove password from response
+    // Create JWT token
+    const token = await new SignJWT({
+      id: user.id,
+      email: user.email,
+      role: user.role
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setExpirationTime('7d')
+      .sign(JWT_SECRET);
+
     delete user.password_hash;
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       user: {
         id: user.id,
@@ -60,6 +72,25 @@ export async function POST(request: Request) {
         farmerProfileId: user.farmer_profile_id
       }
     });
+
+    // Set cookie for middleware
+    response.cookies.set('auth_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: '/',
+    });
+    
+    response.cookies.set('user_role', user.role, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7,
+      path: '/',
+    });
+
+    return response;
 
   } catch (error: any) {
     console.error('Login error:', error);
