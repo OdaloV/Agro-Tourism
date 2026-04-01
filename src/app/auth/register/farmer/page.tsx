@@ -1,5 +1,5 @@
-import Farmereg from './farmereg'
+import Farmereg from "./farmereg";
 
 export default function Page() {
-  return <Farmereg />
+  return <Farmereg />;
 }

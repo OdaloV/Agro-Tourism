@@ -1,5 +1,5 @@
-import Visitoreg from './visitoreg'
+import Visitoreg from "./visitoreg";
 
 export default function Page() {
-  return <Visitoreg />
-} 
+  return <Visitoreg />;
+}
