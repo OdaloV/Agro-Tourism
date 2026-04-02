@@ -16,6 +16,30 @@ const toIntOrNull = (val: any): number | null => {
   return isNaN(n) ? null : n;
 };
 
+// ADD THIS HELPER FUNCTION
+const savePhotos = async (client: any, farmerId: number, photos: string[]) => {
+  if (!photos || photos.length === 0) return;
+  
+  for (let i = 0; i < photos.length; i++) {
+    const photoBase64 = photos[i];
+    const matches = photoBase64.match(/^data:image\/([A-Za-z-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      console.error(`Invalid photo format for index ${i}`);
+      continue;
+    }
+    
+    const imageType = matches[1];
+    const base64Data = matches[2];
+    const buffer = Buffer.from(base64Data, 'base64');
+    
+    await client.query(
+      `INSERT INTO farmer_photos (farmer_id, photo_data, photo_type, sort_order, created_at)
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [farmerId, buffer, imageType, i]
+    );
+  }
+};
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -62,7 +86,6 @@ export async function POST(request: Request) {
 
       // If farmer, insert farmer profile
       if (role === 'farmer' && farmerData) {
-
         
         // Get verification setting from database
         const settingsResult = await client.query(
@@ -70,7 +93,6 @@ export async function POST(request: Request) {
         );
         const verificationRequired = settingsResult.rows[0]?.value === 'true';
        
-        
         const profileResult = await client.query(
           `INSERT INTO farmer_profiles (
             user_id, farm_name, farm_location, farm_size, year_established,
@@ -88,7 +110,7 @@ export async function POST(request: Request) {
             farmerData.farmType,
             farmerData.accommodation,
             toIntOrNull(farmerData.maxGuests),
-            verificationRequired ? 'pending' : 'approved',  // ← Changed from hardcoded 'pending'
+            verificationRequired ? 'pending' : 'approved',
             new Date()
           ]
         );
@@ -121,6 +143,11 @@ export async function POST(request: Request) {
               [farmerId, facility]
             );
           }
+        }
+
+        // ========== ADD THIS: Insert photos ==========
+        if (farmerData.photos && farmerData.photos.length > 0) {
+          await savePhotos(client, farmerId, farmerData.photos);
         }
       }
 
@@ -157,7 +184,7 @@ export async function POST(request: Request) {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7, // 7 days
+        maxAge: 60 * 60 * 24 * 7,
         path: '/',
       });
       
