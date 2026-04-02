@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import pool from '@/lib/db';
+import { checkMaintenanceMode } from '@/lib/utils/checkMaintenance'; 
 
-// Add this at the beginning of the POST function
 export async function POST(request: Request) {
   try {
     console.log("=== VERIFICATION API CALLED ===");
@@ -81,10 +81,32 @@ export async function POST(request: Request) {
     }
     
     console.log("Documents saved successfully");
+  
+    // Get auto-approve setting from database
+    const settingsResult = await pool.query(
+      "SELECT value FROM platform_settings WHERE key = 'auto_approve'"
+    );
+    const autoApprove = settingsResult.rows[0]?.value === 'true';
+    
+    // Determine new verification status
+    const newStatus = autoApprove ? 'approved' : 'pending';
+    
+    // Update farmer profile verification status
+    await pool.query(
+      `UPDATE farmer_profiles 
+       SET verification_status = $1, 
+           verification_submitted_at = CURRENT_TIMESTAMP,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = $2`,
+      [newStatus, userId]
+    );
+    
+    console.log(`Verification status updated to: ${newStatus} (autoApprove: ${autoApprove})`);
     
     return NextResponse.json({
       success: true,
-      message: 'Documents submitted successfully'
+      message: 'Documents submitted successfully',
+      verificationStatus: newStatus
     });
     
   } catch (error: any) {
