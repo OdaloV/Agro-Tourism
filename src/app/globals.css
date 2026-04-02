@@ -1,3 +1,4 @@
+/* src/app/globals.css */
 @import "tailwindcss";
 
 @source "../../components/";
@@ -28,6 +29,27 @@
   --radius-xl: 1.5rem;
 }
 
+/* Dark mode variables */
+.dark {
+  --color-background: #0f172a;
+  --color-foreground: #f8fafc;
+  --color-card: #1e293b;
+  --color-card-foreground: #f8fafc;
+  --color-primary: #22c55e;
+  --color-primary-foreground: #0f172a;
+  --color-secondary: #ef4444;
+  --color-secondary-foreground: #f8fafc;
+  --color-accent: #eab308;
+  --color-accent-foreground: #0f172a;
+  --color-muted: #334155;
+  --color-muted-foreground: #94a3b8;
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #f8fafc;
+  --color-border: #334155;
+  --color-input: #334155;
+  --color-ring: #22c55e;
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
@@ -50,23 +72,4 @@
   h6 {
     font-family: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
   }
-}
-/* Add dark mode color variables */
-:root {
-  --bg: #ffffff;
-  --text: #111827;
-  --card: #ffffff;
-  --border: #e5e7eb;
-}
-
-.dark {
-  --bg: #111827;
-  --text: #f9fafb;
-  --card: #1f2937;
-  --border: #374151;
-}
-
-body {
-  background-color: var(--bg);
-  color: var(--text);
 }
