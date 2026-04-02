@@ -51,3 +51,22 @@
     font-family: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
   }
 }
+/* Add dark mode color variables */
+:root {
+  --bg: #ffffff;
+  --text: #111827;
+  --card: #ffffff;
+  --border: #e5e7eb;
+}
+
+.dark {
+  --bg: #111827;
+  --text: #f9fafb;
+  --card: #1f2937;
+  --border: #374151;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+}
