@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { notifyFarmerApproved } from '@/lib/services/notificationService';
 
 export async function GET(request: Request) {
   try {
@@ -74,6 +75,23 @@ export async function PUT(request: Request) {
         'UPDATE users SET is_verified = $1, verified_by = $2, verified_at = CURRENT_TIMESTAMP WHERE id = $3',
         [status === 'approved', adminId, userId]
       );
+      const farmerDetails = await client.query(
+        'SELECT name, email FROM users WHERE id = $1',
+        [userId]
+      );
+      
+      const farmDetails = await client.query(
+        'SELECT farm_name FROM farmer_profiles WHERE id = $1',
+        [profileId]
+      );
+      
+      if (status === 'approved') {
+        await notifyFarmerApproved(
+          farmerDetails.rows[0].email,
+          farmerDetails.rows[0].name,
+          farmDetails.rows[0].farm_name
+        );
+      }
 
       await client.query('COMMIT');
 
