@@ -26,6 +26,7 @@ import {
   Edit,
   Ruler,
   LogOut,
+  DollarSign,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -61,14 +62,27 @@ interface FarmerData {
   };
 }
 
+interface EarningItem {
+  id: number;
+  activityName: string;
+  farmName: string;
+  bookingDate: string;
+  guests: number;
+  amount: number;
+  platformFee: number;
+  farmerEarning: number;
+}
+
 export default function FarmerDashboard() {
   const router = useRouter();
   const [farmer, setFarmer] = useState<FarmerData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [recentEarnings, setRecentEarnings] = useState<EarningItem[]>([]);
+  const [totalEarnings, setTotalEarnings] = useState(0);
+  const [totalPlatformFee, setTotalPlatformFee] = useState(0);
 
-  // Handle mounting to prevent hydration errors
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -78,7 +92,6 @@ export default function FarmerDashboard() {
 
     const fetchFarmerData = async () => {
       try {
-        // Get user data from localStorage
         const userData = localStorage.getItem("userData");
         
         if (!userData) {
@@ -88,11 +101,8 @@ export default function FarmerDashboard() {
         }
 
         const user = JSON.parse(userData);
-        console.log("User data from localStorage:", user);
         
-        // Check if user is pending verification
         if (user.verificationStatus === 'pending') {
-          console.log("User is pending verification, showing pending state");
           setFarmer({
             id: user.id || 1,
             name: user.name || "Farmer",
@@ -128,8 +138,6 @@ export default function FarmerDashboard() {
           return;
         }
         
-        // Fetch from API only if not pending
-        console.log("Fetching farmer profile from API for user:", user.id);
         const response = await fetch(`/api/farmer/profile?userId=${user.id}`);
         
         if (!response.ok) {
@@ -137,11 +145,18 @@ export default function FarmerDashboard() {
         }
         
         const data = await response.json();
-        console.log("Farmer data from API:", data);
         setFarmer(data);
+        
+        // Fetch earnings data
+        const earningsResponse = await fetch(`/api/farmer/earnings?farmerId=${data.id}`);
+        if (earningsResponse.ok) {
+          const earningsData = await earningsResponse.json();
+          setRecentEarnings(earningsData.recent || []);
+          setTotalEarnings(earningsData.total || 0);
+          setTotalPlatformFee(earningsData.platformFee || 0);
+        }
       } catch (error) {
         console.error("Error fetching farmer data:", error);
-        // Fallback to basic data from localStorage
         const userData = localStorage.getItem("userData");
         if (userData) {
           const user = JSON.parse(userData);
@@ -192,7 +207,6 @@ export default function FarmerDashboard() {
     router.push("/auth");
   };
 
-  // Show loading until mounted and data is loaded
   if (!mounted || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -226,7 +240,7 @@ export default function FarmerDashboard() {
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-100/30">
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         
-        {/* Header with Verification Banner */}
+        {/* Header */}
         <div className="mb-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
@@ -236,7 +250,6 @@ export default function FarmerDashboard() {
               <p className="text-emerald-600 mt-1">Manage your farm and track bookings</p>
             </div>
             
-            {/* Logout Button */}
             <button
               onClick={handleLogout}
               className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-600 rounded-xl transition-colors"
@@ -280,7 +293,7 @@ export default function FarmerDashboard() {
           </div>
         </div>
 
-        {/* Stats Grid - Only show if approved */}
+        {/* Stats Grid */}
         {isApproved && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <StatCard
@@ -305,10 +318,10 @@ export default function FarmerDashboard() {
               color="amber"
             />
             <StatCard
-              icon={Users}
-              label="Visitors"
-              value={0}
-              suffix="this month"
+              icon={DollarSign}
+              label="Total Earnings"
+              value={totalEarnings}
+              prefix="KES "
               color="blue"
             />
           </div>
@@ -549,6 +562,59 @@ export default function FarmerDashboard() {
                 </div>
               )}
             </motion.div>
+
+            {/* Earnings Section - Only for approved farmers */}
+            {isApproved && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25 }}
+                className="bg-white rounded-2xl shadow-sm border border-emerald-100 p-6"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-heading font-semibold text-emerald-900">Recent Earnings</h3>
+                  <Link href="/farmer/earnings">
+                    <button className="text-sm text-accent hover:underline">View All</button>
+                  </Link>
+                </div>
+                
+                <div className="space-y-3">
+                  {recentEarnings.length === 0 ? (
+                    <div className="text-center py-6">
+                      <DollarSign className="h-8 w-8 text-emerald-300 mx-auto mb-2" />
+                      <p className="text-sm text-emerald-500">No earnings yet</p>
+                    </div>
+                  ) : (
+                    recentEarnings.map((earning) => (
+                      <div key={earning.id} className="flex justify-between items-center p-3 bg-emerald-50 rounded-xl">
+                        <div>
+                          <p className="font-medium text-emerald-900">{earning.activityName}</p>
+                          <p className="text-xs text-emerald-500">
+                            {new Date(earning.bookingDate).toLocaleDateString()} • {earning.guests} guests
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500 line-through">KES {earning.amount}</p>
+                          <p className="text-xs text-red-500">-KES {earning.platformFee} (10%)</p>
+                          <p className="font-bold text-green-600">KES {earning.farmerEarning}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                
+                <div className="mt-4 pt-4 border-t border-emerald-100">
+                  <div className="flex justify-between items-center">
+                    <span className="text-emerald-700">Total Earnings</span>
+                    <span className="text-2xl font-bold text-emerald-900">KES {totalEarnings.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center mt-2 text-sm text-emerald-500">
+                    <span>Total Bookings: {farmer.stats.bookings}</span>
+                    <span>Platform Fee: KES {totalPlatformFee.toLocaleString()}</span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
             
             {/* Documents Status Card - Only show if pending or rejected */}
             {(isPending || isRejected) && (
@@ -631,11 +697,12 @@ export default function FarmerDashboard() {
 }
 
 // Stat Card Component
-function StatCard({ icon: Icon, label, value, suffix, color }: { 
+function StatCard({ icon: Icon, label, value, suffix, prefix, color }: { 
   icon: any;
   label: string;
   value: number | string;
   suffix?: string;
+  prefix?: string;
   color: 'emerald' | 'accent' | 'amber' | 'blue';
 }) {
   const colors = {
@@ -651,8 +718,7 @@ function StatCard({ icon: Icon, label, value, suffix, color }: {
         <Icon className="h-5 w-5" />
       </div>
       <p className="text-2xl font-bold text-emerald-900 mt-3">
-        {value}
-        {suffix && <span className="text-sm font-normal ml-1">{suffix}</span>}
+        {prefix}{value}{suffix}
       </p>
       <p className="text-sm text-emerald-600 mt-0.5">{label}</p>
     </div>
