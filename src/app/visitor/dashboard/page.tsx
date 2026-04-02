@@ -200,7 +200,7 @@ export default function VisitorDashboard() {
             label="Favorite Farms" 
             value={favorites.length} 
             color="red" 
-            onClick={() => setActiveTab("favorites")}
+            onClick={() => router.push("/visitor/dashboard/favorites")}
           />
           <StatCard 
             icon={Star} 
@@ -248,6 +248,22 @@ export default function VisitorDashboard() {
             href="/visitor/dashboard/settings"
             color="gray"
           />
+          <QuickActionCard 
+           icon={Calendar} 
+           title="My Bookings" 
+           description="Manage your farm experiences"
+           href="/visitor/dashboard/bookings"
+           color="blue"
+          />
+          <QuickActionCard 
+            icon={Heart} 
+            title="Favorites" 
+            description="Your saved farms"
+            href="/visitor/dashboard/favorites"
+            color="red"
+           />
+          
+
         </div>
 
         <div className="grid lg:grid-cols-2 gap-6">
@@ -261,7 +277,7 @@ export default function VisitorDashboard() {
                   <p className="text-sm text-emerald-500">Your scheduled farm experiences</p>
                 </div>
                 <button 
-                  onClick={() => setActiveTab("bookings")}
+                  onClick={() => router.push("/visitor/dashboard/bookings")}
                   className="text-accent text-sm hover:underline flex items-center gap-1"
                 >
                   View All <ChevronRight className="h-4 w-4" />
