@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { checkMaintenanceMode } from '@/lib/utils/checkMaintenance'; 
 
 export async function GET(request: Request) {
   try {
