@@ -40,12 +40,10 @@ export default function AdminLogin() {
         throw new Error(data.error || 'Login failed');
       }
       
-      // Store user data
       localStorage.setItem("userRole", "admin");
       localStorage.setItem("isAuthenticated", "true");
       localStorage.setItem("userData", JSON.stringify(data.user));
       
-      // Redirect to admin dashboard
       router.push("/admin/dashboard");
       
     } catch (err: any) {
@@ -66,7 +64,6 @@ export default function AdminLogin() {
           role="admin"
         >
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Error Message */}
             {error && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
@@ -167,27 +164,6 @@ export default function AdminLogin() {
               )}
             </motion.button>
           </form>
-
-          {/* Demo login for development */}
-          <div className="mt-6 pt-4 border-t border-white/20">
-            <p className="text-center text-xs text-white/40 mb-3">
-              Demo Admin Access
-            </p>
-            <button
-              onClick={() => {
-                setFormData({
-                  email: "harvesthost@gmail.com",
-                  password: "####admin2026",
-                  rememberMe: false,
-                });
-                setTimeout(() => handleSubmit(new Event("submit") as any), 100);
-              }}
-              className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-white/10 hover:bg-white/20 rounded-xl text-white text-sm transition-colors"
-            >
-              <Shield className="h-4 w-4" />
-              Continue as Demo Admin
-            </button>
-          </div>
         </AuthCard>
       </div>
     </div>
