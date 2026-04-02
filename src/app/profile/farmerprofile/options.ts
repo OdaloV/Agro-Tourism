@@ -31,6 +31,7 @@ export interface FarmerProfileData {
   
   // Step 5: Media
   farmPhotos: File[]
+  photoUrls: string[]
   farmVideo: string
   
   // Step 6: Verification
