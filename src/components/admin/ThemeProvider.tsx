@@ -14,13 +14,15 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function AdminThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('light');
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const savedTheme = localStorage.getItem('admin-theme') as Theme;
-    if (savedTheme) {
-      setTheme(savedTheme);
-      document.documentElement.classList.toggle('dark', savedTheme === 'dark');
-    }
+    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    const initialTheme = savedTheme || systemTheme;
+    setTheme(initialTheme);
+    document.documentElement.classList.toggle('dark', initialTheme === 'dark');
   }, []);
 
   const toggleTheme = () => {
@@ -29,6 +31,10 @@ export function AdminThemeProvider({ children }: { children: React.ReactNode }) 
     localStorage.setItem('admin-theme', newTheme);
     document.documentElement.classList.toggle('dark', newTheme === 'dark');
   };
+
+  if (!mounted) {
+    return <>{children}</>;
+  }
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
@@ -39,6 +45,8 @@ export function AdminThemeProvider({ children }: { children: React.ReactNode }) 
 
 export const useAdminTheme = () => {
   const context = useContext(ThemeContext);
-  if (!context) throw new Error('useAdminTheme must be used within AdminThemeProvider');
+  if (!context) {
+    throw new Error('useAdminTheme must be used within AdminThemeProvider');
+  }
   return context;
 };
