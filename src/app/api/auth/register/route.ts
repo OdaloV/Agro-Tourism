@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
 import pool from '@/lib/db';
+import { notifyNewFarmerRegistration } from '@/lib/services/notificationService';
+import { checkMaintenanceMode } from '@/lib/utils/checkMaintenance'; 
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'your-secret-key-change-in-production'
@@ -60,6 +62,15 @@ export async function POST(request: Request) {
 
       // If farmer, insert farmer profile
       if (role === 'farmer' && farmerData) {
+
+        
+        // Get verification setting from database
+        const settingsResult = await client.query(
+          "SELECT value FROM platform_settings WHERE key = 'verification_required'"
+        );
+        const verificationRequired = settingsResult.rows[0]?.value === 'true';
+       
+        
         const profileResult = await client.query(
           `INSERT INTO farmer_profiles (
             user_id, farm_name, farm_location, farm_size, year_established,
@@ -71,18 +82,21 @@ export async function POST(request: Request) {
             userId,
             farmerData.farmName,
             farmerData.location,
-            toIntOrNull(farmerData.farmSize),       // was: farmerData.farmSize
-            toIntOrNull(farmerData.yearEst),         // was: farmerData.yearEst
+            toIntOrNull(farmerData.farmSize),
+            toIntOrNull(farmerData.yearEst),
             farmerData.farmDescription,
             farmerData.farmType,
             farmerData.accommodation,
-            toIntOrNull(farmerData.maxGuests),       // was: farmerData.maxGuests (confirmed culprit — $9)
-            'pending',
+            toIntOrNull(farmerData.maxGuests),
+            verificationRequired ? 'pending' : 'approved',  // ← Changed from hardcoded 'pending'
             new Date()
           ]
         );
 
         const farmerId = profileResult.rows[0].id;
+        if (verificationRequired) {
+          await notifyNewFarmerRegistration(farmerData.farmName, farmerData.farmName);
+        }
 
         // Insert activities
         if (farmerData.allActivities && farmerData.allActivities.length > 0) {
