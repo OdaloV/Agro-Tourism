@@ -40,10 +40,12 @@ export default function AdminLogin() {
         throw new Error(data.error || 'Login failed');
       }
       
+      // Store user data
       localStorage.setItem("userRole", "admin");
       localStorage.setItem("isAuthenticated", "true");
       localStorage.setItem("userData", JSON.stringify(data.user));
       
+      // Redirect to admin dashboard
       router.push("/admin/dashboard");
       
     } catch (err: any) {
@@ -64,6 +66,7 @@ export default function AdminLogin() {
           role="admin"
         >
           <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Error Message */}
             {error && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
