@@ -1,80 +1,183 @@
 import { NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
+import { SignJWT } from 'jose';
 import pool from '@/lib/db';
+import { checkMaintenanceMode } from '@/lib/utils/checkMaintenance'; 
 
-export async function GET(request: Request) {
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || 'your-secret-key-change-in-production'
+);
+
+// Convert empty strings / nullish values to null for integer DB columns
+const toIntOrNull = (val: any): number | null => {
+  if (val === '' || val === null || val === undefined) return null;
+  const n = Number(val);
+  return isNaN(n) ? null : n;
+};
+
+export async function POST(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const location = searchParams.get('location');
-    const activity = searchParams.get('activity');
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const offset = parseInt(searchParams.get('offset') || '0');
+    const body = await request.json();
+    const { name, email, phone, password, role, farmerData } = body;
 
-    let query = `
-      SELECT 
-        fp.id,
-        fp.farm_name,
-        fp.farm_location,
-        fp.farm_description,
-        fp.accommodation,
-        fp.max_guests,
-        u.name as farmer_name,
-        u.phone,
-        u.email,
-        COALESCE(array_agg(DISTINCT a.activity_name) FILTER (WHERE a.activity_name IS NOT NULL), '{}') as activities,
-        COALESCE(array_agg(DISTINCT f.facility_name) FILTER (WHERE f.facility_name IS NOT NULL), '{}') as facilities,
-        COALESCE(array_agg(DISTINCT m.media_url) FILTER (WHERE m.media_url IS NOT NULL), '{}') as photos
-      FROM farmer_profiles fp
-      JOIN users u ON fp.user_id = u.id
-      LEFT JOIN farmer_activities a ON fp.id = a.farmer_id
-      LEFT JOIN farmer_facilities f ON fp.id = f.farmer_id
-      LEFT JOIN farmer_media m ON fp.id = m.farmer_id AND m.media_type = 'photo'
-      WHERE fp.verification_status = 'approved'
-    `;
-
-    const conditions: string[] = [];
-    const values: any[] = [];
-    let paramIndex = 1;
-
-    if (location) {
-      conditions.push(`fp.farm_location ILIKE $${paramIndex}`);
-      values.push(`%${location}%`);
-      paramIndex++;
+    // Validate required fields
+    if (!name || !email || !password || !role) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
     }
 
-    if (activity) {
-      conditions.push(`EXISTS (
-        SELECT 1 FROM farmer_activities a2 
-        WHERE a2.farmer_id = fp.id AND a2.activity_name ILIKE $${paramIndex}
-      )`);
-      values.push(`%${activity}%`);
-      paramIndex++;
-    }
-
-    if (conditions.length > 0) {
-      query += ` AND ${conditions.join(' AND ')}`;
-    }
-
-    query += ` GROUP BY fp.id, u.id LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-    values.push(limit, offset);
-
-    const result = await pool.query(query, values);
-
-    // Get total count
-    const countResult = await pool.query(
-      `SELECT COUNT(*) FROM farmer_profiles WHERE verification_status = 'approved'`
+    // Check if user already exists
+    const existingUser = await pool.query(
+      'SELECT id FROM users WHERE email = $1',
+      [email]
     );
 
-    return NextResponse.json({
-      farms: result.rows,
-      total: parseInt(countResult.rows[0].count),
-      limit,
-      offset
-    });
+    if (existingUser.rows.length > 0) {
+      return NextResponse.json(
+        { error: 'Email already registered' },
+        { status: 400 }
+      );
+    }
+
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Insert user
+      const userResult = await client.query(
+        `INSERT INTO users (name, email, phone, password_hash, role, is_verified)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING id, name, email, role`,
+        [name, email, phone, hashedPassword, role, role === 'visitor']
+      );
+
+      const userId = userResult.rows[0].id;
+
+      // If farmer, insert farmer profile
+      if (role === 'farmer' && farmerData) {
+        
+        // ========== ADD THIS SECTION ==========
+        // Get verification setting from database
+        const settingsResult = await client.query(
+          "SELECT value FROM platform_settings WHERE key = 'verification_required'"
+        );
+        const verificationRequired = settingsResult.rows[0]?.value === 'true';
+        // ======================================
+        
+        const profileResult = await client.query(
+          `INSERT INTO farmer_profiles (
+            user_id, farm_name, farm_location, farm_size, year_established,
+            farm_description, farm_type, accommodation, max_guests,
+            verification_status, submitted_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          RETURNING id`,
+          [
+            userId,
+            farmerData.farmName,
+            farmerData.location,
+            toIntOrNull(farmerData.farmSize),
+            toIntOrNull(farmerData.yearEst),
+            farmerData.farmDescription,
+            farmerData.farmType,
+            farmerData.accommodation,
+            toIntOrNull(farmerData.maxGuests),
+            verificationRequired ? 'pending' : 'approved',  // ← Changed from hardcoded 'pending'
+            new Date()
+          ]
+        );
+
+        const farmerId = profileResult.rows[0].id;
+
+        // Insert activities
+        if (farmerData.allActivities && farmerData.allActivities.length > 0) {
+          for (const activity of farmerData.allActivities) {
+            const activityName = activity.split('(')[0]?.trim() || activity;
+            const category = activity.includes('(') ? activity.split('(')[1]?.replace(')', '') : null;
+            
+            await client.query(
+              `INSERT INTO farmer_activities (farmer_id, activity_name, category, is_custom)
+               VALUES ($1, $2, $3, $4)`,
+              [farmerId, activityName, category, category ? true : false]
+            );
+          }
+        }
+
+        // Insert facilities
+        if (farmerData.facilities && farmerData.facilities.length > 0) {
+          for (const facility of farmerData.facilities) {
+            await client.query(
+              `INSERT INTO farmer_facilities (farmer_id, facility_name)
+               VALUES ($1, $2)`,
+              [farmerId, facility]
+            );
+          }
+        }
+      }
+
+      await client.query('COMMIT');
+
+      // Create JWT token for auto-login after registration
+      const token = await new SignJWT({
+        id: userResult.rows[0].id,
+        email: userResult.rows[0].email,
+        role: userResult.rows[0].role
+      })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setExpirationTime('7d')
+        .sign(JWT_SECRET);
+
+      const user = userResult.rows[0];
+
+      // Create response with cookies
+      const response = NextResponse.json({
+        success: true,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          isVerified: false,
+          verificationStatus: 'pending'
+        },
+        requiresVerification: role === 'farmer'
+      });
+
+      // Set cookies for authentication
+      response.cookies.set('auth_token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+        path: '/',
+      });
+      
+      response.cookies.set('user_role', user.role, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7,
+        path: '/',
+      });
+
+      return response;
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
 
   } catch (error: any) {
-    console.error('Error fetching farms:', error);
+    console.error('Registration error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch farms' },
+      { error: 'Registration failed', details: error.message },
       { status: 500 }
     );
   }
