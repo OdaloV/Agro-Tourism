@@ -24,7 +24,6 @@ const authRoutes = [
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
-  // ========== ADD MAINTENANCE MODE CHECK HERE ==========
   // Check if maintenance mode is enabled
   try {
     const result = await pool.query(
@@ -32,31 +31,43 @@ export async function proxy(request: NextRequest) {
     );
     const maintenanceMode = result.rows[0]?.value === 'true';
     
-    // Allow admin to access even during maintenance
-    const isAdminRoute = pathname.startsWith('/admin') || pathname.startsWith('/api/admin');
-    const isLoginRoute = pathname === '/auth/login/admin';
+    // Allow admin routes during maintenance
+    const isAdminRoute = pathname.startsWith('/admin') || 
+                         pathname.startsWith('/api/admin') ||
+                         pathname === '/auth/login/admin';
     
-    if (maintenanceMode && !isAdminRoute && !isLoginRoute) {
+    // Allow login pages during maintenance
+    const isLoginRoute = pathname === '/auth/login/admin' ||
+                         pathname === '/auth/login/farmer' ||
+                         pathname === '/auth/login/visitor';
+    
+    // Allow settings API during maintenance (so admins can turn it off)
+    const isSettingsApi = pathname.startsWith('/api/settings');
+    
+    if (maintenanceMode && !isAdminRoute && !isLoginRoute && !isSettingsApi) {
       // Return maintenance page
       return new NextResponse(
         `<!DOCTYPE html>
         <html>
         <head>
+          <meta charset="UTF-8">
           <title>Under Maintenance</title>
           <style>
-            body { font-family: system-ui; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: linear-gradient(135deg, #065f46, #047857); color: white; text-align: center; }
+            body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: linear-gradient(135deg, #065f46, #047857); color: white; text-align: center; }
             .container { padding: 2rem; }
-            h1 { font-size: 3rem; margin-bottom: 1rem; }
-            p { font-size: 1.2rem; opacity: 0.9; }
-            .icon { font-size: 4rem; margin-bottom: 1rem; }
+            h1 { font-size: 3rem; margin-bottom: 1rem; font-weight: 700; }
+            p { font-size: 1.2rem; opacity: 0.9; margin-bottom: 0.5rem; }
+            .icon { font-size: 5rem; margin-bottom: 1rem; }
+            .subtext { font-size: 0.9rem; opacity: 0.6; margin-top: 2rem; }
           </style>
         </head>
         <body>
           <div class="container">
-            <div class="icon">🚜</div>
+            <div class="icon">🔧</div>
             <h1>Under Maintenance</h1>
-            <p>We're currently updating our platform. Please check back soon!</p>
-            <p style="font-size: 0.9rem; margin-top: 2rem;">Thank you for your patience.</p>
+            <p>We're currently updating our platform.</p>
+            <p>Please check back soon!</p>
+            <div class="subtext">Thank you for your patience.</div>
           </div>
         </body>
         </html>`,
@@ -65,9 +76,7 @@ export async function proxy(request: NextRequest) {
     }
   } catch (error) {
     console.error('Error checking maintenance mode:', error);
-    // Continue normally if database query fails
   }
-  // ====================================================
   
   // Get auth from cookie
   const authToken = request.cookies.get('auth_token')?.value;
@@ -100,8 +109,7 @@ export async function proxy(request: NextRequest) {
   
   // Handle auth pages
   if (isAuthRoute && isAuthenticated) {
-    // ALWAYS allow access to specific login pages regardless of role
-    // This allows users to switch between roles
+    // Always allow access to specific login pages regardless of role
     if (isAdminLogin) {
       return NextResponse.next();
     }
@@ -141,5 +149,6 @@ export const config = {
     '/farmer/:path*',
     '/admin/:path*',
     '/auth/:path*',
+    '/api/:path*',
   ],
 };
