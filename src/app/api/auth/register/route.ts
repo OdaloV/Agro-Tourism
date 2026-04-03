@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
 import pool from '@/lib/db';
-import { notifyNewFarmerRegistration, sendRegistrationConfirmation, sendVerificationEmail } from '@/lib/services/notificationService';
+import { notifyNewFarmerRegistration, sendRegistrationConfirmation } from '@/lib/services/notificationService';
 import { checkMaintenanceMode } from '@/lib/utils/checkMaintenance'; 
 
 const JWT_SECRET = new TextEncoder().encode(
@@ -74,25 +74,21 @@ export async function POST(request: Request) {
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      // Generate verification code (6 digits)
-      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-      const codeExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+      // ✅ REMOVED: No longer generating verification code here
+      // Verification email will be sent after document submission
 
-      // Insert user with email_verified = false and verification code
+      // Insert user with email_verified = false (no verification code yet)
       const userResult = await client.query(
-        `INSERT INTO users (name, email, phone, password_hash, role, is_verified, email_verified, verification_code, verification_code_expires)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `INSERT INTO users (name, email, phone, password_hash, role, is_verified, email_verified)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING id, name, email, role`,
-        [name, email, phone, hashedPassword, role, role === 'visitor', false, verificationCode, codeExpires]
+        [name, email, phone, hashedPassword, role, role === 'visitor', false]
       );
 
       const userId = userResult.rows[0].id;
 
-      // ✅ STEP 6: Send verification email (for farmers and visitors, not admins)
-      if (role !== 'admin') {
-        await sendVerificationEmail(email, name, verificationCode);
-        console.log(`Verification email sent to ${email} with code: ${verificationCode}`);
-      }
+      // ✅ REMOVED: No longer sending verification email here
+      // Verification email will be sent after document submission
 
       // If farmer, insert farmer profile
       if (role === 'farmer' && farmerData) {
@@ -131,7 +127,7 @@ export async function POST(request: Request) {
           await notifyNewFarmerRegistration(farmerData.farmName, farmerData.farmName);
         }
         
-        // Send registration confirmation email
+        // Send registration confirmation email (tells farmer to complete verification)
         await sendRegistrationConfirmation(email, name, farmerData.farmName);
         
         // Insert activities
@@ -189,10 +185,10 @@ export async function POST(request: Request) {
           role: user.role,
           isVerified: false,
           verificationStatus: 'pending',
-          emailVerified: false  // ← Add this to let frontend know
+          emailVerified: false
         },
         requiresVerification: role === 'farmer',
-        requiresEmailVerification: role !== 'admin'  // ← Add this
+        requiresEmailVerification: false  // ← Changed to false (will be sent after documents)
       });
 
       // Set cookies for authentication
