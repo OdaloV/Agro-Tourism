@@ -37,6 +37,14 @@ export default function VisitorLogin() {
       const data = await response.json();
       
       if (!response.ok) {
+        // ✅ Check if verification is required
+        if (data.requiresVerification) {
+          // Store email for verification page
+          localStorage.setItem("pendingVerificationEmail", formData.email);
+          // Redirect to verification page
+          router.push("/auth/verify-email");
+          return;
+        }
         throw new Error(data.error || 'Login failed');
       }
       
