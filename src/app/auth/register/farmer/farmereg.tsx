@@ -187,58 +187,111 @@ export default function Farmereg() {
     setFormData(prev => ({ ...prev, [name]: value }));
     setErrors(prev => ({ ...prev, [name]: "" }));
   };
+const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  console.log("FILE INPUT onChange fired");
+  const files = e.target.files;
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("🖱️ FILE SELECTED - onChange triggered");
-    const files = e.target.files;
-    console.log("Files:", files);
-    
-    if (!files || files.length === 0) {
-      console.log("No files selected");
+  if (!files || files.length === 0) {
+    console.warn("No files in event — input may have been disabled mid-click");
+    return;
+  }
+
+  console.log(`Files received: ${files.length}`);
+  const filesArray = Array.from(files);
+  const slots = 10 - formData.photos.length;
+
+  if (filesArray.length > slots) {
+    setError(`Only ${slots} more photo(s) allowed`);
+    return;
+  }
+
+  // Accumulate first, THEN one single setFormData call
+  const newFiles: File[] = [];
+  const newPreviews: string[] = [];
+
+  filesArray.forEach((file, i) => {
+    console.log(`  [${i}] ${file.name} | ${file.type} | ${(file.size/1024).toFixed(1)}KB`);
+
+    if (!file.type.startsWith("image/")) {
+      setError(`${file.name} is not an image`);
       return;
     }
-    
-    console.log(`Selected ${files.length} file(s)`);
-    
-    const filesArray = Array.from(files);
-    const maxFiles = 10 - formData.photos.length;
-    
-    if (filesArray.length > maxFiles) {
-      setError(`You can only upload ${maxFiles} more photo(s)`);
+    if (file.size > 5 * 1024 * 1024) {
+      setError(`${file.name} exceeds 5MB`);
       return;
     }
+    newFiles.push(file);
+    newPreviews.push(URL.createObjectURL(file));
+  });
+
+  console.log(`Adding ${newFiles.length} file(s) to state`);
+
+  // Single update — no race condition
+  setFormData(prev => {
+    const updated = {
+      ...prev,
+      photos: [...prev.photos, ...newFiles],
+      photoPreviews: [...prev.photoPreviews, ...newPreviews],
+    };
+    console.log("State after update — photos:", updated.photos.length);
+    return updated;
+  });
+
+  // Clear so same file can be re-selected
+  if (fileInputRef.current) fileInputRef.current.value = "";
+};
+
+  // const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   console.log("🖱️ FILE SELECTED - onChange triggered");
+  //   const files = e.target.files;
+  //   console.log("Files:", files);
     
-    setUploading(true);
+  //   if (!files || files.length === 0) {
+  //     console.log("No files selected");
+  //     return;
+  //   }
     
-    filesArray.forEach((file, index) => {
-      console.log(`Processing file ${index + 1}: ${file.name}, ${(file.size / 1024).toFixed(2)}KB`);
-      
-      if (!file.type.startsWith('image/')) {
-        setError(`${file.name} is not an image`);
-        return;
-      }
-      
-      if (file.size > 5 * 1024 * 1024) {
-        setError(`${file.name} is larger than 5MB`);
-        return;
-      }
-      
-      const previewUrl = URL.createObjectURL(file);
-      
-      setFormData(prev => ({
-        ...prev,
-        photos: [...prev.photos, file],
-        photoPreviews: [...prev.photoPreviews, previewUrl]
-      }));
-    });
+  //   console.log(`Selected ${files.length} file(s)`);
     
-    setUploading(false);
+  //   const filesArray = Array.from(files);
+  //   const maxFiles = 10 - formData.photos.length;
     
-    // Clear the input so the same file can be selected again
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
+  //   if (filesArray.length > maxFiles) {
+  //     setError(`You can only upload ${maxFiles} more photo(s)`);
+  //     return;
+  //   }
+    
+  //   setUploading(true);
+    
+  //   filesArray.forEach((file, index) => {
+  //     console.log(`Processing file ${index + 1}: ${file.name}, ${(file.size / 1024).toFixed(2)}KB`);
+      
+  //     if (!file.type.startsWith('image/')) {
+  //       setError(`${file.name} is not an image`);
+  //       return;
+  //     }
+      
+  //     if (file.size > 5 * 1024 * 1024) {
+  //       setError(`${file.name} is larger than 5MB`);
+  //       return;
+  //     }
+      
+  //     const previewUrl = URL.createObjectURL(file);
+      
+  //     setFormData(prev => ({
+  //       ...prev,
+  //       photos: [...prev.photos, file],
+  //       photoPreviews: [...prev.photoPreviews, previewUrl]
+  //     }));
+  //   });
+    
+  //   setUploading(false);
+    
+  //   // Clear the input so the same file can be selected again
+  //   if (fileInputRef.current) {
+  //     fileInputRef.current.value = "";
+  //   }
+  // };
 
   const triggerFileUpload = () => {
     console.log("🖱️ Trigger file upload button clicked");
@@ -676,9 +729,16 @@ export default function Farmereg() {
         accept="image/jpeg,image/png,image/jpg,image/webp"
         multiple
         onChange={handleFileSelect}
-        disabled={uploading || formData.photoPreviews.length >= 10}
-        className="hidden"
-      />
+      disabled={formData.photoPreviews.length >= 10}
+  style={{
+    position: "absolute",
+    width: "1px",
+    height: "1px",
+    opacity: 0,
+    pointerEvents: "none",
+    overflow: "hidden",
+  }}
+/>
       
       {/* Visible button that triggers the hidden file input */}
       <button
