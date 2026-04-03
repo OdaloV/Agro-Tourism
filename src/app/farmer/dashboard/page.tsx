@@ -28,10 +28,11 @@ import {
   LogOut,
   LogIn,
   DollarSign,
+  MessageCircle,
+  List,
 } from "lucide-react";
 import Link from "next/link";
 import MediaGallery from './components/MediaGallery';
-
 
 interface Photo {
   id: number;
@@ -93,6 +94,7 @@ export default function FarmerDashboard() {
   const [recentEarnings, setRecentEarnings] = useState<EarningItem[]>([]);
   const [totalEarnings, setTotalEarnings] = useState(0);
   const [totalPlatformFee, setTotalPlatformFee] = useState(0);
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   useEffect(() => {
     setMounted(true);
@@ -102,129 +104,140 @@ export default function FarmerDashboard() {
     if (!mounted) return;
 
     const fetchFarmerData = async () => {
-  try {
-    const userData = localStorage.getItem("userData");
-    
-    if (!userData) {
-      console.log("No user data found, redirecting to login");
-      router.push("/auth/login/farmer");
-      return;
-    }
+      try {
+        const userData = localStorage.getItem("userData");
+        
+        if (!userData) {
+          console.log("No user data found, redirecting to login");
+          router.push("/auth/login/farmer");
+          return;
+        }
 
-    const user = JSON.parse(userData);
-    
-    if (user.verificationStatus === 'pending') {
-      setFarmer({
-        id: user.id || 1,
-        name: user.name || "Farmer",
-        email: user.email || "",
-        phone: user.phone || "",
-        farmName: user.farmName || "",
-        farmLocation: user.farmLocation || "",
-        farmSize: user.farmSize || "",
-        yearEstablished: user.yearEstablished || "",
-        farmDescription: user.farmDescription || "",
-        farmType: user.farmType || "",
-        activities: user.activities || [],
-        facilities: user.facilities || [],
-        accommodation: user.accommodation || false,
-        maxGuests: user.maxGuests || "",
-        farmPhotos: user.farmPhotos || 0,
-        videoLink: user.videoLink || "",
-        documents: {
-          businessLicense: false,
-          nationalId: false,
-          insurance: false,
-          certifications: false,
-        },
-        verificationStatus: "pending",
-        submittedAt: new Date().toISOString().split('T')[0],
-        stats: {
-          profileViews: 0,
-          bookings: 0,
-          rating: 0,
-        },
-      });
-      setLoading(false);
-      return;
-    }
-    
-    const response = await fetch(`/api/farmer/profile?userId=${user.id}`);
-    
-    if (!response.ok) {
-      throw new Error("Failed to fetch farmer data");
-    }
-    
-    const data = await response.json();
-    
-    // ✅ STEP 4: Also fetch photos separately
-    try {
-      const photosResponse = await fetch(`/api/farmer/photos`);
-      if (photosResponse.ok) {
-        const photosData = await photosResponse.json();
-        data.farmPhotos = photosData.photos?.length || 0;
-        // Optional: Also store the actual photos if you want to display them directly
-        data.photos = photosData.photos || [];
-      } else {
-        data.farmPhotos = 0;
+        const user = JSON.parse(userData);
+        
+        if (user.verificationStatus === 'pending') {
+          setFarmer({
+            id: user.id || 1,
+            name: user.name || "Farmer",
+            email: user.email || "",
+            phone: user.phone || "",
+            farmName: user.farmName || "",
+            farmLocation: user.farmLocation || "",
+            farmSize: user.farmSize || "",
+            yearEstablished: user.yearEstablished || "",
+            farmDescription: user.farmDescription || "",
+            farmType: user.farmType || "",
+            activities: user.activities || [],
+            facilities: user.facilities || [],
+            accommodation: user.accommodation || false,
+            maxGuests: user.maxGuests || "",
+            farmPhotos: user.farmPhotos || 0,
+            videoLink: user.videoLink || "",
+            documents: {
+              businessLicense: false,
+              nationalId: false,
+              insurance: false,
+              certifications: false,
+            },
+            verificationStatus: "pending",
+            submittedAt: new Date().toISOString().split('T')[0],
+            stats: {
+              profileViews: 0,
+              bookings: 0,
+              rating: 0,
+            },
+          });
+          setLoading(false);
+          return;
+        }
+        
+        const response = await fetch(`/api/farmer/profile?userId=${user.id}`);
+        
+        if (!response.ok) {
+          throw new Error("Failed to fetch farmer data");
+        }
+        
+        const data = await response.json();
+        
+        // Fetch photos separately
+        try {
+          const photosResponse = await fetch(`/api/farmer/photos`);
+          if (photosResponse.ok) {
+            const photosData = await photosResponse.json();
+            data.farmPhotos = photosData.photos?.length || 0;
+            data.photos = photosData.photos || [];
+          } else {
+            data.farmPhotos = 0;
+          }
+        } catch (photoError) {
+          console.error("Error fetching photos:", photoError);
+          data.farmPhotos = 0;
+        }
+        
+        // Fetch unread messages count
+        try {
+          const messagesResponse = await fetch(`/api/farmer/messages/unread-count`);
+          if (messagesResponse.ok) {
+            const messagesData = await messagesResponse.json();
+            setUnreadMessages(messagesData.count || 0);
+          }
+        } catch (msgError) {
+          console.error("Error fetching messages:", msgError);
+        }
+        
+        setFarmer(data);
+        
+        // Fetch earnings data
+        const earningsResponse = await fetch(`/api/farmer/earnings?farmerId=${data.id}`);
+        if (earningsResponse.ok) {
+          const earningsData = await earningsResponse.json();
+          setRecentEarnings(earningsData.recent || []);
+          setTotalEarnings(earningsData.total || 0);
+          setTotalPlatformFee(earningsData.platformFee || 0);
+        }
+      } catch (error) {
+        console.error("Error fetching farmer data:", error);
+        const userData = localStorage.getItem("userData");
+        if (userData) {
+          const user = JSON.parse(userData);
+          setFarmer({
+            id: user.id || 1,
+            name: user.name || "Farmer",
+            email: user.email || "",
+            phone: "",
+            farmName: "",
+            farmLocation: "",
+            farmSize: "",
+            yearEstablished: "",
+            farmDescription: "",
+            farmType: "",
+            activities: [],
+            facilities: [],
+            accommodation: false,
+            maxGuests: "",
+            farmPhotos: 0,
+            videoLink: "",
+            documents: {
+              businessLicense: false,
+              nationalId: false,
+              insurance: false,
+              certifications: false,
+            },
+            verificationStatus: user.verificationStatus || "pending",
+            submittedAt: new Date().toISOString().split('T')[0],
+            stats: {
+              profileViews: 0,
+              bookings: 0,
+              rating: 0,
+            },
+          });
+        }
+      } finally {
+        setLoading(false);
       }
-    } catch (photoError) {
-      console.error("Error fetching photos:", photoError);
-      data.farmPhotos = 0;
-    }
+    };
     
-    setFarmer(data);
-    
-    // Fetch earnings data
-    const earningsResponse = await fetch(`/api/farmer/earnings?farmerId=${data.id}`);
-    if (earningsResponse.ok) {
-      const earningsData = await earningsResponse.json();
-      setRecentEarnings(earningsData.recent || []);
-      setTotalEarnings(earningsData.total || 0);
-      setTotalPlatformFee(earningsData.platformFee || 0);
-    }
-  } catch (error) {
-    console.error("Error fetching farmer data:", error);
-    const userData = localStorage.getItem("userData");
-    if (userData) {
-      const user = JSON.parse(userData);
-      setFarmer({
-        id: user.id || 1,
-        name: user.name || "Farmer",
-        email: user.email || "",
-        phone: "",
-        farmName: "",
-        farmLocation: "",
-        farmSize: "",
-        yearEstablished: "",
-        farmDescription: "",
-        farmType: "",
-        activities: [],
-        facilities: [],
-        accommodation: false,
-        maxGuests: "",
-        farmPhotos: 0,
-        videoLink: "",
-        documents: {
-          businessLicense: false,
-          nationalId: false,
-          insurance: false,
-          certifications: false,
-        },
-        verificationStatus: user.verificationStatus || "pending",
-        submittedAt: new Date().toISOString().split('T')[0],
-        stats: {
-          profileViews: 0,
-          bookings: 0,
-          rating: 0,
-        },
-      });
-    }
-  } finally {
-    setLoading(false);
-  }
-};
-fetchFarmerData();
+    fetchFarmerData();
   }, [router, mounted]);
 
   const handleLogout = () => {
@@ -465,7 +478,7 @@ fetchFarmerData();
                   {farmer.farmSize && (
                     <div className="flex items-center gap-2">
                       <Ruler className="h-4 w-4 text-emerald-500" />
-                      <span className="text-sm text-emerald-700">{farmer.farmSize}</span>
+                      <span className="text-sm text-emerald-700">{farmer.farmSize} acres</span>
                     </div>
                   )}
                   {farmer.yearEstablished && (
@@ -518,9 +531,6 @@ fetchFarmerData();
                 )}
               </div>
             </motion.div>
-            
-            {/* Activities Manager - Only show for approved farmers */}
-            
             
             {/* Media Gallery - Only show for approved farmers */}
             {isApproved ? (
@@ -618,11 +628,6 @@ fetchFarmerData();
                   <div className="bg-green-100 rounded-xl p-3 mb-3">
                     <p className="text-green-700 text-sm">✅ Your farm is now live and visible to visitors!</p>
                   </div>
-                  <Link href="/farmer/activities/new">
-                    <button className="w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-medium transition-colors">
-                      Add Activities
-                    </button>
-                  </Link>
                 </div>
               )}
               
@@ -749,6 +754,12 @@ fetchFarmerData();
             >
               <h3 className="font-heading font-semibold text-emerald-900 mb-4">Quick Actions</h3>
               <div className="space-y-2">
+                <Link href="/farmer/activities">
+                  <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
+                    <span className="text-emerald-700">📋 View All Activities</span>
+                    <ChevronRight className="h-4 w-4 text-emerald-500" />
+                  </button>
+                </Link>
                 <Link href="/farmer/activities/new">
                   <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
                     <span className="text-emerald-700">➕ Add New Activity</span>
@@ -758,6 +769,19 @@ fetchFarmerData();
                 <Link href="/farmer/calendar">
                   <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
                     <span className="text-emerald-700">📅 Manage Calendar</span>
+                    <ChevronRight className="h-4 w-4 text-emerald-500" />
+                  </button>
+                </Link>
+                <Link href="/farmer/messages">
+                  <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
+                    <span className="text-emerald-700 flex items-center gap-2">
+                      💬 Messages
+                      {unreadMessages > 0 && (
+                        <span className="bg-accent text-white text-xs px-2 py-0.5 rounded-full">
+                          {unreadMessages}
+                        </span>
+                      )}
+                    </span>
                     <ChevronRight className="h-4 w-4 text-emerald-500" />
                   </button>
                 </Link>
