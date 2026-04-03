@@ -4,8 +4,23 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Plus, X } from "lucide-react";
+import { ArrowLeft, Plus, DollarSign } from "lucide-react";
 import { ACTIVITY_CATEGORIES } from "@/app/profile/farmerprofile/options";
+
+// Convert readonly arrays to mutable for TypeScript
+type ActivityCategories = {
+  [key: string]: string[];
+};
+
+// Helper function to get category for selected activity
+const getActivityCategory = (activityName: string): string | null => {
+  for (const [category, activities] of Object.entries(ACTIVITY_CATEGORIES)) {
+    if ((activities as readonly string[]).includes(activityName)) {
+      return category;
+    }
+  }
+  return null;
+};
 
 export default function AddActivity() {
   const router = useRouter();
@@ -13,12 +28,26 @@ export default function AddActivity() {
   const [customActivity, setCustomActivity] = useState("");
   const [customCategory, setCustomCategory] = useState("");
   const [saving, setSaving] = useState(false);
+  
+  // Price related states
+  const [price, setPrice] = useState(0);
+  const [isFree, setIsFree] = useState(false);
+  const [currency, setCurrency] = useState("KES");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
 
-    const activityName = selectedActivity || (customActivity && `${customActivity} (${customCategory})`);
+    let activityName = "";
+    let activityCategory = null;
+
+    if (selectedActivity) {
+      activityName = selectedActivity;
+      activityCategory = getActivityCategory(selectedActivity);
+    } else if (customActivity) {
+      activityName = customCategory ? `${customActivity} (${customCategory})` : customActivity;
+      activityCategory = customCategory || null;
+    }
     
     if (!activityName) {
       alert("Please select or add an activity");
@@ -26,12 +55,32 @@ export default function AddActivity() {
       return;
     }
 
-    // Here you would save to your backend
-    console.log("Adding activity:", activityName);
-    
-    setTimeout(() => {
-      router.push("/farmer/activities");
-    }, 1000);
+    try {
+      const response = await fetch('/api/farmer/activities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: activityName,
+          category: activityCategory,
+          price: isFree ? 0 : price,
+          is_free: isFree,
+          currency: currency
+        })
+      });
+
+      if (response.ok) {
+        alert("Activity added successfully!");
+        router.push("/farmer/activities");
+      } else {
+        const error = await response.json();
+        alert(error.error || "Failed to add activity");
+      }
+    } catch (error) {
+      console.error("Error adding activity:", error);
+      alert("Failed to add activity");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -57,14 +106,18 @@ export default function AddActivity() {
                   <div key={category}>
                     <h4 className="font-medium text-accent mb-2">{category}</h4>
                     <div className="grid grid-cols-2 gap-2">
-                      {activities.map((activity) => (
+                      {(activities as readonly string[]).map((activity) => (
                         <label key={activity} className="flex items-center gap-2">
                           <input
                             type="radio"
                             name="activity"
                             value={activity}
                             checked={selectedActivity === activity}
-                            onChange={() => setSelectedActivity(activity)}
+                            onChange={() => {
+                              setSelectedActivity(activity);
+                              setCustomActivity("");
+                              setCustomCategory("");
+                            }}
                             className="accent-accent"
                           />
                           <span className="text-sm text-emerald-700">{activity}</span>
@@ -93,7 +146,10 @@ export default function AddActivity() {
                   type="text"
                   placeholder="Activity name"
                   value={customActivity}
-                  onChange={(e) => setCustomActivity(e.target.value)}
+                  onChange={(e) => {
+                    setCustomActivity(e.target.value);
+                    setSelectedActivity("");
+                  }}
                   className="px-4 py-2 border border-emerald-200 rounded-xl focus:outline-none focus:border-accent"
                 />
                 <select
@@ -106,6 +162,64 @@ export default function AddActivity() {
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
+              </div>
+              {customActivity && !customCategory && (
+                <p className="text-xs text-red-500 mt-1">Please select a category for your custom activity</p>
+              )}
+            </div>
+
+            {/* Pricing Section */}
+            <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
+              <h3 className="font-medium text-emerald-800 mb-3 flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-accent" />
+                Pricing
+              </h3>
+              
+              <div className="space-y-3">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={isFree}
+                    onChange={(e) => {
+                      setIsFree(e.target.checked);
+                      if (e.target.checked) setPrice(0);
+                    }}
+                    className="rounded border-emerald-300 text-accent focus:ring-accent"
+                  />
+                  <span className="text-sm text-emerald-700">This activity is free</span>
+                </label>
+
+                {!isFree && (
+                  <div className="flex gap-3">
+                    <div className="w-32">
+                      <label className="block text-xs text-emerald-600 mb-1">Currency</label>
+                      <select
+                        value={currency}
+                        onChange={(e) => setCurrency(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-emerald-200 rounded-lg focus:outline-none focus:border-accent"
+                      >
+                        <option value="KES">KES</option>
+                        <option value="USD">USD</option>
+                      </select>
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-xs text-emerald-600 mb-1">Price</label>
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={price}
+                        onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
+                        className="w-full px-3 py-2 bg-white border border-emerald-200 rounded-lg focus:outline-none focus:border-accent"
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                <p className="text-xs text-emerald-500 mt-2">
+                  {isFree 
+                    ? "Visitors can enjoy this activity at no cost." 
+                    : `Visitors will pay ${currency} ${price || 0} per person for this activity.`}
+                </p>
               </div>
             </div>
 
