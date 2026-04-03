@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import MediaGallery from './components/MediaGallery';
-import ActivitiesManager from './components/ActivitiesManager';
+
 
 interface Photo {
   id: number;
@@ -520,15 +520,7 @@ fetchFarmerData();
             </motion.div>
             
             {/* Activities Manager - Only show for approved farmers */}
-            {isApproved && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 }}
-              >
-                <ActivitiesManager />
-              </motion.div>
-            )}
+            
             
             {/* Media Gallery - Only show for approved farmers */}
             {isApproved ? (
