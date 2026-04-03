@@ -26,10 +26,13 @@ import {
   Edit,
   Ruler,
   LogOut,
+  LogIn,
   DollarSign,
 } from "lucide-react";
 import Link from "next/link";
 import MediaGallery from './components/MediaGallery';
+import ActivitiesManager from './components/ActivitiesManager';
+
 interface Photo {
   id: number;
   url: string;
@@ -274,25 +277,98 @@ fetchFarmerData();
               <p className="text-emerald-600 mt-1">Manage your farm and track bookings</p>
             </div>
             
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-600 rounded-xl transition-colors"
-            >
-              <LogOut className="h-5 w-5" />
-              <span className="text-sm">Logout</span>
-            </button>
+            {/* Show different button based on verification status */}
+            {isPending ? (
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    localStorage.removeItem("userRole");
+                    localStorage.removeItem("isAuthenticated");
+                    localStorage.removeItem("userData");
+                    router.push("/auth/login/farmer");
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-colors"
+                >
+                  <LogIn className="h-5 w-5" />
+                  <span className="text-sm">Login to Dashboard</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-600 rounded-xl transition-colors"
+              >
+                <LogOut className="h-5 w-5" />
+                <span className="text-sm">Logout</span>
+              </button>
+            )}
           </div>
           
           {/* Verification Status Badge */}
           <div className="mt-4">
             {isPending && (
-              <div className="flex items-center gap-2 px-4 py-2 bg-amber-100 rounded-xl border border-amber-200 w-fit">
-                <Clock className="h-5 w-5 text-amber-600 animate-pulse" />
-                <div>
-                  <p className="text-amber-800 font-medium">Awaiting Verification</p>
-                  <p className="text-xs text-amber-600">Submitted on {farmer.submittedAt}</p>
+              <>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-amber-50 rounded-xl border border-amber-200">
+                  <div className="flex items-center gap-3">
+                    <Clock className="h-6 w-6 text-amber-600 animate-pulse" />
+                    <div>
+                      <p className="text-amber-800 font-medium">Awaiting Verification</p>
+                      <p className="text-xs text-amber-600">Documents submitted on {farmer.submittedAt}</p>
+                    </div>
+                  </div>
+                  <div className="text-left sm:text-right">
+                    <p className="text-xs text-amber-600 mb-1">Verification email sent to:</p>
+                    <p className="text-sm text-amber-700 font-mono">{farmer.email}</p>
+                    <button 
+                      onClick={async () => {
+                        try {
+                          const response = await fetch('/api/auth/resend-verification', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email: farmer.email })
+                          });
+                          if (response.ok) {
+                            alert("Verification email resent! Check your inbox.");
+                          } else {
+                            alert("Failed to resend. Please try again.");
+                          }
+                        } catch (error) {
+                          console.error("Error resending verification:", error);
+                          alert("Failed to resend verification email.");
+                        }
+                      }}
+                      className="text-xs text-accent hover:underline mt-1"
+                    >
+                      Resend verification email
+                    </button>
+                  </div>
                 </div>
-              </div>
+                
+                {/* Reminder Card for Pending Farmers */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-200"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <AlertCircle className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-blue-800">Important Note</h4>
+                      <p className="text-sm text-blue-700 mt-1">
+                        Your account is currently pending verification. You will receive an email notification 
+                        once your farm has been approved. After receiving the approval email, you can click the 
+                        <strong> "Login to Dashboard"</strong> button above to access your full dashboard.
+                      </p>
+                      <div className="mt-2 flex items-center gap-2 text-xs text-blue-600">
+                        <CheckCircle className="h-3 w-3" />
+                        <span>Check your email for verification status updates</span>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              </>
             )}
             
             {isApproved && (
@@ -317,7 +393,7 @@ fetchFarmerData();
           </div>
         </div>
 
-        {/* Stats Grid */}
+        {/* Stats Grid - Only for approved farmers */}
         {isApproved && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <StatCard
@@ -424,23 +500,6 @@ fetchFarmerData();
                   </div>
                 )}
                 
-                {/* Activities */}
-                {farmer.activities && farmer.activities.length > 0 && (
-                  <div>
-                    <h3 className="font-medium text-emerald-800 mb-2 flex items-center gap-2">
-                      <Activity className="h-4 w-4" />
-                      Activities
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {farmer.activities.map((activity, index) => (
-                        <span key={index} className="px-3 py-1 bg-emerald-100 text-emerald-700 text-sm rounded-full">
-                          {activity}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
                 {/* Facilities */}
                 {farmer.facilities && farmer.facilities.length > 0 && (
                   <div>
@@ -460,33 +519,44 @@ fetchFarmerData();
               </div>
             </motion.div>
             
-            {/* Media Gallery - Only show for approved farmers, otherwise show preview */}
-          {isApproved ? (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-            >
-              <MediaGallery />
-            </motion.div>
-          ) : (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="bg-white rounded-2xl shadow-sm border border-emerald-100 p-6"
-            >
-              <h2 className="text-lg font-heading font-semibold text-emerald-900 mb-4 flex items-center gap-2">
-                <Camera className="h-5 w-5 text-accent" />
-                Media Gallery
-              </h2>
-              <div className="text-center py-8">
-                <Camera className="h-12 w-12 text-emerald-300 mx-auto mb-3" />
-                <p className="text-emerald-600">Media gallery will be available after verification</p>
-                <p className="text-sm text-emerald-400 mt-1">Upload photos once your farm is approved</p>
-              </div>
-            </motion.div>
-          )}
+            {/* Activities Manager - Only show for approved farmers */}
+            {isApproved && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+              >
+                <ActivitiesManager />
+              </motion.div>
+            )}
+            
+            {/* Media Gallery - Only show for approved farmers */}
+            {isApproved ? (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+              >
+                <MediaGallery />
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="bg-white rounded-2xl shadow-sm border border-emerald-100 p-6"
+              >
+                <h2 className="text-lg font-heading font-semibold text-emerald-900 mb-4 flex items-center gap-2">
+                  <Camera className="h-5 w-5 text-accent" />
+                  Media Gallery
+                </h2>
+                <div className="text-center py-8">
+                  <Camera className="h-12 w-12 text-emerald-300 mx-auto mb-3" />
+                  <p className="text-emerald-600">Media gallery will be available after verification</p>
+                  <p className="text-sm text-emerald-400 mt-1">Upload photos once your farm is approved</p>
+                </div>
+              </motion.div>
+            )}
           </div>
           
           {/* Right Column - Status & Documents */}
