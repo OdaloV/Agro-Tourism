@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
 import pool from '@/lib/db';
-import { notifyNewFarmerRegistration } from '@/lib/services/notificationService';
+import { notifyNewFarmerRegistration, sendRegistrationConfirmation, sendVerificationEmail } from '@/lib/services/notificationService';
 import { checkMaintenanceMode } from '@/lib/utils/checkMaintenance'; 
 
 const JWT_SECRET = new TextEncoder().encode(
@@ -16,7 +16,7 @@ const toIntOrNull = (val: any): number | null => {
   return isNaN(n) ? null : n;
 };
 
-// ADD THIS HELPER FUNCTION
+// Helper function to save photos
 const savePhotos = async (client: any, farmerId: number, photos: string[]) => {
   if (!photos || photos.length === 0) return;
   
@@ -74,15 +74,25 @@ export async function POST(request: Request) {
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      // Insert user
+      // Generate verification code (6 digits)
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const codeExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+      // Insert user with email_verified = false and verification code
       const userResult = await client.query(
-        `INSERT INTO users (name, email, phone, password_hash, role, is_verified)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO users (name, email, phone, password_hash, role, is_verified, email_verified, verification_code, verification_code_expires)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING id, name, email, role`,
-        [name, email, phone, hashedPassword, role, role === 'visitor']
+        [name, email, phone, hashedPassword, role, role === 'visitor', false, verificationCode, codeExpires]
       );
 
       const userId = userResult.rows[0].id;
+
+      // ✅ STEP 6: Send verification email (for farmers and visitors, not admins)
+      if (role !== 'admin') {
+        await sendVerificationEmail(email, name, verificationCode);
+        console.log(`Verification email sent to ${email} with code: ${verificationCode}`);
+      }
 
       // If farmer, insert farmer profile
       if (role === 'farmer' && farmerData) {
@@ -116,10 +126,14 @@ export async function POST(request: Request) {
         );
 
         const farmerId = profileResult.rows[0].id;
+        
         if (verificationRequired) {
           await notifyNewFarmerRegistration(farmerData.farmName, farmerData.farmName);
         }
-
+        
+        // Send registration confirmation email
+        await sendRegistrationConfirmation(email, name, farmerData.farmName);
+        
         // Insert activities
         if (farmerData.allActivities && farmerData.allActivities.length > 0) {
           for (const activity of farmerData.allActivities) {
@@ -145,7 +159,7 @@ export async function POST(request: Request) {
           }
         }
 
-        // ========== ADD THIS: Insert photos ==========
+        // Save photos
         if (farmerData.photos && farmerData.photos.length > 0) {
           await savePhotos(client, farmerId, farmerData.photos);
         }
@@ -174,9 +188,11 @@ export async function POST(request: Request) {
           email: user.email,
           role: user.role,
           isVerified: false,
-          verificationStatus: 'pending'
+          verificationStatus: 'pending',
+          emailVerified: false  // ← Add this to let frontend know
         },
-        requiresVerification: role === 'farmer'
+        requiresVerification: role === 'farmer',
+        requiresEmailVerification: role !== 'admin'  // ← Add this
       });
 
       // Set cookies for authentication
