@@ -139,54 +139,86 @@ export default function FarmerVerificationPage() {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
-
-  const handleSubmit = async () => {
-    setIsSubmitting(true);
-    
-    try {
-      // Get user data from localStorage
-      const userData = localStorage.getItem("userData");
-      if (!userData) {
-        throw new Error("User not logged in");
-      }
-      
-      const user = JSON.parse(userData);
-      
-      // Prepare documents for submission
-      const formData = new FormData();
-      
-      Object.entries(uploadedDocs).forEach(([docId, doc]) => {
-        if (doc.file) {
-          formData.append(docId, doc.file);
-          if (selectedDocType[docId]) {
-            formData.append(`${docId}_type`, selectedDocType[docId]);
-          }
-        }
-      });
-      
-      formData.append("userId", user.id);
-      
-      const response = await fetch('/api/farmer/verification', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        throw new Error("Failed to submit documents");
-      }
-      
-      alert("Verification submitted! Our team will review your documents within 2-3 business days.");
-      
-      // Redirect to dashboard after successful submission
-      router.push('/farmer/dashboard');
-      
-    } catch (error: any) {
-      console.error("Submission error:", error);
-      alert(error.message || "Failed to submit. Please try again.");
-    } finally {
-      setIsSubmitting(false);
+const handleSubmit = async () => {
+  setIsSubmitting(true);
+  
+  try {
+    // Get user data from localStorage
+    const userData = localStorage.getItem("userData");
+    if (!userData) {
+      throw new Error("User not logged in");
     }
-  };
+    
+    const user = JSON.parse(userData);
+    
+    // Prepare documents for submission
+    const formData = new FormData();
+    
+    Object.entries(uploadedDocs).forEach(([docId, doc]) => {
+      if (doc.file) {
+        formData.append(docId, doc.file);
+        if (selectedDocType[docId]) {
+          formData.append(`${docId}_type`, selectedDocType[docId]);
+        }
+      }
+    });
+    
+    formData.append("userId", user.id);
+    
+    const response = await fetch('/api/farmer/verification', {
+      method: 'POST',
+      body: formData,
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to submit documents");
+    }
+    
+    // ✅ Send verification email after successful document submission
+    if (data.sendVerificationEmail) {
+      alert(`Documents submitted successfully! A verification email has been sent to ${user.email}. Please check your email and verify your account before logging in.`);
+    } else {
+      alert("Verification submitted! Our team will review your documents within 2-3 business days.");
+    }
+    
+    // Store that verification email was sent
+    localStorage.setItem("verificationEmailSent", "true");
+    localStorage.setItem("pendingVerificationEmail", user.email);
+    
+    // Redirect to dashboard after successful submission
+    router.push('/farmer/dashboard');
+    
+  } catch (error: any) {
+    console.error("Submission error:", error);
+    alert(error.message || "Failed to submit. Please try again.");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+const resendVerificationEmail = async () => {
+  try {
+    const userData = localStorage.getItem("userData");
+    if (!userData) return;
+    
+    const user = JSON.parse(userData);
+    
+    const response = await fetch('/api/auth/resend-verification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: user.email })
+    });
+    
+    if (response.ok) {
+      alert("Verification email resent! Check your inbox.");
+    } else {
+      alert("Failed to resend. Please try again.");
+    }
+  } catch (error) {
+    console.error("Error resending verification:", error);
+  }
+};
 
   const getStepIcon = (stepId: number) => {
     const step = verificationSteps.find((s) => s.id === stepId);
