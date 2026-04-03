@@ -37,7 +37,7 @@ export default function FarmerLogin() {
       const data = await response.json();
       
       if (!response.ok) {
-        // ✅ Check if verification is required
+        // ✅ Check if email verification is required
         if (data.requiresVerification) {
           // Store email for verification page
           localStorage.setItem("pendingVerificationEmail", formData.email);
@@ -45,6 +45,15 @@ export default function FarmerLogin() {
           router.push("/auth/verify-email");
           return;
         }
+        
+        // ✅ Check if document submission is required (email verified but no documents)
+        if (data.requiresDocumentSubmission) {
+          // Store email and redirect to document upload
+          alert(data.error || "Please complete your farm verification by submitting documents.");
+          router.push(data.redirectTo || "/farmer/verification");
+          return;
+        }
+        
         throw new Error(data.error || 'Login failed');
       }
       
