@@ -92,6 +92,7 @@ export async function notifyFarmerApproved(farmerEmail: string, farmerName: stri
   
   await sendEmailNotification(farmerEmail, subject, html);
 }
+// Send registration confirmation email (after registration, before document submission)
 export async function sendRegistrationConfirmation(email: string, name: string, farmName: string) {
   const subject = 'Farm Registration Received - HarvestHost';
   const html = `
@@ -99,16 +100,37 @@ export async function sendRegistrationConfirmation(email: string, name: string, 
       <h2 style="color: #4CAF50;">Registration Received!</h2>
       <p>Dear ${name},</p>
       <p>Thank you for registering your farm <strong>${farmName}</strong> with HarvestHost!</p>
-      <p>Your application has been received and is now pending review by our admin team.</p>
-      <p>We will review your documents and notify you via email once your farm is verified.</p>
+      
+      <div style="background-color: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #2196F3;">
+        <p style="margin: 0 0 10px 0;"><strong>📋 Next Steps to Complete Your Registration:</strong></p>
+        <ol style="margin: 0; padding-left: 20px;">
+          <li style="margin-bottom: 8px;">Login to your dashboard</li>
+          <li style="margin-bottom: 8px;">Complete the farm verification by uploading required documents</li>
+          <li style="margin-bottom: 8px;">After document submission, you'll receive a verification code via email</li>
+          <li style="margin-bottom: 8px;">Verify your email address using the 6-digit code</li>
+          <li>Wait for admin approval (2-3 business days)</li>
+        </ol>
+      </div>
+      
       <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
-        <p style="margin: 0;"><strong>Next steps:</strong></p>
-        <ul>
-          <li>Admin reviews your documents (2-3 business days)</li>
-          <li>You'll receive an email with approval/rejection status</li>
-          <li>Once approved, your farm will be visible to visitors</li>
+        <p style="margin: 0;"><strong>⚠️ Important:</strong></p>
+        <p style="margin: 5px 0 0 0; font-size: 14px;">
+          Your farm will not be visible to visitors until:
+        </p>
+        <ul style="margin: 5px 0 0 20px; font-size: 14px;">
+          <li>You have uploaded all required documents</li>
+          <li>Your email has been verified</li>
+          <li>Admin has approved your application</li>
         </ul>
       </div>
+      
+      <div style="margin: 20px 0;">
+        <a href="${process.env.NEXT_PUBLIC_BASE_URL}/auth/login/farmer" 
+           style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
+          Login to Complete Verification
+        </a>
+      </div>
+      
       <p>If you have any questions, please contact our support team.</p>
       <p>Best regards,<br>HarvestHost Team</p>
     </div>
@@ -119,19 +141,39 @@ export async function sendRegistrationConfirmation(email: string, name: string, 
 // src/lib/services/notificationService.ts
 
 // Add this function alongside your other email functions
+// Send email verification code (sent after document submission)
 export async function sendVerificationEmail(email: string, name: string, code: string) {
-  const subject = 'Verify Your Email - HarvestHost';
+  const subject = 'Verify Your Email - Complete Your HarvestHost Registration';
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #4CAF50;">Email Verification</h2>
+      <h2 style="color: #4CAF50;">Email Verification Required</h2>
       <p>Dear ${name},</p>
-      <p>Thank you for registering with HarvestHost!</p>
-      <p>Please use the verification code below to complete your registration:</p>
+      <p>Thank you for submitting your farm documents!</p>
+      <p>To complete your registration and activate your farm, please verify your email address using the code below:</p>
+      
       <div style="background-color: #f5f5f5; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; border-radius: 10px; margin: 20px 0;">
         ${code}
       </div>
+      
       <p>This code will expire in <strong>15 minutes</strong>.</p>
-      <p>If you didn't create an account with HarvestHost, please ignore this email.</p>
+      
+      <div style="margin: 20px 0;">
+        <a href="${process.env.NEXT_PUBLIC_BASE_URL}/auth/verify-email" 
+           style="background-color: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
+          Verify Email Now
+        </a>
+      </div>
+      
+      <div style="background-color: #fff3e0; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #FF9800;">
+        <p style="margin: 0;"><strong>What happens next?</strong></p>
+        <ol style="margin: 5px 0 0 20px;">
+          <li>After email verification, our admin team will review your documents</li>
+          <li>You'll receive an email once your farm is approved</li>
+          <li>Your farm will then be visible to visitors</li>
+        </ol>
+      </div>
+      
+      <p>If you didn't submit documents for farm verification, please ignore this email.</p>
       <p>Best regards,<br>HarvestHost Team</p>
     </div>
   `;
