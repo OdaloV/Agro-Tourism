@@ -1,4 +1,4 @@
-// src/app/admin/settings/page.tsx - Updated (SMS removed)
+// src/app/admin/settings/page.tsx - FULLY CORRECTED
 
 "use client";
 
@@ -10,15 +10,11 @@ import {
   ChevronLeft,
   Save,
   Globe,
-  Bell,
   Shield,
-  Users,
   DollarSign,
   Mail,
   AlertCircle,
   CheckCircle,
-  Moon,
-  Sun,
 } from "lucide-react";
 
 interface AdminSettings {
@@ -27,9 +23,6 @@ interface AdminSettings {
   commissionRate: number;
   minBookingAmount: number;
   maxGuestsPerBooking: number;
-  verificationRequired: boolean;
-  autoApprove: boolean;
-  notificationEmail: boolean;
   maintenanceMode: boolean;
   darkMode: boolean;
 }
@@ -47,9 +40,6 @@ export default function AdminSettingsPage() {
     commissionRate: 10,
     minBookingAmount: 300,
     maxGuestsPerBooking: 100,
-    verificationRequired: true,
-    autoApprove: false,
-    notificationEmail: true,
     maintenanceMode: false,
     darkMode: false,
   });
@@ -68,9 +58,6 @@ export default function AdminSettingsPage() {
           commissionRate: parseInt(data.commission_rate) || 10,
           minBookingAmount: parseInt(data.min_booking_amount) || 300,
           maxGuestsPerBooking: parseInt(data.max_guests_per_booking) || 100,
-          verificationRequired: data.verification_required === 'true',
-          autoApprove: data.auto_approve === 'true',
-          notificationEmail: data.notification_email === 'true',
           maintenanceMode: data.maintenance_mode === 'true',
           darkMode: localStorage.getItem('admin-theme') === 'dark',
         });
@@ -103,9 +90,6 @@ export default function AdminSettingsPage() {
           commission_rate: settings.commissionRate,
           min_booking_amount: settings.minBookingAmount,
           max_guests_per_booking: settings.maxGuestsPerBooking,
-          verification_required: settings.verificationRequired,
-          auto_approve: settings.autoApprove,
-          notification_email: settings.notificationEmail,
           maintenance_mode: settings.maintenanceMode,
         })
       });
@@ -204,6 +188,7 @@ export default function AdminSettingsPage() {
                   className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:border-accent text-foreground"
                 />
               </div>
+              <p className="text-xs text-muted-foreground mt-1">All system notifications will be sent to this email</p>
             </div>
           </div>
         </div>
@@ -249,67 +234,34 @@ export default function AdminSettingsPage() {
           </div>
         </div>
 
-        {/* Verification Settings */}
+        {/* Verification & Approvals - NO TOGGLE, JUST INFORMATION */}
         <div className="bg-card rounded-2xl border border-border overflow-hidden mb-6">
           <div className="p-5 border-b border-border bg-muted/30">
             <h2 className="text-lg font-heading font-semibold text-card-foreground">Verification & Approvals</h2>
-            <p className="text-sm text-muted-foreground">Configure farm verification rules</p>
+            <p className="text-sm text-muted-foreground">Farm verification requirements (Always Required)</p>
           </div>
-          <div className="p-5 space-y-4">
-            <div className="flex items-center justify-between">
+          <div className="p-5">
+            <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+              <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="font-medium text-card-foreground">Require Verification</p>
-                <p className="text-sm text-muted-foreground">Farmers must verify before listing</p>
+                <p className="font-medium text-blue-800 dark:text-blue-300">Verification Required</p>
+                <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
+                  All farmers MUST submit verification documents before their farms can be listed on the platform.
+                  Each submission is manually reviewed by an administrator.
+                </p>
+                <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-700">
+                  <p className="text-xs font-medium text-blue-700 dark:text-blue-400">Required Documents:</p>
+                  <ul className="text-xs text-blue-600 dark:text-blue-500 mt-1 list-disc list-inside">
+                    <li>National ID / Passport</li>
+                    <li>Business License / Registration Certificate</li>
+                    <li>Farm Ownership Proof / Lease Agreement</li>
+                    <li>Insurance Certificate (if applicable)</li>
+                  </ul>
+                </div>
+                <p className="text-xs text-blue-500 dark:text-blue-500 mt-3">
+                  Verification status: Pending → Under Review → Approved / Rejected
+                </p>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={settings.verificationRequired}
-                  onChange={(e) => setSettings({...settings, verificationRequired: e.target.checked})}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
-              </label>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-card-foreground">Auto-Approve Listings</p>
-                <p className="text-sm text-muted-foreground">Automatically approve verified farmers</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={settings.autoApprove}
-                  onChange={(e) => setSettings({...settings, autoApprove: e.target.checked})}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        {/* Notification Settings - Email Only */}
-        <div className="bg-card rounded-2xl border border-border overflow-hidden mb-6">
-          <div className="p-5 border-b border-border bg-muted/30">
-            <h2 className="text-lg font-heading font-semibold text-card-foreground">Notification Settings</h2>
-            <p className="text-sm text-muted-foreground">Configure admin email alerts</p>
-          </div>
-          <div className="p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-card-foreground">Email Notifications</p>
-                <p className="text-sm text-muted-foreground">Receive updates via email</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={settings.notificationEmail}
-                  onChange={(e) => setSettings({...settings, notificationEmail: e.target.checked})}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
-              </label>
             </div>
           </div>
         </div>
@@ -359,6 +311,25 @@ export default function AdminSettingsPage() {
                 />
                 <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
               </label>
+            </div>
+          </div>
+        </div>
+
+        {/* Email Notifications Info */}
+        <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800">
+          <div className="flex items-start gap-3">
+            <Mail className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5" />
+            <div>
+              <p className="font-medium text-green-800 dark:text-green-300">Email Notifications (Always Enabled)</p>
+              <p className="text-sm text-green-600 dark:text-green-400">
+                Admin email notifications are always enabled. You will receive alerts at:
+                <strong className="block mt-1">{settings.platformEmail}</strong>
+              </p>
+              <ul className="text-sm text-green-600 dark:text-green-400 mt-2 list-disc list-inside">
+                <li>New farm registrations and document submissions</li>
+                <li>Verification approval/rejection actions</li>
+                <li>System alerts and maintenance updates</li>
+              </ul>
             </div>
           </div>
         </div>
