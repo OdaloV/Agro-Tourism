@@ -180,63 +180,92 @@ export default function FarmerActivities() {
                 {activities.map((activity) => (
                   <div key={activity.id} className="bg-emerald-50 rounded-xl overflow-hidden">
                     {editingId === activity.id ? (
-                      // Edit Mode
-                      <div className="p-4">
-                        <div className="space-y-3">
-                          <input
-                            type="text"
-                            placeholder="Activity name"
-                            value={editForm.name}
-                            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                            className="w-full px-3 py-2 bg-white border border-emerald-200 rounded-lg focus:outline-none focus:border-accent"
-                          />
-                          <input
-                            type="text"
-                            placeholder="Category (optional)"
-                            value={editForm.category}
-                            onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
-                            className="w-full px-3 py-2 bg-white border border-emerald-200 rounded-lg focus:outline-none focus:border-accent"
-                          />
-                          <div className="flex items-center gap-3">
+                      // Edit Mode - Improved styling
+                      <div className="p-4 bg-white border border-emerald-200 rounded-xl">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="font-semibold text-emerald-900">Edit Activity</h3>
+                          <button
+                            onClick={cancelEdit}
+                            className="p-1 hover:bg-gray-100 rounded-lg transition"
+                          >
+                            <X className="h-5 w-5 text-gray-500" />
+                          </button>
+                        </div>
+                        
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium text-emerald-700 mb-1">
+                              Activity Name
+                            </label>
+                            <input
+                              type="text"
+                              value={editForm.name}
+                              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 text-gray-900"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-emerald-700 mb-1">
+                              Category (Optional)
+                            </label>
+                            <input
+                              type="text"
+                              value={editForm.category}
+                              onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                              placeholder="e.g., Farm Tour, Workshop"
+                              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 text-gray-900"
+                            />
+                          </div>
+                          
+                          <div>
                             <label className="flex items-center gap-2">
                               <input
                                 type="checkbox"
                                 checked={editForm.is_free}
                                 onChange={(e) => setEditForm({ ...editForm, is_free: e.target.checked, price: e.target.checked ? 0 : editForm.price })}
-                                className="rounded border-emerald-300"
+                                className="rounded border-gray-300 text-accent focus:ring-accent"
                               />
                               <span className="text-sm text-emerald-700">Free Activity</span>
                             </label>
                           </div>
+                          
                           {!editForm.is_free && (
                             <div className="flex gap-3">
-                              <select
-                                value={editForm.currency}
-                                onChange={(e) => setEditForm({ ...editForm, currency: e.target.value })}
-                                className="px-3 py-2 bg-white border border-emerald-200 rounded-lg"
-                              >
-                                <option value="KES">KES</option>
-                                <option value="USD">USD</option>
-                              </select>
-                              <input
-                                type="number"
-                                placeholder="Price"
-                                value={editForm.price}
-                                onChange={(e) => setEditForm({ ...editForm, price: parseFloat(e.target.value) || 0 })}
-                                className="flex-1 px-3 py-2 bg-white border border-emerald-200 rounded-lg"
-                              />
+                              <div className="w-32">
+                                <label className="block text-sm font-medium text-emerald-700 mb-1">Currency</label>
+                                <select
+                                  value={editForm.currency}
+                                  onChange={(e) => setEditForm({ ...editForm, currency: e.target.value })}
+                                  className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-accent text-gray-900"
+                                >
+                                  <option value="KES">KES</option>
+                                  <option value="USD">USD</option>
+                                </select>
+                              </div>
+                              <div className="flex-1">
+                                <label className="block text-sm font-medium text-emerald-700 mb-1">Price</label>
+                                <input
+                                  type="number"
+                                  placeholder="0"
+                                  value={editForm.price}
+                                  onChange={(e) => setEditForm({ ...editForm, price: parseFloat(e.target.value) || 0 })}
+                                  className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-accent text-gray-900"
+                                />
+                              </div>
                             </div>
                           )}
-                          <div className="flex gap-2 pt-2">
+                          
+                          <div className="flex gap-3 pt-4">
                             <button
                               onClick={handleUpdate}
-                              className="px-4 py-2 bg-accent text-white rounded-lg text-sm hover:bg-accent/90"
+                              className="px-6 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition font-medium"
                             >
-                              Save
+                              Save Changes
                             </button>
                             <button
                               onClick={cancelEdit}
-                              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-300"
+                              className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium"
                             >
                               Cancel
                             </button>
@@ -250,7 +279,7 @@ export default function FarmerActivities() {
                           <h3 className="font-medium text-emerald-900">{activity.name}</h3>
                           <div className="flex items-center gap-2 mt-1">
                             {activity.category && (
-                              <span className="text-xs text-emerald-500 bg-emerald-100 px-2 py-0.5 rounded-full">
+                              <span className="text-xs text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">
                                 {activity.category}
                               </span>
                             )}
