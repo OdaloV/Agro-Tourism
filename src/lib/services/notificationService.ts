@@ -92,6 +92,52 @@ export async function notifyFarmerApproved(farmerEmail: string, farmerName: stri
   
   await sendEmailNotification(farmerEmail, subject, html);
 }
+export async function sendRegistrationConfirmation(email: string, name: string, farmName: string) {
+  const subject = 'Farm Registration Received - HarvestHost';
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #4CAF50;">Registration Received!</h2>
+      <p>Dear ${name},</p>
+      <p>Thank you for registering your farm <strong>${farmName}</strong> with HarvestHost!</p>
+      <p>Your application has been received and is now pending review by our admin team.</p>
+      <p>We will review your documents and notify you via email once your farm is verified.</p>
+      <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <p style="margin: 0;"><strong>Next steps:</strong></p>
+        <ul>
+          <li>Admin reviews your documents (2-3 business days)</li>
+          <li>You'll receive an email with approval/rejection status</li>
+          <li>Once approved, your farm will be visible to visitors</li>
+        </ul>
+      </div>
+      <p>If you have any questions, please contact our support team.</p>
+      <p>Best regards,<br>HarvestHost Team</p>
+    </div>
+  `;
+  
+  await sendEmailNotification(email, subject, html);
+}
+// src/lib/services/notificationService.ts
+
+// Add this function alongside your other email functions
+export async function sendVerificationEmail(email: string, name: string, code: string) {
+  const subject = 'Verify Your Email - HarvestHost';
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #4CAF50;">Email Verification</h2>
+      <p>Dear ${name},</p>
+      <p>Thank you for registering with HarvestHost!</p>
+      <p>Please use the verification code below to complete your registration:</p>
+      <div style="background-color: #f5f5f5; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; border-radius: 10px; margin: 20px 0;">
+        ${code}
+      </div>
+      <p>This code will expire in <strong>15 minutes</strong>.</p>
+      <p>If you didn't create an account with HarvestHost, please ignore this email.</p>
+      <p>Best regards,<br>HarvestHost Team</p>
+    </div>
+  `;
+  
+  await sendEmailNotification(email, subject, html);
+}
 
 // Send verification rejected notification
 export async function notifyFarmerRejected(
