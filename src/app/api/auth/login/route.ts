@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
 import pool from '@/lib/db';
+import { sendVerificationEmail } from '@/lib/services/notificationService';
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'your-secret-key-change-in-production'
@@ -46,6 +47,37 @@ export async function POST(request: Request) {
       );
     }
 
+    // ✅ STEP 14: Check if email is verified (for farmers and visitors)
+    if (role === 'farmer' || role === 'visitor') {
+      if (!user.email_verified) {
+        // Generate new verification code
+        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const codeExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+        
+        // Store verification code in database
+        await pool.query(
+          `UPDATE users 
+           SET verification_code = $1, 
+               verification_code_expires = $2 
+           WHERE id = $3`,
+          [verificationCode, codeExpires, user.id]
+        );
+        
+        // Send verification email
+        await sendVerificationEmail(user.email, user.name, verificationCode);
+        
+        // Store email for verification page
+        return NextResponse.json(
+          { 
+            error: 'Please verify your email first',
+            requiresVerification: true,
+            email: user.email
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     // Create JWT token
     const token = await new SignJWT({
       id: user.id,
@@ -67,6 +99,7 @@ export async function POST(request: Request) {
         phone: user.phone,
         role: user.role,
         isVerified: user.is_verified,
+        emailVerified: user.email_verified,
         verificationStatus: user.verification_status,
         farmName: user.farm_name,
         farmerProfileId: user.farmer_profile_id
