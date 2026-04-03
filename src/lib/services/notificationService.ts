@@ -13,7 +13,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Send email notification
+// Send email notification (main function)
 export async function sendEmailNotification(to: string, subject: string, html: string) {
   const settings = await getNotificationSettings();
   if (!settings.emailEnabled) return;
@@ -31,20 +31,13 @@ export async function sendSMSNotification(phone: string, message: string) {
   const settings = await getNotificationSettings();
   if (!settings.smsEnabled) return;
   
-  // Example with Africa's Talking
-  // const response = await fetch('https://api.africastalking.com/version1/messaging', {
-  //   method: 'POST',
-  //   headers: {
-  //     'apiKey': process.env.AT_API_KEY,
-  //     'Content-Type': 'application/x-www-form-urlencoded',
-  //   },
-  //   body: new URLSearchParams({
-  //     username: process.env.AT_USERNAME,
-  //     to: phone,
-  //     message: message,
-  //     from: process.env.AT_SENDER_ID,
-  //   }),
+  // Add your SMS provider integration here
+  // Example for Africa's Talking:
+  // const africasTalking = require('africastalking')({
+  //   apiKey: process.env.AFRICAS_TALKING_API_KEY,
+  //   username: process.env.AFRICAS_TALKING_USERNAME,
   // });
+  // await africasTalking.SMS.send({ to: phone, message, from: process.env.SMS_SENDER_ID });
 }
 
 // Get notification settings
@@ -81,20 +74,79 @@ export async function notifyNewFarmerRegistration(farmerName: string, farmName: 
 
 // Send verification approved notification
 export async function notifyFarmerApproved(farmerEmail: string, farmerName: string, farmName: string) {
-  const subject = 'Your Farm Has Been Verified!';
+  const subject = 'Your Farm Has Been Verified! 🎉';
   const html = `
-    <h2>Congratulations ${farmerName}!</h2>
-    <p>Your farm <strong>${farmName}</strong> has been verified and is now live!</p>
-    <p>Visitors can now discover and book experiences on your farm.</p>
-    <a href="${process.env.NEXT_PUBLIC_BASE_URL}/farmer/dashboard">Go to Dashboard</a>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #4CAF50;">Congratulations ${farmerName}!</h2>
+      <p>Your farm <strong>${farmName}</strong> has been verified and is now live on HarvestHost!</p>
+      <p>Visitors can now discover and book experiences on your farm.</p>
+      <div style="margin: 20px 0;">
+        <a href="${process.env.NEXT_PUBLIC_BASE_URL}/farmer/dashboard" 
+           style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+          Go to Dashboard
+        </a>
+      </div>
+      <p>Best regards,<br>HarvestHost Team</p>
+    </div>
   `;
   
   await sendEmailNotification(farmerEmail, subject, html);
 }
 
+// Send verification rejected notification
+export async function notifyFarmerRejected(
+  farmerEmail: string,
+  farmerName: string,
+  farmName: string,
+  rejectionReason: string
+) {
+  const subject = 'Farm Verification Update - HarvestHost';
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #f44336;">Verification Status: Rejected</h2>
+      <p>Dear ${farmerName},</p>
+      <p>Your farm "<strong>${farmName}</strong>" verification has been reviewed.</p>
+      
+      <div style="background-color: #ffebee; padding: 15px; border-left: 4px solid #f44336; margin: 20px 0;">
+        <strong>Reason for rejection:</strong>
+        <p style="margin: 10px 0 0 0;">${rejectionReason}</p>
+      </div>
+      
+      <p>Please correct the issues mentioned above and resubmit your application for review.</p>
+      
+      <div style="margin: 20px 0;">
+        <a href="${process.env.NEXT_PUBLIC_BASE_URL}/farmer/verification" 
+           style="background-color: #f44336; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+          Resubmit Application
+        </a>
+      </div>
+      
+      <p>If you have any questions, please contact our support team.</p>
+      
+      <p>Best regards,<br>HarvestHost Team</p>
+    </div>
+  `;
+  
+  await sendEmailNotification(farmerEmail, subject, html);
+  console.log(`Rejection notification sent to ${farmerEmail}`);
+}
+
+// Get admin email from settings
 async function getAdminEmail() {
   const result = await pool.query(
     "SELECT value FROM platform_settings WHERE key = 'platform_email'"
   );
   return result.rows[0]?.value || 'admin@harvesthost.com';
+}
+
+// Optional: Send test email
+export async function sendTestEmail(to: string) {
+  const subject = 'Test Email from HarvestHost';
+  const html = `
+    <h2>Test Email</h2>
+    <p>This is a test email to verify your email configuration is working correctly.</p>
+    <p>Time sent: ${new Date().toLocaleString()}</p>
+  `;
+  
+  await sendEmailNotification(to, subject, html);
 }
