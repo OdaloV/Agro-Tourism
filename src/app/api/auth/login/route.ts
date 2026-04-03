@@ -23,7 +23,8 @@ export async function POST(request: Request) {
       `SELECT u.*, 
               fp.verification_status,
               fp.farm_name,
-              fp.id as farmer_profile_id
+              fp.id as farmer_profile_id,
+              fp.submitted_at
        FROM users u
        LEFT JOIN farmer_profiles fp ON u.id = fp.user_id
        WHERE u.email = $1 AND u.role = $2`,
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // ✅ STEP 14: Check if email is verified (for farmers and visitors)
+    // ✅ Check if email is verified (for farmers and visitors)
     if (role === 'farmer' || role === 'visitor') {
       if (!user.email_verified) {
         // Generate new verification code
@@ -66,12 +67,23 @@ export async function POST(request: Request) {
         // Send verification email
         await sendVerificationEmail(user.email, user.name, verificationCode);
         
-        // Store email for verification page
         return NextResponse.json(
           { 
-            error: 'Please verify your email first',
+            error: 'Please verify your email first. A verification code has been sent to your email.',
             requiresVerification: true,
             email: user.email
+          },
+          { status: 403 }
+        );
+      }
+      
+      // ✅ For farmers: Check if they have submitted documents (verification_status should not be null)
+      if (role === 'farmer' && !user.verification_status) {
+        return NextResponse.json(
+          { 
+            error: 'Please complete your farm verification by submitting documents.',
+            requiresDocumentSubmission: true,
+            redirectTo: '/farmer/verification'
           },
           { status: 403 }
         );
@@ -100,9 +112,10 @@ export async function POST(request: Request) {
         role: user.role,
         isVerified: user.is_verified,
         emailVerified: user.email_verified,
-        verificationStatus: user.verification_status,
+        verificationStatus: user.verification_status || 'pending',
         farmName: user.farm_name,
-        farmerProfileId: user.farmer_profile_id
+        farmerProfileId: user.farmer_profile_id,
+        hasSubmittedDocuments: !!user.verification_status
       }
     });
 
