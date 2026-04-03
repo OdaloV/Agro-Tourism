@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import pool from '@/lib/db';
-import { checkMaintenanceMode } from '@/lib/utils/checkMaintenance'; 
+import { checkMaintenanceMode } from '@/lib/utils/checkMaintenance';
+import { sendVerificationEmail } from '@/lib/services/notificationService';
 
 export async function POST(request: Request) {
   try {
@@ -21,9 +22,9 @@ export async function POST(request: Request) {
       );
     }
     
-    // Get farmer profile id
+    // Get farmer profile id and user details
     const farmerResult = await pool.query(
-      'SELECT id FROM farmer_profiles WHERE user_id = $1',
+      'SELECT fp.id, u.email, u.name FROM farmer_profiles fp JOIN users u ON fp.user_id = u.id WHERE fp.user_id = $1',
       [userId]
     );
     
@@ -37,6 +38,8 @@ export async function POST(request: Request) {
     }
     
     const farmerId = farmerResult.rows[0].id;
+    const userEmail = farmerResult.rows[0].email;
+    const userName = farmerResult.rows[0].name;
     
     // Create uploads directory if it doesn't exist
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'documents');
@@ -64,7 +67,8 @@ export async function POST(request: Request) {
     
     // Save each document
     for (const doc of documents) {
-      const filePath = path.join(uploadDir, `${farmerId}_${doc.id}_${Date.now()}.pdf`);
+      const fileExt = doc.file.name.split('.').pop() || 'pdf';
+      const filePath = path.join(uploadDir, `${farmerId}_${doc.id}_${Date.now()}.${fileExt}`);
       const bytes = await doc.file.arrayBuffer();
       const buffer = Buffer.from(bytes);
       await writeFile(filePath, buffer);
@@ -103,10 +107,37 @@ export async function POST(request: Request) {
     
     console.log(`Verification status updated to: ${newStatus} (autoApprove: ${autoApprove})`);
     
+    // ✅ Generate verification code and send email (only if not auto-approved)
+    let verificationCode = null;
+    let sendVerificationEmailFlag = false;
+    
+    if (!autoApprove) {
+      // Generate 6-digit verification code
+      verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const codeExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+      
+      // Save verification code to user
+      await pool.query(
+        `UPDATE users 
+         SET verification_code = $1, 
+             verification_code_expires = $2
+         WHERE id = $3`,
+        [verificationCode, codeExpires, userId]
+      );
+      
+      // Send verification email
+      await sendVerificationEmail(userEmail, userName, verificationCode);
+      sendVerificationEmailFlag = true;
+      
+      console.log(`Verification email sent to ${userEmail} with code: ${verificationCode}`);
+    }
+    
     return NextResponse.json({
       success: true,
       message: 'Documents submitted successfully',
-      verificationStatus: newStatus
+      verificationStatus: newStatus,
+      sendVerificationEmail: sendVerificationEmailFlag,
+      requiresEmailVerification: !autoApprove
     });
     
   } catch (error: any) {
