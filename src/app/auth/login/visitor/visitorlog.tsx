@@ -37,7 +37,7 @@ export default function VisitorLogin() {
       const data = await response.json();
       
       if (!response.ok) {
-        // ✅ Check if verification is required
+        // ✅ Check if email verification is required
         if (data.requiresVerification) {
           // Store email for verification page
           localStorage.setItem("pendingVerificationEmail", formData.email);
@@ -45,6 +45,8 @@ export default function VisitorLogin() {
           router.push("/auth/verify-email");
           return;
         }
+        
+        // Visitors don't have document submission, so only email verification matters
         throw new Error(data.error || 'Login failed');
       }
       
