@@ -29,6 +29,13 @@ import {
   DollarSign,
 } from "lucide-react";
 import Link from "next/link";
+import MediaGallery from './components/MediaGallery';
+interface Photo {
+  id: number;
+  url: string;
+  sort_order: number;
+  uploaded_at: string;
+}
 
 interface FarmerData {
   id: number;
@@ -46,6 +53,7 @@ interface FarmerData {
   accommodation: boolean;
   maxGuests: string;
   farmPhotos: number;
+  photos?: Photo[];
   videoLink: string;
   documents: {
     businessLicense: boolean;
@@ -91,113 +99,129 @@ export default function FarmerDashboard() {
     if (!mounted) return;
 
     const fetchFarmerData = async () => {
-      try {
-        const userData = localStorage.getItem("userData");
-        
-        if (!userData) {
-          console.log("No user data found, redirecting to login");
-          router.push("/auth/login/farmer");
-          return;
-        }
+  try {
+    const userData = localStorage.getItem("userData");
+    
+    if (!userData) {
+      console.log("No user data found, redirecting to login");
+      router.push("/auth/login/farmer");
+      return;
+    }
 
-        const user = JSON.parse(userData);
-        
-        if (user.verificationStatus === 'pending') {
-          setFarmer({
-            id: user.id || 1,
-            name: user.name || "Farmer",
-            email: user.email || "",
-            phone: user.phone || "",
-            farmName: user.farmName || "",
-            farmLocation: user.farmLocation || "",
-            farmSize: user.farmSize || "",
-            yearEstablished: user.yearEstablished || "",
-            farmDescription: user.farmDescription || "",
-            farmType: user.farmType || "",
-            activities: user.activities || [],
-            facilities: user.facilities || [],
-            accommodation: user.accommodation || false,
-            maxGuests: user.maxGuests || "",
-            farmPhotos: user.farmPhotos || 0,
-            videoLink: user.videoLink || "",
-            documents: {
-              businessLicense: false,
-              nationalId: false,
-              insurance: false,
-              certifications: false,
-            },
-            verificationStatus: "pending",
-            submittedAt: new Date().toISOString().split('T')[0],
-            stats: {
-              profileViews: 0,
-              bookings: 0,
-              rating: 0,
-            },
-          });
-          setLoading(false);
-          return;
-        }
-        
-        const response = await fetch(`/api/farmer/profile?userId=${user.id}`);
-        
-        if (!response.ok) {
-          throw new Error("Failed to fetch farmer data");
-        }
-        
-        const data = await response.json();
-        setFarmer(data);
-        
-        // Fetch earnings data
-        const earningsResponse = await fetch(`/api/farmer/earnings?farmerId=${data.id}`);
-        if (earningsResponse.ok) {
-          const earningsData = await earningsResponse.json();
-          setRecentEarnings(earningsData.recent || []);
-          setTotalEarnings(earningsData.total || 0);
-          setTotalPlatformFee(earningsData.platformFee || 0);
-        }
-      } catch (error) {
-        console.error("Error fetching farmer data:", error);
-        const userData = localStorage.getItem("userData");
-        if (userData) {
-          const user = JSON.parse(userData);
-          setFarmer({
-            id: user.id || 1,
-            name: user.name || "Farmer",
-            email: user.email || "",
-            phone: "",
-            farmName: "",
-            farmLocation: "",
-            farmSize: "",
-            yearEstablished: "",
-            farmDescription: "",
-            farmType: "",
-            activities: [],
-            facilities: [],
-            accommodation: false,
-            maxGuests: "",
-            farmPhotos: 0,
-            videoLink: "",
-            documents: {
-              businessLicense: false,
-              nationalId: false,
-              insurance: false,
-              certifications: false,
-            },
-            verificationStatus: user.verificationStatus || "pending",
-            submittedAt: new Date().toISOString().split('T')[0],
-            stats: {
-              profileViews: 0,
-              bookings: 0,
-              rating: 0,
-            },
-          });
-        }
-      } finally {
-        setLoading(false);
+    const user = JSON.parse(userData);
+    
+    if (user.verificationStatus === 'pending') {
+      setFarmer({
+        id: user.id || 1,
+        name: user.name || "Farmer",
+        email: user.email || "",
+        phone: user.phone || "",
+        farmName: user.farmName || "",
+        farmLocation: user.farmLocation || "",
+        farmSize: user.farmSize || "",
+        yearEstablished: user.yearEstablished || "",
+        farmDescription: user.farmDescription || "",
+        farmType: user.farmType || "",
+        activities: user.activities || [],
+        facilities: user.facilities || [],
+        accommodation: user.accommodation || false,
+        maxGuests: user.maxGuests || "",
+        farmPhotos: user.farmPhotos || 0,
+        videoLink: user.videoLink || "",
+        documents: {
+          businessLicense: false,
+          nationalId: false,
+          insurance: false,
+          certifications: false,
+        },
+        verificationStatus: "pending",
+        submittedAt: new Date().toISOString().split('T')[0],
+        stats: {
+          profileViews: 0,
+          bookings: 0,
+          rating: 0,
+        },
+      });
+      setLoading(false);
+      return;
+    }
+    
+    const response = await fetch(`/api/farmer/profile?userId=${user.id}`);
+    
+    if (!response.ok) {
+      throw new Error("Failed to fetch farmer data");
+    }
+    
+    const data = await response.json();
+    
+    // ✅ STEP 4: Also fetch photos separately
+    try {
+      const photosResponse = await fetch(`/api/farmer/photos`);
+      if (photosResponse.ok) {
+        const photosData = await photosResponse.json();
+        data.farmPhotos = photosData.photos?.length || 0;
+        // Optional: Also store the actual photos if you want to display them directly
+        data.photos = photosData.photos || [];
+      } else {
+        data.farmPhotos = 0;
       }
-    };
-
-    fetchFarmerData();
+    } catch (photoError) {
+      console.error("Error fetching photos:", photoError);
+      data.farmPhotos = 0;
+    }
+    
+    setFarmer(data);
+    
+    // Fetch earnings data
+    const earningsResponse = await fetch(`/api/farmer/earnings?farmerId=${data.id}`);
+    if (earningsResponse.ok) {
+      const earningsData = await earningsResponse.json();
+      setRecentEarnings(earningsData.recent || []);
+      setTotalEarnings(earningsData.total || 0);
+      setTotalPlatformFee(earningsData.platformFee || 0);
+    }
+  } catch (error) {
+    console.error("Error fetching farmer data:", error);
+    const userData = localStorage.getItem("userData");
+    if (userData) {
+      const user = JSON.parse(userData);
+      setFarmer({
+        id: user.id || 1,
+        name: user.name || "Farmer",
+        email: user.email || "",
+        phone: "",
+        farmName: "",
+        farmLocation: "",
+        farmSize: "",
+        yearEstablished: "",
+        farmDescription: "",
+        farmType: "",
+        activities: [],
+        facilities: [],
+        accommodation: false,
+        maxGuests: "",
+        farmPhotos: 0,
+        videoLink: "",
+        documents: {
+          businessLicense: false,
+          nationalId: false,
+          insurance: false,
+          certifications: false,
+        },
+        verificationStatus: user.verificationStatus || "pending",
+        submittedAt: new Date().toISOString().split('T')[0],
+        stats: {
+          profileViews: 0,
+          bookings: 0,
+          rating: 0,
+        },
+      });
+    }
+  } finally {
+    setLoading(false);
+  }
+};
+fetchFarmerData();
   }, [router, mounted]);
 
   const handleLogout = () => {
@@ -436,7 +460,16 @@ export default function FarmerDashboard() {
               </div>
             </motion.div>
             
-            {/* Media Preview */}
+            {/* Media Gallery - Only show for approved farmers, otherwise show preview */}
+          {isApproved ? (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <MediaGallery />
+            </motion.div>
+          ) : (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -447,28 +480,13 @@ export default function FarmerDashboard() {
                 <Camera className="h-5 w-5 text-accent" />
                 Media Gallery
               </h2>
-              <div className="grid grid-cols-4 gap-3">
-                {farmer.farmPhotos > 0 ? (
-                  [...Array(Math.min(farmer.farmPhotos, 4))].map((_, i) => (
-                    <div key={i} className="aspect-square bg-emerald-100 rounded-xl flex items-center justify-center">
-                      <Camera className="h-6 w-6 text-emerald-400" />
-                    </div>
-                  ))
-                ) : (
-                  <div className="col-span-4 text-center py-8 text-emerald-400">
-                    <Camera className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No photos uploaded yet</p>
-                  </div>
-                )}
+              <div className="text-center py-8">
+                <Camera className="h-12 w-12 text-emerald-300 mx-auto mb-3" />
+                <p className="text-emerald-600">Media gallery will be available after verification</p>
+                <p className="text-sm text-emerald-400 mt-1">Upload photos once your farm is approved</p>
               </div>
-              {farmer.videoLink && (
-                <div className="mt-3">
-                  <a href={farmer.videoLink} target="_blank" rel="noopener noreferrer" className="text-accent text-sm hover:underline">
-                    View Farm Video →
-                  </a>
-                </div>
-              )}
             </motion.div>
+          )}
           </div>
           
           {/* Right Column - Status & Documents */}
