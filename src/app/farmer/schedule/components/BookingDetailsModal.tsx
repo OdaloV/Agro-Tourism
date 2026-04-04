@@ -3,20 +3,7 @@
 
 import { useState } from "react";
 import { X, Calendar, Clock, Users, User, Mail, Phone, DollarSign } from "lucide-react";
-
-interface Booking {
-  id: number;
-  booking_date: string;
-  start_time: string;
-  end_time: string;
-  guests_count: number;
-  total_amount: number;
-  status: string;
-  activity_name: string;
-  visitor_name: string;
-  visitor_email: string;
-  visitor_phone: string;
-}
+import { Booking } from "../types";
 
 interface BookingDetailsModalProps {
   booking: Booking;
