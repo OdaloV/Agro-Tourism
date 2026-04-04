@@ -96,6 +96,7 @@ export default function FarmerDashboard() {
   const [totalEarnings, setTotalEarnings] = useState(0);
   const [totalPlatformFee, setTotalPlatformFee] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -173,6 +174,17 @@ export default function FarmerDashboard() {
         } catch (photoError) {
           console.error("Error fetching photos:", photoError);
           data.farmPhotos = 0;
+        }
+        
+        // Fetch profile photo
+        try {
+          const photoResponse = await fetch(`/api/farmer/profile/photo`);
+          if (photoResponse.ok) {
+            const photoData = await photoResponse.json();
+            setProfilePhoto(photoData.photoUrl);
+          }
+        } catch (photoError) {
+          console.error("Error fetching profile photo:", photoError);
         }
         
         // Fetch unread messages count
@@ -281,19 +293,32 @@ export default function FarmerDashboard() {
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-100/30">
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         
-        {/* Header */}
+        {/* Header - Mobile responsive with profile photo */}
         <div className="mb-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-heading font-bold text-emerald-900">
-                Welcome back, {farmer.name?.split(" ")[0] || "Farmer"}!
-              </h1>
-              <p className="text-emerald-600 mt-1">Manage your farm and track bookings</p>
+          {/* Mobile: Profile and welcome on top, buttons below */}
+          <div className="flex flex-col gap-4">
+            {/* Welcome section with profile photo */}
+            <div className="flex items-center gap-4">
+              {/* Profile Photo */}
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-accent flex items-center justify-center text-white text-lg font-bold overflow-hidden flex-shrink-0">
+                {profilePhoto ? (
+                  <img src={profilePhoto} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <span>{farmer.name?.charAt(0).toUpperCase() || "F"}</span>
+                )}
+              </div>
+              <div>
+                <h1 className="text-2xl md:text-3xl font-heading font-bold text-emerald-900">
+                  Welcome back, {farmer.name?.split(" ")[0] || "Farmer"}!
+                </h1>
+                <p className="text-emerald-600 mt-1 text-sm md:text-base">Manage your farm and track bookings</p>
+              </div>
             </div>
             
-            {/* Show different button based on verification status */}
-            {isPending ? (
-              <div className="flex items-center gap-3">
+            {/* Action Buttons - Below on mobile, right on desktop */}
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              {/* Show different button based on verification status */}
+              {isPending ? (
                 <button
                   onClick={() => {
                     localStorage.removeItem("userRole");
@@ -306,16 +331,16 @@ export default function FarmerDashboard() {
                   <LogIn className="h-5 w-5" />
                   <span className="text-sm">Login to Dashboard</span>
                 </button>
-              </div>
-            ) : (
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-600 rounded-xl transition-colors"
-              >
-                <LogOut className="h-5 w-5" />
-                <span className="text-sm">Logout</span>
-              </button>
-            )}
+              ) : (
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-600 rounded-xl transition-colors"
+                >
+                  <LogOut className="h-5 w-5" />
+                  <span className="text-sm">Logout</span>
+                </button>
+              )}
+            </div>
           </div>
           
           {/* Verification Status Badge */}
@@ -793,23 +818,32 @@ export default function FarmerDashboard() {
                   </button>
                 </Link>
                 <Link href="/farmer/analytics">
-  <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
-    <span className="text-emerald-700 flex items-center gap-2">
-      <BarChart3 className="h-5 w-5" />
-      Analytics & Insights
-    </span>
-    <ChevronRight className="h-4 w-4 text-emerald-500" />
-  </button>
-</Link>
-<Link href="/farmer/schedule">
-  <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
-    <span className="text-emerald-700 flex items-center gap-2">
-      <Calendar className="h-5 w-5" />
-      Schedule & Bookings
-    </span>
-    <ChevronRight className="h-4 w-4 text-emerald-500" />
-  </button>
-</Link>
+                  <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
+                    <span className="text-emerald-700 flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      Analytics & Insights
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-emerald-500" />
+                  </button>
+                </Link>
+                <Link href="/farmer/schedule">
+                  <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
+                    <span className="text-emerald-700 flex items-center gap-2">
+                      <Calendar className="h-5 w-5" />
+                      Schedule & Bookings
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-emerald-500" />
+                  </button>
+                </Link>
+                <Link href="/farmer/settings">
+                  <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
+                    <span className="text-emerald-700 flex items-center gap-2">
+                      <Settings className="h-5 w-5" />
+                      Settings
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-emerald-500" />
+                  </button>
+                </Link>
               </div>
             </motion.div>
           </div>
