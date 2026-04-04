@@ -5,7 +5,7 @@ import { useState } from "react";
 import { MapPin, Ruler, Calendar, FileText, Home, Users, Video, Save } from "lucide-react";
 
 interface FarmSettingsTabProps {
-  farmer: {
+  farmer?: {
     farm_name: string;
     farm_location: string;
     farm_size: string;
@@ -16,7 +16,7 @@ interface FarmSettingsTabProps {
     max_guests: number;
     video_link: string;
   };
-  facilities: string[];
+  facilities?: string[];
   onSave: (data: any) => void;
   saving: boolean;
 }
@@ -30,16 +30,17 @@ const facilityOptions = [
 ];
 
 export default function FarmSettingsTab({ farmer, facilities, onSave, saving }: FarmSettingsTabProps) {
+  // Add safety checks for farmer object
   const [formData, setFormData] = useState({
-    farm_name: farmer.farm_name || "",
-    farm_location: farmer.farm_location || "",
-    farm_size: farmer.farm_size || "",
-    year_established: farmer.year_established || "",
-    farm_description: farmer.farm_description || "",
-    farm_type: farmer.farm_type || "",
-    accommodation: farmer.accommodation || false,
-    max_guests: farmer.max_guests || "",
-    video_link: farmer.video_link || "",
+    farm_name: farmer?.farm_name || "",
+    farm_location: farmer?.farm_location || "",
+    farm_size: farmer?.farm_size || "",
+    year_established: farmer?.year_established || "",
+    farm_description: farmer?.farm_description || "",
+    farm_type: farmer?.farm_type || "",
+    accommodation: farmer?.accommodation || false,
+    max_guests: farmer?.max_guests || "",
+    video_link: farmer?.video_link || "",
   });
 
   const [selectedFacilities, setSelectedFacilities] = useState<string[]>(facilities || []);
@@ -60,7 +61,7 @@ export default function FarmSettingsTab({ farmer, facilities, onSave, saving }: 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-emerald-900 mb-4">Farm Profile</h2>
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Farm Profile</h2>
         <p className="text-sm text-gray-500 mb-6">Update your farm information</p>
       </div>
 
@@ -71,7 +72,7 @@ export default function FarmSettingsTab({ farmer, facilities, onSave, saving }: 
             type="text"
             value={formData.farm_name}
             onChange={(e) => setFormData({ ...formData, farm_name: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent text-gray-900 bg-white"
             required
           />
         </div>
@@ -84,7 +85,7 @@ export default function FarmSettingsTab({ farmer, facilities, onSave, saving }: 
               type="text"
               value={formData.farm_location}
               onChange={(e) => setFormData({ ...formData, farm_location: e.target.value })}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent text-gray-900 bg-white"
               required
             />
           </div>
@@ -98,7 +99,7 @@ export default function FarmSettingsTab({ farmer, facilities, onSave, saving }: 
               type="text"
               value={formData.farm_size}
               onChange={(e) => setFormData({ ...formData, farm_size: e.target.value })}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent text-gray-900 bg-white"
             />
           </div>
         </div>
@@ -111,7 +112,7 @@ export default function FarmSettingsTab({ farmer, facilities, onSave, saving }: 
               type="number"
               value={formData.year_established}
               onChange={(e) => setFormData({ ...formData, year_established: e.target.value })}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent text-gray-900 bg-white"
               placeholder="e.g., 2010"
             />
           </div>
@@ -123,7 +124,7 @@ export default function FarmSettingsTab({ farmer, facilities, onSave, saving }: 
             rows={4}
             value={formData.farm_description}
             onChange={(e) => setFormData({ ...formData, farm_description: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent text-gray-900 bg-white"
             placeholder="Describe your farm, what makes it special..."
           />
         </div>
@@ -133,7 +134,7 @@ export default function FarmSettingsTab({ farmer, facilities, onSave, saving }: 
           <select
             value={formData.farm_type}
             onChange={(e) => setFormData({ ...formData, farm_type: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent text-gray-900 bg-white"
           >
             <option value="">Select farm type</option>
             {farmTypes.map(type => (
@@ -150,7 +151,7 @@ export default function FarmSettingsTab({ farmer, facilities, onSave, saving }: 
               type="url"
               value={formData.video_link}
               onChange={(e) => setFormData({ ...formData, video_link: e.target.value })}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent text-gray-900 bg-white"
               placeholder="https://youtube.com/watch?v=..."
             />
           </div>
@@ -159,7 +160,7 @@ export default function FarmSettingsTab({ farmer, facilities, onSave, saving }: 
 
       {/* Accommodation */}
       <div className="border-t border-gray-200 pt-6">
-        <h3 className="text-lg font-medium text-emerald-900 mb-4">Accommodation</h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Accommodation</h3>
         <div className="flex items-center gap-4 mb-4">
           <label className="flex items-center gap-2">
             <input
@@ -168,7 +169,7 @@ export default function FarmSettingsTab({ farmer, facilities, onSave, saving }: 
               onChange={(e) => setFormData({ ...formData, accommodation: e.target.checked })}
               className="rounded border-gray-300 text-accent focus:ring-accent"
             />
-            <span>Farm offers accommodation</span>
+            <span className="text-gray-700">Farm offers accommodation</span>
           </label>
         </div>
         
@@ -181,7 +182,7 @@ export default function FarmSettingsTab({ farmer, facilities, onSave, saving }: 
                 type="number"
                 value={formData.max_guests}
                 onChange={(e) => setFormData({ ...formData, max_guests: e.target.value })}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent text-gray-900 bg-white"
                 placeholder="e.g., 20"
               />
             </div>
@@ -191,17 +192,17 @@ export default function FarmSettingsTab({ farmer, facilities, onSave, saving }: 
 
       {/* Facilities */}
       <div className="border-t border-gray-200 pt-6">
-        <h3 className="text-lg font-medium text-emerald-900 mb-4">Facilities</h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Facilities</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {facilityOptions.map(facility => (
-            <label key={facility} className="flex items-center gap-2">
+            <label key={facility} className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={selectedFacilities.includes(facility)}
                 onChange={() => toggleFacility(facility)}
                 className="rounded border-gray-300 text-accent focus:ring-accent"
               />
-              <span className="capitalize">{facility}</span>
+              <span className="text-gray-700 capitalize">{facility}</span>
             </label>
           ))}
         </div>
