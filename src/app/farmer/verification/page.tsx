@@ -14,6 +14,8 @@ import {
   User,
   Landmark,
 } from "lucide-react";
+import ThemeToggle from "@/app/components/ThemeToggle";
+
 
 // Document type definition
 interface DocumentType {
@@ -241,17 +243,20 @@ const resendVerificationEmail = async () => {
       <div className="container mx-auto px-4 py-8 max-w-3xl">
         {/* Header */}
         <div className="mb-6">
-          <Link href="/farmer/dashboard" className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 mb-4">
-            <ChevronRight className="h-5 w-5 rotate-180" />
-            <span className="text-sm">Back to Dashboard</span>
-          </Link>
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-heading font-bold text-emerald-900">Farm Verification</h1>
-            <button onClick={() => setShowHelp(!showHelp)} className="p-2 hover:bg-emerald-50 rounded-xl">
-              <HelpCircle className="h-5 w-5 text-emerald-500" />
-            </button>
-          </div>
-        </div>
+  <Link href="/farmer/dashboard" className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 mb-4">
+    <ChevronRight className="h-5 w-5 rotate-180" />
+    <span className="text-sm">Back to Dashboard</span>
+  </Link>
+  <div className="flex items-center justify-between">
+    <h1 className="text-2xl font-heading font-bold text-emerald-900">Farm Verification</h1>
+    <div className="flex items-center gap-3">
+      <ThemeToggle />
+      <button onClick={() => setShowHelp(!showHelp)} className="p-2 hover:bg-emerald-50 rounded-xl">
+        <HelpCircle className="h-5 w-5 text-emerald-500" />
+      </button>
+    </div>
+  </div>
+</div>
 
         {/* Help Banner */}
         {showHelp && (
