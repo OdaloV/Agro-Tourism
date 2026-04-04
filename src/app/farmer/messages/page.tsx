@@ -27,7 +27,7 @@ import {
   Reply,
   Flag,
 } from "lucide-react";
-import ThemeToggle from "@/app/components/ThemeToggle";
+
 
 interface Message {
   id: number;
@@ -170,7 +170,6 @@ export default function FarmerMessages() {
       <p className="text-emerald-600 mt-1">Communicate with visitors interested in your farm</p>
     </div>
     <div className="flex items-center gap-3">
-      <ThemeToggle />
       {totalUnread > 0 && (
         <div className="flex items-center gap-2 px-3 py-2 bg-accent/10 rounded-xl">
           <MessageCircle className="h-5 w-5 text-accent" />
