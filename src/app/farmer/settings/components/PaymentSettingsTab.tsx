@@ -26,12 +26,12 @@ const paymentMethodOptions = [
 
 export default function PaymentSettingsTab({ payment, onSave, saving }: PaymentSettingsTabProps) {
   const [formData, setFormData] = useState({
-    bank_name: payment.bank_name || "",
-    account_name: payment.account_name || "",
-    account_number: payment.account_number || "",
-    mpesa_number: payment.mpesa_number || "",
-    payment_methods: payment.payment_methods || ["cash", "mpesa"],
-    tax_id: payment.tax_id || "",
+    bank_name: payment?.bank_name || "",
+    account_name: payment?.account_name || "",
+    account_number: payment?.account_number || "",
+    mpesa_number: payment?.mpesa_number || "",
+    payment_methods: payment?.payment_methods || ["cash", "mpesa"],
+    tax_id: payment?.tax_id || "",
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -51,7 +51,7 @@ export default function PaymentSettingsTab({ payment, onSave, saving }: PaymentS
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-emerald-900 mb-4">Payment Settings</h2>
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Payment Settings</h2>
         <p className="text-sm text-gray-500 mb-6">Configure how you receive payments from bookings</p>
       </div>
 
@@ -59,7 +59,7 @@ export default function PaymentSettingsTab({ payment, onSave, saving }: PaymentS
       <div className="border border-gray-200 rounded-lg p-4">
         <div className="flex items-center gap-2 mb-4">
           <Building2 className="h-5 w-5 text-accent" />
-          <h3 className="font-medium text-emerald-900">Bank Account Details</h3>
+          <h3 className="font-medium text-gray-900">Bank Account Details</h3>
         </div>
         <div className="space-y-4">
           <div>
@@ -68,7 +68,7 @@ export default function PaymentSettingsTab({ payment, onSave, saving }: PaymentS
               type="text"
               value={formData.bank_name}
               onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent bg-white text-gray-900"
               placeholder="e.g., Equity Bank"
             />
           </div>
@@ -78,7 +78,7 @@ export default function PaymentSettingsTab({ payment, onSave, saving }: PaymentS
               type="text"
               value={formData.account_name}
               onChange={(e) => setFormData({ ...formData, account_name: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent bg-white text-gray-900"
               placeholder="Name on the account"
             />
           </div>
@@ -88,7 +88,7 @@ export default function PaymentSettingsTab({ payment, onSave, saving }: PaymentS
               type="text"
               value={formData.account_number}
               onChange={(e) => setFormData({ ...formData, account_number: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent bg-white text-gray-900"
               placeholder="Bank account number"
             />
           </div>
@@ -99,7 +99,7 @@ export default function PaymentSettingsTab({ payment, onSave, saving }: PaymentS
       <div className="border border-gray-200 rounded-lg p-4">
         <div className="flex items-center gap-2 mb-4">
           <Smartphone className="h-5 w-5 text-accent" />
-          <h3 className="font-medium text-emerald-900">M-Pesa Details</h3>
+          <h3 className="font-medium text-gray-900">M-Pesa Details</h3>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">M-Pesa Number</label>
@@ -107,7 +107,7 @@ export default function PaymentSettingsTab({ payment, onSave, saving }: PaymentS
             type="tel"
             value={formData.mpesa_number}
             onChange={(e) => setFormData({ ...formData, mpesa_number: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent bg-white text-gray-900"
             placeholder="e.g., 0712345678"
           />
           <p className="text-xs text-gray-400 mt-1">This number will receive M-Pesa payments from bookings</p>
@@ -118,7 +118,7 @@ export default function PaymentSettingsTab({ payment, onSave, saving }: PaymentS
       <div className="border border-gray-200 rounded-lg p-4">
         <div className="flex items-center gap-2 mb-4">
           <CreditCard className="h-5 w-5 text-accent" />
-          <h3 className="font-medium text-emerald-900">Accepted Payment Methods</h3>
+          <h3 className="font-medium text-gray-900">Accepted Payment Methods</h3>
         </div>
         <div className="space-y-2">
           {paymentMethodOptions.map(method => (
@@ -140,7 +140,7 @@ export default function PaymentSettingsTab({ payment, onSave, saving }: PaymentS
       <div className="border border-gray-200 rounded-lg p-4">
         <div className="flex items-center gap-2 mb-4">
           <FileText className="h-5 w-5 text-accent" />
-          <h3 className="font-medium text-emerald-900">Tax Information</h3>
+          <h3 className="font-medium text-gray-900">Tax Information</h3>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Tax ID / PIN</label>
@@ -148,7 +148,7 @@ export default function PaymentSettingsTab({ payment, onSave, saving }: PaymentS
             type="text"
             value={formData.tax_id}
             onChange={(e) => setFormData({ ...formData, tax_id: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent bg-white text-gray-900"
             placeholder="e.g., KRA PIN"
           />
           <p className="text-xs text-gray-400 mt-1">Required for generating invoices and tax reports</p>
