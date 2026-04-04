@@ -28,7 +28,7 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
-
+import ThemeToggle from "@/app/components/ThemeToggle";
 interface AnalyticsData {
   summary: {
     total_views: number;
@@ -200,6 +200,7 @@ export default function FarmerAnalytics() {
               <p className="text-emerald-600 mt-1">Track your farm's performance and growth</p>
             </div>
             <div className="flex gap-3">
+               <ThemeToggle />
               <select
                 value={timeRange}
                 onChange={(e) => setTimeRange(e.target.value as any)}
