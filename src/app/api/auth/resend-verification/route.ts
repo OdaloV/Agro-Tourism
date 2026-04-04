@@ -1,7 +1,7 @@
 // src/app/api/auth/resend-verification/route.ts
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
-import { sendVerificationEmail } from '@/lib/services/notificationService';
+import { sendVisitorVerificationEmail } from '@/lib/services/notificationService';
 
 export async function POST(request: Request) {
   try {
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     
     // Get user
     const userResult = await pool.query(
-      `SELECT id, name FROM users WHERE email = $1`,
+      `SELECT id, name, email_verified FROM users WHERE email = $1`,
       [email]
     );
     
@@ -28,6 +28,14 @@ export async function POST(request: Request) {
     }
     
     const user = userResult.rows[0];
+    
+    // Check if already verified
+    if (user.email_verified === true) {
+      return NextResponse.json(
+        { error: 'Email already verified' },
+        { status: 400 }
+      );
+    }
     
     // Generate new verification code
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
@@ -42,12 +50,12 @@ export async function POST(request: Request) {
       [verificationCode, codeExpires, email]
     );
     
-    // Send verification email
-    await sendVerificationEmail(email, user.name, verificationCode);
+    // Send verification email using visitor function
+    await sendVisitorVerificationEmail(email, user.name, verificationCode);
     
     return NextResponse.json({ 
       success: true, 
-      message: 'Verification code resent' 
+      message: 'Verification code resent successfully' 
     });
     
   } catch (error) {
