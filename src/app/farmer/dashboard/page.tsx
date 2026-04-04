@@ -801,6 +801,15 @@ export default function FarmerDashboard() {
     <ChevronRight className="h-4 w-4 text-emerald-500" />
   </button>
 </Link>
+<Link href="/farmer/schedule">
+  <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
+    <span className="text-emerald-700 flex items-center gap-2">
+      <Calendar className="h-5 w-5" />
+      Schedule & Bookings
+    </span>
+    <ChevronRight className="h-4 w-4 text-emerald-500" />
+  </button>
+</Link>
               </div>
             </motion.div>
           </div>
