@@ -16,7 +16,7 @@ import {
   DollarSign,
   Tag 
 } from "lucide-react";
-import ThemeToggle from "@/app/components/ThemeToggle";
+//import ThemeToggle from "@/app/components/ThemeToggle";
 
 interface ActivityItem {
   id: number;
@@ -158,7 +158,6 @@ export default function FarmerActivities() {
       <p className="text-emerald-600 mt-1">Manage activities you offer on your farm</p>
     </div>
     <div className="flex items-center gap-3">
-      <ThemeToggle />
       <Link href="/farmer/activities/new">
         <button className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl hover:bg-accent/90 transition">
           <Plus className="h-5 w-5" />
