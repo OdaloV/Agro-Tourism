@@ -73,3 +73,287 @@
     font-family: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
   }
 }
+
+/* ============================================
+   FARMER DASHBOARD DARK MODE STYLES
+   ============================================ */
+
+/* Dark mode background overrides */
+.dark .bg-gradient-to-br {
+  background-image: linear-gradient(to bottom right, #0f172a, #1e293b, #0f172a) !important;
+}
+
+.dark .bg-white {
+  background-color: #1e293b !important;
+}
+
+.dark .bg-gray-50 {
+  background-color: #0f172a !important;
+}
+
+.dark .bg-gray-100 {
+  background-color: #1e293b !important;
+}
+
+.dark .bg-emerald-50 {
+  background-color: #064e3b !important;
+}
+
+.dark .bg-amber-50 {
+  background-color: #78350f !important;
+}
+
+.dark .bg-red-50 {
+  background-color: #7f1d1d !important;
+}
+
+.dark .bg-blue-50 {
+  background-color: #1e3a5f !important;
+}
+
+.dark .bg-green-50 {
+  background-color: #14532d !important;
+}
+
+.dark .bg-accent\/10 {
+  background-color: rgba(234, 179, 8, 0.1) !important;
+}
+
+/* Dark mode text colors */
+.dark .text-emerald-900 {
+  color: #6ee7b7 !important;
+}
+
+.dark .text-emerald-800 {
+  color: #86efac !important;
+}
+
+.dark .text-emerald-700 {
+  color: #a7f3d0 !important;
+}
+
+.dark .text-emerald-600 {
+  color: #bbf7d0 !important;
+}
+
+.dark .text-emerald-500 {
+  color: #6ee7b7 !important;
+}
+
+.dark .text-gray-900 {
+  color: #f3f4f6 !important;
+}
+
+.dark .text-gray-800 {
+  color: #e5e7eb !important;
+}
+
+.dark .text-gray-700 {
+  color: #d1d5db !important;
+}
+
+.dark .text-gray-600 {
+  color: #9ca3af !important;
+}
+
+.dark .text-gray-500 {
+  color: #9ca3af !important;
+}
+
+.dark .text-gray-400 {
+  color: #6b7280 !important;
+}
+
+.dark .text-amber-800 {
+  color: #fcd34d !important;
+}
+
+.dark .text-amber-700 {
+  color: #fbbf24 !important;
+}
+
+.dark .text-amber-600 {
+  color: #f59e0b !important;
+}
+
+.dark .text-red-800 {
+  color: #fca5a5 !important;
+}
+
+.dark .text-red-700 {
+  color: #f87171 !important;
+}
+
+.dark .text-red-600 {
+  color: #ef4444 !important;
+}
+
+.dark .text-blue-800 {
+  color: #93c5fd !important;
+}
+
+.dark .text-blue-700 {
+  color: #60a5fa !important;
+}
+
+.dark .text-blue-600 {
+  color: #3b82f6 !important;
+}
+
+.dark .text-green-800 {
+  color: #86efac !important;
+}
+
+.dark .text-green-700 {
+  color: #4ade80 !important;
+}
+
+.dark .text-green-600 {
+  color: #22c55e !important;
+}
+
+/* Dark mode border colors */
+.dark .border-emerald-100,
+.dark .border-emerald-200 {
+  border-color: #334155 !important;
+}
+
+.dark .border-gray-200,
+.dark .border-gray-300 {
+  border-color: #334155 !important;
+}
+
+.dark .border-amber-200 {
+  border-color: #78350f !important;
+}
+
+.dark .border-red-200 {
+  border-color: #7f1d1d !important;
+}
+
+.dark .border-blue-200 {
+  border-color: #1e3a5f !important;
+}
+
+.dark .border-green-200 {
+  border-color: #14532d !important;
+}
+
+/* Dark mode input fields */
+.dark input,
+.dark textarea,
+.dark select {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f3f4f6 !important;
+}
+
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  border-color: #eab308 !important;
+  outline: none !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+.dark input:disabled {
+  background-color: #0f172a !important;
+  color: #64748b !important;
+}
+
+/* Dark mode buttons */
+.dark button.bg-accent {
+  background-color: #eab308 !important;
+  color: #0f172a !important;
+}
+
+.dark button.bg-accent:hover {
+  background-color: #ca8a04 !important;
+}
+
+.dark button.bg-red-600 {
+  background-color: #dc2626 !important;
+}
+
+.dark button.bg-green-600 {
+  background-color: #16a34a !important;
+}
+
+.dark button.bg-blue-600 {
+  background-color: #2563eb !important;
+}
+
+.dark button.bg-gray-200 {
+  background-color: #334155 !important;
+  color: #e5e7eb !important;
+}
+
+/* Dark mode cards and containers */
+.dark .shadow-sm {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark .divide-y > :not([hidden]) ~ :not([hidden]) {
+  border-color: #334155 !important;
+}
+
+.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #334155 !important;
+}
+
+.dark .border-t {
+  border-color: #334155 !important;
+}
+
+/* Dark mode gradient overrides */
+.dark .from-emerald-50 {
+  --tw-gradient-from: #064e3b !important;
+}
+
+.dark .to-white {
+  --tw-gradient-to: #1e293b !important;
+}
+
+.dark .bg-gradient-to-r {
+  background-image: linear-gradient(to right, #064e3b, #1e293b) !important;
+}
+
+/* Dark mode hover states */
+.dark .hover\:bg-emerald-50:hover {
+  background-color: #064e3b !important;
+}
+
+.dark .hover\:bg-emerald-100:hover {
+  background-color: #065f46 !important;
+}
+
+.dark .hover\:bg-gray-100:hover {
+  background-color: #334155 !important;
+}
+
+.dark .hover\:bg-gray-200:hover {
+  background-color: #374151 !important;
+}
+
+/* Dark mode scrollbar (optional) */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
