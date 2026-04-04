@@ -16,6 +16,7 @@ import {
   DollarSign,
   Tag 
 } from "lucide-react";
+import ThemeToggle from "@/app/components/ThemeToggle";
 
 interface ActivityItem {
   id: number;
@@ -149,19 +150,23 @@ export default function FarmerActivities() {
         </Link>
 
         {/* Header */}
-        <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden">
-          <div className="p-6 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-white flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-heading font-bold text-emerald-900">My Activities</h1>
-              <p className="text-emerald-600 mt-1">Manage activities you offer on your farm</p>
-            </div>
-            <Link href="/farmer/activities/new">
-              <button className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl hover:bg-accent/90 transition">
-                <Plus className="h-5 w-5" />
-                Add Activity
-              </button>
-            </Link>
-          </div>
+        {/* Header */}
+<div className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden">
+  <div className="p-6 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-white flex justify-between items-center">
+    <div>
+      <h1 className="text-2xl font-heading font-bold text-emerald-900">My Activities</h1>
+      <p className="text-emerald-600 mt-1">Manage activities you offer on your farm</p>
+    </div>
+    <div className="flex items-center gap-3">
+      <ThemeToggle />
+      <Link href="/farmer/activities/new">
+        <button className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl hover:bg-accent/90 transition">
+          <Plus className="h-5 w-5" />
+          Add Activity
+        </button>
+      </Link>
+    </div>
+  </div>
 
           {/* Activities List */}
           <div className="p-6">
