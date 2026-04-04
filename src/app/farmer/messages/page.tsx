@@ -27,6 +27,7 @@ import {
   Reply,
   Flag,
 } from "lucide-react";
+import ThemeToggle from "@/app/components/ThemeToggle";
 
 interface Message {
   id: number;
@@ -157,25 +158,28 @@ export default function FarmerMessages() {
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-emerald-100/30">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         
-        {/* Header */}
-        <div className="mb-6">
-          <Link href="/farmer/dashboard" className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 mb-4">
-            <ArrowLeft className="h-5 w-5" />
-            Back to Dashboard
-          </Link>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-heading font-bold text-emerald-900">Messages</h1>
-              <p className="text-emerald-600 mt-1">Communicate with visitors interested in your farm</p>
-            </div>
-            {totalUnread > 0 && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-accent/10 rounded-xl">
-                <MessageCircle className="h-5 w-5 text-accent" />
-                <span className="font-medium text-accent">{totalUnread} unread</span>
-              </div>
-            )}
-          </div>
+       {/* Header */}
+<div className="mb-6">
+  <Link href="/farmer/dashboard" className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 mb-4">
+    <ArrowLeft className="h-5 w-5" />
+    Back to Dashboard
+  </Link>
+  <div className="flex items-center justify-between">
+    <div>
+      <h1 className="text-3xl font-heading font-bold text-emerald-900">Messages</h1>
+      <p className="text-emerald-600 mt-1">Communicate with visitors interested in your farm</p>
+    </div>
+    <div className="flex items-center gap-3">
+      <ThemeToggle />
+      {totalUnread > 0 && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-accent/10 rounded-xl">
+          <MessageCircle className="h-5 w-5 text-accent" />
+          <span className="font-medium text-accent">{totalUnread} unread</span>
         </div>
+      )}
+    </div>
+  </div>
+</div>
 
         {/* Search and Filter */}
         <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 p-4 mb-6">
