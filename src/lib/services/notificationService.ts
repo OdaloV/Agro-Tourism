@@ -32,12 +32,7 @@ export async function sendSMSNotification(phone: string, message: string) {
   if (!settings.smsEnabled) return;
   
   // Add your SMS provider integration here
-  // Example for Africa's Talking:
-  // const africasTalking = require('africastalking')({
-  //   apiKey: process.env.AFRICAS_TALKING_API_KEY,
-  //   username: process.env.AFRICAS_TALKING_USERNAME,
-  // });
-  // await africasTalking.SMS.send({ to: phone, message, from: process.env.SMS_SENDER_ID });
+  console.log(`SMS would be sent to ${phone}: ${message}`);
 }
 
 // Get notification settings
@@ -92,6 +87,7 @@ export async function notifyFarmerApproved(farmerEmail: string, farmerName: stri
   
   await sendEmailNotification(farmerEmail, subject, html);
 }
+
 // Send registration confirmation email (after registration, before document submission)
 export async function sendRegistrationConfirmation(email: string, name: string, farmName: string) {
   const subject = 'Farm Registration Received - HarvestHost';
@@ -138,11 +134,14 @@ export async function sendRegistrationConfirmation(email: string, name: string, 
   
   await sendEmailNotification(email, subject, html);
 }
-// src/lib/services/notificationService.ts
 
-// Add this function alongside your other email functions
-// Send email verification code (sent after document submission)
+// Send email verification code (sent after document submission for farmers)
 export async function sendVerificationEmail(email: string, name: string, code: string) {
+  // Log to console for development
+  console.log(`=================================`);
+  console.log(`🔐 FARMER VERIFICATION CODE FOR ${email}: ${code}`);
+  console.log(`=================================`);
+  
   const subject = 'Verify Your Email - Complete Your HarvestHost Registration';
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -178,7 +177,41 @@ export async function sendVerificationEmail(email: string, name: string, code: s
     </div>
   `;
   
-  await sendEmailNotification(email, subject, html);
+  try {
+    await sendEmailNotification(email, subject, html);
+  } catch (error) {
+    console.error('Failed to send verification email:', error);
+  }
+}
+
+// Send visitor verification email (for visitor registration)
+export async function sendVisitorVerificationEmail(email: string, name: string, code: string) {
+  // Log to console for development
+  console.log(`=================================`);
+  console.log(`🔐 VISITOR VERIFICATION CODE FOR ${email}: ${code}`);
+  console.log(`=================================`);
+  
+  const subject = 'Verify Your Email - HarvestHost';
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #4CAF50;">Welcome to HarvestHost!</h2>
+      <p>Dear ${name},</p>
+      <p>Thank you for registering as a visitor on HarvestHost!</p>
+      <p>Please use the verification code below to complete your registration:</p>
+      <div style="background-color: #f5f5f5; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; border-radius: 10px; margin: 20px 0;">
+        ${code}
+      </div>
+      <p>This code will expire in <strong>15 minutes</strong>.</p>
+      <p>If you didn't create an account with HarvestHost, please ignore this email.</p>
+      <p>Best regards,<br>HarvestHost Team</p>
+    </div>
+  `;
+  
+  try {
+    await sendEmailNotification(email, subject, html);
+  } catch (error) {
+    console.error('Failed to send visitor verification email:', error);
+  }
 }
 
 // Send verification rejected notification
