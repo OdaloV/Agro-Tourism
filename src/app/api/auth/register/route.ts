@@ -2,7 +2,11 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
 import pool from '@/lib/db';
-import { notifyNewFarmerRegistration, sendRegistrationConfirmation } from '@/lib/services/notificationService';
+import { 
+  notifyNewFarmerRegistration, 
+  sendRegistrationConfirmation,
+  sendVisitorVerificationEmail 
+} from '@/lib/services/notificationService';
 import { checkMaintenanceMode } from '@/lib/utils/checkMaintenance'; 
 
 const JWT_SECRET = new TextEncoder().encode(
@@ -74,21 +78,25 @@ export async function POST(request: Request) {
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      // ✅ REMOVED: No longer generating verification code here
-      // Verification email will be sent after document submission
+      // Generate verification code for visitors
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const codeExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
-      // Insert user with email_verified = false (no verification code yet)
+      // Insert user with email_verified = false and verification code for visitors
       const userResult = await client.query(
-        `INSERT INTO users (name, email, phone, password_hash, role, is_verified, email_verified)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO users (name, email, phone, password_hash, role, is_verified, email_verified, verification_code, verification_code_expires)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING id, name, email, role`,
-        [name, email, phone, hashedPassword, role, role === 'visitor', false]
+        [name, email, phone, hashedPassword, role, role === 'visitor', false, verificationCode, codeExpires]
       );
 
       const userId = userResult.rows[0].id;
 
-      // ✅ REMOVED: No longer sending verification email here
-      // Verification email will be sent after document submission
+      // Send verification email for visitors immediately
+      if (role === 'visitor') {
+        await sendVisitorVerificationEmail(email, name, verificationCode);
+        console.log(`Visitor verification email sent to ${email} with code: ${verificationCode}`);
+      }
 
       // If farmer, insert farmer profile
       if (role === 'farmer' && farmerData) {
@@ -184,11 +192,11 @@ export async function POST(request: Request) {
           email: user.email,
           role: user.role,
           isVerified: false,
-          verificationStatus: 'pending',
+          verificationStatus: role === 'farmer' ? 'pending' : null,
           emailVerified: false
         },
         requiresVerification: role === 'farmer',
-        requiresEmailVerification: false  // ← Changed to false (will be sent after documents)
+        requiresEmailVerification: role === 'visitor'  // Visitors need email verification
       });
 
       // Set cookies for authentication
