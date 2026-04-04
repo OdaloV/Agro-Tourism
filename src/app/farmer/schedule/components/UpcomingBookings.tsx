@@ -2,16 +2,7 @@
 "use client";
 
 import { Calendar, Users, Clock } from "lucide-react";
-
-interface Booking {
-  id: number;
-  booking_date: string;
-  start_time: string;
-  guests_count: number;
-  status: string;
-  activity_name: string;
-  visitor_name: string;
-}
+import { Booking } from "../types";
 
 interface UpcomingBookingsProps {
   bookings: Booking[];
