@@ -13,10 +13,11 @@ import {
   LogOut,
 } from "lucide-react";
 import { useAuth } from "@/lib/context/AuthContext";
+import { FarmerThemeProvider } from "@/components/admin/ThemeProvider";
 
 const navigationItems = [
   {
-    href: "/farmer/dashboard",  // ✅ FIXED - Now points to dashboard
+    href: "/farmer/dashboard",
     label: "Dashboard",
     icon: Home,
   },
@@ -52,32 +53,28 @@ const navigationItems = [
   },
 ];
 
-export default function FarmerLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function FarmerLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { logout } = useAuth();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-emerald-100/30">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-emerald-100/30 dark:from-gray-900 dark:to-gray-800">
       <div className="flex">
         {/* Sidebar - Desktop */}
-        <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 bg-white border-r border-emerald-100">
+        <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 bg-white dark:bg-gray-900 border-r border-emerald-100 dark:border-gray-700">
           <div className="flex-1 flex flex-col min-h-0">
             {/* Logo */}
-            <div className="flex items-center h-16 px-6 border-b border-emerald-100">
+            <div className="flex items-center h-16 px-6 border-b border-emerald-100 dark:border-gray-700">
               <Link
-                href="/farmer/dashboard"  // ✅ FIXED - Logo now points to dashboard
+                href="/farmer/dashboard"
                 className="flex items-center gap-2"
               >
                 <Tractor className="h-6 w-6 text-accent" />
-                <span className="text-lg font-heading font-bold text-emerald-900">
+                <span className="text-lg font-heading font-bold text-emerald-900 dark:text-emerald-100">
                   HarvestHost
                 </span>
               </Link>
-              <span className="ml-2 text-xs px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full">
+              <span className="ml-2 text-xs px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-full">
                 Farmer
               </span>
             </div>
@@ -97,11 +94,13 @@ export default function FarmerLayout({
                     className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${
                       isActive
                         ? "bg-accent/10 text-accent font-medium"
-                        : "text-emerald-600 hover:bg-emerald-50"
+                        : "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-gray-800"
                     }`}
                   >
                     <Icon
-                      className={`h-5 w-5 ${isActive ? "text-accent" : "text-emerald-500"}`}
+                      className={`h-5 w-5 ${
+                        isActive ? "text-accent" : "text-emerald-500 dark:text-emerald-400"
+                      }`}
                     />
                     <span className="text-sm">{item.label}</span>
                     {item.label === "Verification" && !isActive && (
@@ -113,10 +112,10 @@ export default function FarmerLayout({
             </nav>
 
             {/* Logout Button */}
-            <div className="p-4 border-t border-emerald-100">
+            <div className="p-4 border-t border-emerald-100 dark:border-gray-700">
               <button
                 onClick={logout}
-                className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-red-600 hover:bg-red-50 transition-all"
+                className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
               >
                 <LogOut className="h-5 w-5" />
                 <span className="text-sm">Logout</span>
@@ -130,7 +129,7 @@ export default function FarmerLayout({
       </div>
 
       {/* Bottom Navigation - Mobile */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-emerald-100 md:hidden z-20">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-emerald-100 dark:border-gray-700 md:hidden z-20">
         <div className="flex justify-around py-2">
           {navigationItems.slice(0, 5).map((item) => {
             const Icon = item.icon;
@@ -141,7 +140,7 @@ export default function FarmerLayout({
                 key={item.href}
                 href={item.href}
                 className={`flex flex-col items-center py-2 px-3 rounded-xl transition-colors ${
-                  isActive ? "text-accent" : "text-emerald-500"
+                  isActive ? "text-accent" : "text-emerald-500 dark:text-emerald-400"
                 }`}
               >
                 <Icon className="h-5 w-5" />
@@ -157,5 +156,17 @@ export default function FarmerLayout({
         </div>
       </nav>
     </div>
+  );
+}
+
+export default function FarmerLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <FarmerThemeProvider>
+      <FarmerLayoutContent>{children}</FarmerLayoutContent>
+    </FarmerThemeProvider>
   );
 }
