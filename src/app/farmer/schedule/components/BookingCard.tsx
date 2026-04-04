@@ -1,17 +1,10 @@
 // src/app/farmer/schedule/components/BookingCard.tsx
 "use client";
 
+import { Booking } from "../types";
+
 interface BookingCardProps {
-  booking: {
-    id: number;
-    booking_date: string;
-    start_time: string;
-    end_time: string;
-    guests_count: number;
-    status: string;
-    activity_name: string;
-    visitor_name: string;
-  };
+  booking: Booking;
   onClick: () => void;
 }
 
