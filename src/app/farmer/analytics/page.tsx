@@ -230,6 +230,7 @@ export default function FarmerAnalytics() {
 
         {/* Key Metrics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+          
           {metrics.map((metric) => (
             <motion.div
               key={metric.key}
@@ -333,7 +334,7 @@ export default function FarmerAnalytics() {
                 <p className="text-center text-gray-500 py-8">No activities yet</p>
               ) : (
                 analytics.top_activities.map((activity, idx) => (
-                  <div key={idx} className="flex items-center justify-between">
+  <div key={activity.name || idx} className="flex items-center justify-between">
                     <div>
                       <p className="font-medium text-emerald-800">{activity.name}</p>
                       <p className="text-xs text-gray-500">{activity.bookings} bookings</p>
@@ -359,7 +360,7 @@ export default function FarmerAnalytics() {
             ) : (
               <div className="space-y-3">
                 {analytics.visitor_demographics.map((demo, idx) => (
-                  <div key={idx}>
+  <div key={demo.location || idx}>
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-gray-600">{demo.location}</span>
                       <span className="text-gray-500">{demo.percentage}% ({demo.count})</span>
@@ -377,43 +378,44 @@ export default function FarmerAnalytics() {
           </div>
 
           {/* Recent Activity Feed */}
-          <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 p-6">
-            <h3 className="text-lg font-semibold text-emerald-900 mb-4">Recent Activity</h3>
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-              {analytics.recent_activity.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">No recent activity</p>
-              ) : (
-                analytics.recent_activity.map((activity) => (
-                  <div key={activity.id} className="flex items-start gap-3">
-                    <div className={`p-2 rounded-lg ${
-                      activity.type === "booking" ? "bg-green-100" :
-                      activity.type === "message" ? "bg-blue-100" :
-                      activity.type === "review" ? "bg-amber-100" : "bg-gray-100"
-                    }`}>
-                      {activity.type === "booking" && <Calendar className="h-4 w-4 text-green-600" />}
-                      {activity.type === "message" && <MessageCircle className="h-4 w-4 text-blue-600" />}
-                      {activity.type === "review" && <Star className="h-4 w-4 text-amber-600" />}
-                      {activity.type === "view" && <Eye className="h-4 w-4 text-gray-600" />}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-700">{activity.description}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-gray-400">{activity.date}</span>
-                        {activity.status && (
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${
-                            activity.status === "completed" ? "bg-green-100 text-green-600" :
-                            activity.status === "pending" ? "bg-yellow-100 text-yellow-600" : "bg-gray-100 text-gray-600"
-                          }`}>
-                            {activity.status}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))
+          {/* Recent Activity Feed */}
+<div className="bg-white rounded-2xl shadow-sm border border-emerald-100 p-6">
+  <h3 className="text-lg font-semibold text-emerald-900 mb-4">Recent Activity</h3>
+  <div className="space-y-4 max-h-96 overflow-y-auto">
+    {analytics.recent_activity.length === 0 ? (
+      <p className="text-center text-gray-500 py-8">No recent activity</p>
+    ) : (
+      analytics.recent_activity.map((activity, idx) => (
+        <div key={activity.id || idx} className="flex items-start gap-3">
+          <div className={`p-2 rounded-lg ${
+            activity.type === "booking" ? "bg-green-100" :
+            activity.type === "message" ? "bg-blue-100" :
+            activity.type === "review" ? "bg-amber-100" : "bg-gray-100"
+          }`}>
+            {activity.type === "booking" && <Calendar className="h-4 w-4 text-green-600" />}
+            {activity.type === "message" && <MessageCircle className="h-4 w-4 text-blue-600" />}
+            {activity.type === "review" && <Star className="h-4 w-4 text-amber-600" />}
+            {activity.type === "view" && <Eye className="h-4 w-4 text-gray-600" />}
+          </div>
+          <div className="flex-1">
+            <p className="text-sm text-gray-700">{activity.description}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs text-gray-400">{activity.date}</span>
+              {activity.status && (
+                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                  activity.status === "completed" ? "bg-green-100 text-green-600" :
+                  activity.status === "pending" ? "bg-yellow-100 text-yellow-600" : "bg-gray-100 text-gray-600"
+                }`}>
+                  {activity.status}
+                </span>
               )}
             </div>
           </div>
+        </div>
+      ))
+    )}
+  </div>
+</div>
         </div>
 
         {/* Quick Insights */}
