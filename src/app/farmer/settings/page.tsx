@@ -22,6 +22,7 @@ import NotificationSettingsTab from "./components/NotificationSettingsTab";
 import PaymentSettingsTab from "./components/PaymentSettingsTab";
 import BusinessHoursTab from "./components/BusinessHoursTab";
 import SecurityTab from "./components/SecurityTab";
+import ThemeToggle from "@/app/components/ThemeToggle";
 
 interface SettingsData {
   user: {
@@ -151,18 +152,20 @@ export default function FarmerSettings() {
         
         {/* Header */}
         <div className="mb-6">
-          <Link href="/farmer/dashboard" className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 mb-4">
-            <ArrowLeft className="h-5 w-5" />
-            Back to Dashboard
-          </Link>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-heading font-bold text-emerald-900">Settings</h1>
-              <p className="text-emerald-600 mt-1">Manage your account and farm preferences</p>
-            </div>
-          </div>
-        </div>
-
+  <Link href="/farmer/dashboard" className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 mb-4">
+    <ArrowLeft className="h-5 w-5" />
+    Back to Dashboard
+  </Link>
+  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div>
+      <h1 className="text-3xl font-heading font-bold text-emerald-900">Settings</h1>
+      <p className="text-emerald-600 mt-1">Manage your account and farm preferences</p>
+    </div>
+    <div className="flex items-center gap-3">
+      <ThemeToggle />
+    </div>
+  </div>
+</div>  {/* ← Make sure this closes the mb-6 div */}
         {/* Tabs */}
         <div className="flex flex-wrap gap-2 border-b border-emerald-200 mb-6">
           {tabs.map((tab) => {
