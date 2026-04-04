@@ -135,22 +135,11 @@ export default function VerifyEmailPage() {
       // Clear pending email
       localStorage.removeItem("pendingVerificationEmail");
 
-      // Redirect after 2 seconds
+      // ✅ Redirect to login page after 2 seconds (not dashboard)
       setTimeout(() => {
-        const userData = localStorage.getItem("userData");
-        if (userData) {
-          const user = JSON.parse(userData);
-          if (user.role === "farmer") {
-            router.push("/farmer/dashboard");
-          } else if (user.role === "visitor") {
-            router.push("/visitor/dashboard");
-          } else {
-            router.push("/");
-          }
-        } else {
-          router.push("/auth/login");
-        }
+        router.push("/auth/login/visitor");
       }, 2000);
+      
     } catch (err: any) {
       console.error("Verification error:", err);
       setError(err.message || "Invalid or expired verification code");
@@ -204,7 +193,7 @@ export default function VerifyEmailPage() {
     }
   };
 
-  // Redirect after email change or verified
+  // Success state - redirects to login
   if (verificationStatus === "verified") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-950 via-emerald-900 to-amber-950 flex items-center justify-center p-4">
@@ -220,7 +209,7 @@ export default function VerifyEmailPage() {
                 <CheckCircle className="h-8 w-8 text-green-400" />
               </div>
               <p className="text-white/80">
-                Thank you for verifying your email. Redirecting you to your dashboard...
+                Thank you for verifying your email. Redirecting you to the login page...
               </p>
               <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
                 <motion.div
@@ -357,7 +346,7 @@ export default function VerifyEmailPage() {
             {/* Back to Login */}
             <div className="text-center">
               <Link
-                href="/auth/login"
+                href="/auth/login/visitor"
                 className="text-sm text-white/40 hover:text-white/60"
               >
                 ← Back to Login
