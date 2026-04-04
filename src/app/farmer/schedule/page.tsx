@@ -23,7 +23,7 @@ import CalendarGrid from "./components/CalendarGrid";
 import BookingDetailsModal from "./components/BookingDetailsModal";
 import AvailabilityModal from "./components/AvailabilityModal";
 import UpcomingBookings from "./components/UpcomingBookings";
-import ThemeToggle from "@/app/components/ThemeToggle";
+
 
 
 interface Booking {
@@ -174,7 +174,6 @@ export default function FarmerSchedule() {
               <p className="text-emerald-600 mt-1">Manage your bookings and availability</p>
             </div>
             <div className="flex gap-3">
-                <ThemeToggle />
               <button
                 onClick={() => setShowAvailabilityModal(true)}
                 className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl hover:bg-accent/90 transition"
