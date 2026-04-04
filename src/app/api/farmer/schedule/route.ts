@@ -46,22 +46,22 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
+    // ✅ FIXED: Use correct column names from your bookings table
     let bookingQuery = `
       SELECT 
         b.id,
         b.booking_date,
         b.start_time,
         b.end_time,
-        b.guests_count,
+        b.participants as guests_count,
         b.total_amount,
         b.status,
         b.activity_id,
-        a.activity_name as activity_name,
+        b.activity_name,
         u.name as visitor_name,
         u.email as visitor_email,
         u.phone as visitor_phone
       FROM bookings b
-      LEFT JOIN farmer_activities a ON b.activity_id = a.id
       JOIN users u ON b.visitor_id = u.id
       WHERE b.farm_id = $1
     `;
@@ -76,7 +76,8 @@ export async function GET(request: NextRequest) {
       paramIndex += 2;
     } else if (year && month) {
       const startOfMonth = `${year}-${month}-01`;
-      const endOfMonth = new Date(parseInt(year), parseInt(month), 0).toISOString().split('T')[0];
+      const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+      const endOfMonth = `${year}-${month}-${lastDay}`;
       bookingQuery += ` AND b.booking_date BETWEEN $${paramIndex} AND $${paramIndex + 1}`;
       queryParams.push(startOfMonth, endOfMonth);
       paramIndex += 2;
