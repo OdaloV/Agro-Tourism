@@ -22,7 +22,7 @@ import NotificationSettingsTab from "./components/NotificationSettingsTab";
 import PaymentSettingsTab from "./components/PaymentSettingsTab";
 import BusinessHoursTab from "./components/BusinessHoursTab";
 import SecurityTab from "./components/SecurityTab";
-import ThemeToggle from "@/app/components/ThemeToggle";
+
 
 interface SettingsData {
   user: {
@@ -162,7 +162,7 @@ export default function FarmerSettings() {
       <p className="text-emerald-600 mt-1">Manage your account and farm preferences</p>
     </div>
     <div className="flex items-center gap-3">
-      <ThemeToggle />
+    
     </div>
   </div>
 </div>  {/* ← Make sure this closes the mb-6 div */}
