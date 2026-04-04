@@ -289,6 +289,14 @@ export default function AdminDashboard() {
                 )}
               </div>
               <button
+    onClick={() => router.push("/admin/analytics")}
+    className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted/80 rounded-xl transition-colors"
+    title="Analytics"
+  >
+    <BarChart3 className="h-5 w-5 text-muted-foreground" />
+    <span className="text-sm hidden sm:inline">Analytics</span>
+  </button>
+              <button
                 onClick={() => router.push("/admin/settings")}
                 className="p-2 hover:bg-muted rounded-xl transition-colors"
                 title="Settings"
