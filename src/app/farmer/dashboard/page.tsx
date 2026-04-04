@@ -31,9 +31,11 @@ import {
   MessageCircle,
   List,
   BarChart3,
+  Settings, 
 } from "lucide-react";
 import Link from "next/link";
 import MediaGallery from './components/MediaGallery';
+import ThemeToggle from "@/app/components/ThemeToggle";
 
 interface Photo {
   id: number;
@@ -311,13 +313,14 @@ export default function FarmerDashboard() {
                 <h1 className="text-2xl md:text-3xl font-heading font-bold text-emerald-900">
                   Welcome back, {farmer.name?.split(" ")[0] || "Farmer"}!
                 </h1>
-                <p className="text-emerald-600 mt-1 text-sm md:text-base">Manage your farm and track bookings</p>
+                <p className="text-emerald-600 mt-1 text-sm md:txt-base">Manage your farm and track bookings</p>
               </div>
             </div>
             
             {/* Action Buttons - Below on mobile, right on desktop */}
             <div className="flex flex-wrap items-center justify-end gap-3">
-              {/* Show different button based on verification status */}
+              <ThemeToggle />
+              {/* Show different button based on veerification status */}
               {isPending ? (
                 <button
                   onClick={() => {
