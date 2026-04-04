@@ -14,7 +14,6 @@ import {
   User,
   Landmark,
 } from "lucide-react";
-import ThemeToggle from "@/app/components/ThemeToggle";
 
 
 // Document type definition
@@ -250,7 +249,6 @@ const resendVerificationEmail = async () => {
   <div className="flex items-center justify-between">
     <h1 className="text-2xl font-heading font-bold text-emerald-900">Farm Verification</h1>
     <div className="flex items-center gap-3">
-      <ThemeToggle />
       <button onClick={() => setShowHelp(!showHelp)} className="p-2 hover:bg-emerald-50 rounded-xl">
         <HelpCircle className="h-5 w-5 text-emerald-500" />
       </button>
