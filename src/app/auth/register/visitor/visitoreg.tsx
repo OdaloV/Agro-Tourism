@@ -1,3 +1,4 @@
+// src/app/auth/register/visitor/visitoreg.tsx
 "use client";
 
 import { useState } from "react";
@@ -26,6 +27,7 @@ export default function Visitoreg() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -95,13 +97,40 @@ export default function Visitoreg() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validateStep()) {
-      console.log("Visitor registered:", formData);
+    if (!validateStep()) return;
+    
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.password,
+          role: "visitor",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setErrors((prev) => ({ ...prev, email: data.error || "Registration failed" }));
+        setIsSubmitting(false);
+        return;
+      }
+
       // Store email for verification page
       localStorage.setItem("pendingVerificationEmail", formData.email);
       router.push("/auth/verify-email");
+    } catch (error) {
+      console.error("Registration error:", error);
+      setErrors((prev) => ({ ...prev, email: "Registration failed. Please try again." }));
+      setIsSubmitting(false);
     }
   };
 
@@ -345,9 +374,7 @@ export default function Visitoreg() {
                       />
                       <button
                         type="button"
-                        onClick={() =>
-                          setShowConfirmPassword(!showConfirmPassword)
-                        }
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/60"
                       >
                         {showConfirmPassword ? (
@@ -501,9 +528,10 @@ export default function Visitoreg() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   type="submit"
-                  className="flex-1 px-6 py-3 bg-accent hover:bg-accent/90 text-white rounded-xl transition-all flex items-center justify-center gap-2 font-medium"
+                  disabled={isSubmitting}
+                  className="flex-1 px-6 py-3 bg-accent hover:bg-accent/90 text-white rounded-xl transition-all flex items-center justify-center gap-2 font-medium disabled:opacity-50"
                 >
-                  Create Account
+                  {isSubmitting ? "Creating Account..." : "Create Account"}
                   <Sparkles className="h-5 w-5" />
                 </motion.button>
               )}
