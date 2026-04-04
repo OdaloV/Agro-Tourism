@@ -1,7 +1,8 @@
 // src/app/farmer/settings/components/ProfileSettingsTab.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { User, Mail, Phone, Lock, Save, Camera, Trash2 } from "lucide-react";
 
 interface ProfileSettingsTabProps {
@@ -15,7 +16,7 @@ interface ProfileSettingsTabProps {
 }
 
 export default function ProfileSettingsTab({ user, onSave, saving }: ProfileSettingsTabProps) {
-  // Add safety checks for user object
+  const router = useRouter();
   const [formData, setFormData] = useState({
     name: user?.name || "",
     phone: user?.phone || "",
@@ -28,6 +29,22 @@ export default function ProfileSettingsTab({ user, onSave, saving }: ProfileSett
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  // ✅ Bug 1 Fix: Fetch existing photo on mount
+  useEffect(() => {
+    const fetchPhoto = async () => {
+      try {
+        const response = await fetch("/api/farmer/profile/photo");
+        if (response.ok) {
+          const data = await response.json();
+          setProfilePhoto(data.photoUrl || null);
+        }
+      } catch (error) {
+        console.error("Error fetching profile photo:", error);
+      }
+    };
+    fetchPhoto();
+  }, []);
 
   const handleProfileSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,6 +66,7 @@ export default function ProfileSettingsTab({ user, onSave, saving }: ProfileSett
     setShowPasswordForm(false);
   };
 
+  // ✅ Bug 2 & 3 Fix: Use server URL, not base64, and refresh router
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -64,12 +82,6 @@ export default function ProfileSettingsTab({ user, onSave, saving }: ProfileSett
     }
 
     setUploadingPhoto(true);
-    
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setProfilePhoto(event.target?.result as string);
-    };
-    reader.readAsDataURL(file);
 
     const formData = new FormData();
     formData.append("profile_photo", file);
@@ -79,9 +91,12 @@ export default function ProfileSettingsTab({ user, onSave, saving }: ProfileSett
         method: "POST",
         body: formData,
       });
-      if (!response.ok) {
-        throw new Error("Failed to upload photo");
-      }
+      if (!response.ok) throw new Error("Failed to upload photo");
+
+      const data = await response.json();
+      // ✅ Use the server URL, not base64 preview
+      setProfilePhoto(data.photoUrl);
+      router.refresh(); // ✅ Forces Next.js to re-fetch server data
       alert("Profile photo updated successfully!");
     } catch (error) {
       console.error("Error uploading photo:", error);
@@ -91,7 +106,6 @@ export default function ProfileSettingsTab({ user, onSave, saving }: ProfileSett
     }
   };
 
-  // ✅ Add delete handler function
   const handleDeletePhoto = async () => {
     if (!confirm("Are you sure you want to delete your profile photo?")) return;
     
@@ -102,9 +116,8 @@ export default function ProfileSettingsTab({ user, onSave, saving }: ProfileSett
       });
       if (response.ok) {
         setProfilePhoto(null);
+        router.refresh(); // ✅ Smooth refresh instead of window.location.reload()
         alert("Profile photo deleted successfully!");
-        // Refresh to update dashboard
-        window.location.reload();
       } else {
         throw new Error("Failed to delete photo");
       }
@@ -130,7 +143,6 @@ export default function ProfileSettingsTab({ user, onSave, saving }: ProfileSett
                 <span>{user?.name?.charAt(0).toUpperCase() || "F"}</span>
               )}
             </div>
-            {/* ✅ Updated button group with delete button */}
             <div className="absolute -bottom-2 right-0 flex gap-1">
               <label className="p-1.5 bg-accent rounded-full cursor-pointer hover:bg-accent/90 transition">
                 <Camera className="h-3 w-3 text-white" />
