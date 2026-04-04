@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import dynamic from "next/dynamic";
 import {
   User,
   Mail,
@@ -29,6 +30,17 @@ import {
 import { AuthCard } from "@/components/auth/AuthCard";
 import { ACTIVITY_CATEGORIES } from "@/app/profile/farmerprofile/options";
 
+// Dynamically import LocationPicker to avoid SSR issues
+const LocationPicker = dynamic(() => import("@/app/components/LocationPicker"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-80 bg-white/10 rounded-xl flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
+      <p className="text-white/60 ml-3">Loading map...</p>
+    </div>
+  ),
+});
+
 const STORAGE_KEY = "farmer_registration_form";
 
 export default function Farmereg() {
@@ -43,6 +55,15 @@ export default function Farmereg() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasClickedSubmit = useRef(false);
 
+  // Coordinates state for map
+  const [coordinates, setCoordinates] = useState({
+    lat: -1.2921,
+    lng: 36.8219,
+    address: "",
+    city: "",
+    region: "",
+    country: "",
+  });
 
   const [formData, setFormData] = useState({
     name: "",
@@ -88,6 +109,25 @@ export default function Farmereg() {
     maxGuests: "",
   });
 
+  // Handle location selection from map
+  const handleLocationSelect = (location: {
+    lat: number;
+    lng: number;
+    address: string;
+    city: string;
+    region: string;
+    country: string;
+  }) => {
+    setCoordinates(location);
+    setFormData(prev => ({
+      ...prev,
+      location: location.address,
+      coordinates: `${location.lat}, ${location.lng}`
+    }));
+    // Clear location error if any
+    setErrors(prev => ({ ...prev, location: "" }));
+  };
+
   // Load saved form data from localStorage on mount
   useEffect(() => {
     console.log("🔄 Loading saved form data from localStorage");
@@ -110,6 +150,16 @@ export default function Farmereg() {
               certifications: null,
             }
           }));
+          // Restore coordinates if available
+          if (parsed.formData.coordinates) {
+            const [lat, lng] = parsed.formData.coordinates.split(',').map(Number);
+            setCoordinates(prev => ({
+              ...prev,
+              lat: lat || -1.2921,
+              lng: lng || 36.8219,
+              address: parsed.formData.location || "",
+            }));
+          }
         }
       } catch (e) {
         console.error("Failed to load saved data:", e);
@@ -140,6 +190,7 @@ export default function Farmereg() {
         maxGuests: formData.maxGuests,
         facilities: formData.facilities,
         videoLink: formData.videoLink,
+        coordinates: formData.coordinates,
       }
     };
     
@@ -187,119 +238,56 @@ export default function Farmereg() {
     setFormData(prev => ({ ...prev, [name]: value }));
     setErrors(prev => ({ ...prev, [name]: "" }));
   };
-const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-  console.log("FILE INPUT onChange fired");
-  const files = e.target.files;
 
-  if (!files || files.length === 0) {
-    console.warn("No files in event — input may have been disabled mid-click");
-    return;
-  }
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("FILE INPUT onChange fired");
+    const files = e.target.files;
 
-  console.log(`Files received: ${files.length}`);
-  const filesArray = Array.from(files);
-  const slots = 10 - formData.photos.length;
-
-  if (filesArray.length > slots) {
-    setError(`Only ${slots} more photo(s) allowed`);
-    return;
-  }
-
-  // Accumulate first, THEN one single setFormData call
-  const newFiles: File[] = [];
-  const newPreviews: string[] = [];
-
-  filesArray.forEach((file, i) => {
-    console.log(`  [${i}] ${file.name} | ${file.type} | ${(file.size/1024).toFixed(1)}KB`);
-
-    if (!file.type.startsWith("image/")) {
-      setError(`${file.name} is not an image`);
+    if (!files || files.length === 0) {
+      console.warn("No files in event — input may have been disabled mid-click");
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setError(`${file.name} exceeds 5MB`);
+
+    console.log(`Files received: ${files.length}`);
+    const filesArray = Array.from(files);
+    const slots = 10 - formData.photos.length;
+
+    if (filesArray.length > slots) {
+      setError(`Only ${slots} more photo(s) allowed`);
       return;
     }
-    newFiles.push(file);
-    newPreviews.push(URL.createObjectURL(file));
-  });
 
-  console.log(`Adding ${newFiles.length} file(s) to state`);
+    const newFiles: File[] = [];
+    const newPreviews: string[] = [];
 
-  // Single update — no race condition
-  setFormData(prev => {
-    const updated = {
-      ...prev,
-      photos: [...prev.photos, ...newFiles],
-      photoPreviews: [...prev.photoPreviews, ...newPreviews],
-    };
-    console.log("State after update — photos:", updated.photos.length);
-    return updated;
-  });
+    filesArray.forEach((file, i) => {
+      console.log(`  [${i}] ${file.name} | ${file.type} | ${(file.size/1024).toFixed(1)}KB`);
 
-  // Clear so same file can be re-selected
-  if (fileInputRef.current) fileInputRef.current.value = "";
-};
+      if (!file.type.startsWith("image/")) {
+        setError(`${file.name} is not an image`);
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setError(`${file.name} exceeds 5MB`);
+        return;
+      }
+      newFiles.push(file);
+      newPreviews.push(URL.createObjectURL(file));
+    });
 
-  // const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-  //   console.log("🖱️ FILE SELECTED - onChange triggered");
-  //   const files = e.target.files;
-  //   console.log("Files:", files);
-    
-  //   if (!files || files.length === 0) {
-  //     console.log("No files selected");
-  //     return;
-  //   }
-    
-  //   console.log(`Selected ${files.length} file(s)`);
-    
-  //   const filesArray = Array.from(files);
-  //   const maxFiles = 10 - formData.photos.length;
-    
-  //   if (filesArray.length > maxFiles) {
-  //     setError(`You can only upload ${maxFiles} more photo(s)`);
-  //     return;
-  //   }
-    
-  //   setUploading(true);
-    
-  //   filesArray.forEach((file, index) => {
-  //     console.log(`Processing file ${index + 1}: ${file.name}, ${(file.size / 1024).toFixed(2)}KB`);
-      
-  //     if (!file.type.startsWith('image/')) {
-  //       setError(`${file.name} is not an image`);
-  //       return;
-  //     }
-      
-  //     if (file.size > 5 * 1024 * 1024) {
-  //       setError(`${file.name} is larger than 5MB`);
-  //       return;
-  //     }
-      
-  //     const previewUrl = URL.createObjectURL(file);
-      
-  //     setFormData(prev => ({
-  //       ...prev,
-  //       photos: [...prev.photos, file],
-  //       photoPreviews: [...prev.photoPreviews, previewUrl]
-  //     }));
-  //   });
-    
-  //   setUploading(false);
-    
-  //   // Clear the input so the same file can be selected again
-  //   if (fileInputRef.current) {
-  //     fileInputRef.current.value = "";
-  //   }
-  // };
+    console.log(`Adding ${newFiles.length} file(s) to state`);
 
-  const triggerFileUpload = () => {
-    console.log("🖱️ Trigger file upload button clicked");
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    } else {
-      console.error("Hidden file input ref is null");
-    }
+    setFormData(prev => {
+      const updated = {
+        ...prev,
+        photos: [...prev.photos, ...newFiles],
+        photoPreviews: [...prev.photoPreviews, ...newPreviews],
+      };
+      console.log("State after update — photos:", updated.photos.length);
+      return updated;
+    });
+
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const removePhoto = (index: number) => {
@@ -376,95 +364,97 @@ const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     }
   };
 
- const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  
-  if (step !== 4) return;
-  if (!hasClickedSubmit.current) return;
-  if (submitting) return;
-  if (!validateStep()) return;
-  
-  setSubmitting(true);
-  
-  // Convert photos to base64 for API submission
-  const photoBase64: string[] = [];
-  console.log(`📸 Converting ${formData.photos.length} photos to base64...`);
-  
-  for (let i = 0; i < formData.photos.length; i++) {
-    const file = formData.photos[i];
-    try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-      photoBase64.push(base64);
-      console.log(`✅ Converted photo ${i + 1}: ${file.name} (${base64.length} chars)`);
-    } catch (err) {
-      console.error(`Failed to convert photo ${file.name}:`, err);
-      setError(`Failed to process ${file.name}`);
-      setSubmitting(false);
-      return;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (step !== 4) return;
+    if (!hasClickedSubmit.current) return;
+    if (submitting) return;
+    if (!validateStep()) return;
+    
+    setSubmitting(true);
+    
+    const photoBase64: string[] = [];
+    console.log(`📸 Converting ${formData.photos.length} photos to base64...`);
+    
+    for (let i = 0; i < formData.photos.length; i++) {
+      const file = formData.photos[i];
+      try {
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        photoBase64.push(base64);
+        console.log(`✅ Converted photo ${i + 1}: ${file.name} (${base64.length} chars)`);
+      } catch (err) {
+        console.error(`Failed to convert photo ${file.name}:`, err);
+        setError(`Failed to process ${file.name}`);
+        setSubmitting(false);
+        return;
+      }
     }
-  }
-  
-  const allActivities = [...formData.activities, ...formData.customActivities];
-  const farmerData = {
-    farmName: formData.farmName,
-    location: formData.location,
-    farmSize: formData.farmSize,
-    yearEst: formData.yearEst,
-    farmDescription: formData.farmDescription,
-    farmType: formData.farmType,
-    accommodation: formData.accommodation,
-    maxGuests: formData.maxGuests,
-    allActivities: allActivities,
-    facilities: formData.facilities,
-    photos: photoBase64, // ← ADD THIS LINE - sends photos to API
-    videoLink: formData.videoLink,
-  };
-  
-  try {
-    console.log("📤 Sending registration with", photoBase64.length, "photos");
-    const response = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    
+    const allActivities = [...formData.activities, ...formData.customActivities];
+    const farmerData = {
+      farmName: formData.farmName,
+      location: formData.location,
+      farmSize: formData.farmSize,
+      yearEst: formData.yearEst,
+      farmDescription: formData.farmDescription,
+      farmType: formData.farmType,
+      accommodation: formData.accommodation,
+      maxGuests: formData.maxGuests,
+      allActivities: allActivities,
+      facilities: formData.facilities,
+      photos: photoBase64,
+      videoLink: formData.videoLink,
+      coordinates: formData.coordinates,
+      city: coordinates.city,
+      region: coordinates.region,
+    };
+    
+    try {
+      console.log("📤 Sending registration with", photoBase64.length, "photos");
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.password,
+          role: "farmer",
+          farmerData: farmerData,
+        }),
+      });
+      
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Registration failed");
+      
+      console.log("✅ Registration successful!");
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.setItem("userRole", "farmer");
+      localStorage.setItem("isAuthenticated", "true");
+      localStorage.setItem("userData", JSON.stringify({
+        id: data.user.id,
         name: formData.name,
         email: formData.email,
-        phone: formData.phone,
-        password: formData.password,
         role: "farmer",
-        farmerData: farmerData,
-      }),
-    });
-    
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Registration failed");
-    
-    console.log("✅ Registration successful!");
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.setItem("userRole", "farmer");
-    localStorage.setItem("isAuthenticated", "true");
-    localStorage.setItem("userData", JSON.stringify({
-      id: data.user.id,
-      name: formData.name,
-      email: formData.email,
-      role: "farmer",
-      verificationStatus: "pending",
-      farmName: formData.farmName,
-    }));
-    
-    router.push("/farmer/verification");
-  } catch (error: any) {
-    console.error("Registration error:", error);
-    setError(error.message);
-  } finally {
-    setSubmitting(false);
-    hasClickedSubmit.current = false;
-  }
-};
+        verificationStatus: "pending",
+        farmName: formData.farmName,
+      }));
+      
+      router.push("/farmer/verification");
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      setError(error.message);
+    } finally {
+      setSubmitting(false);
+      hasClickedSubmit.current = false;
+    }
+  };
 
   const allSelectedActivities = [...formData.activities, ...formData.customActivities];
   const stepTitles = [
@@ -570,7 +560,7 @@ const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
                 </motion.div>
               )}
 
-              {/* STEP 2 */}
+              {/* STEP 2 - WITH MAP LOCATION PICKER */}
               {step === 2 && (
                 <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
                   <div className="space-y-2">
@@ -595,14 +585,34 @@ const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
                       </div>
                     </div>
                   </div>
+                  
+                  {/* Location with Map Picker */}
                   <div className="space-y-2">
-                    <label className="block text-white/80 font-medium">Farm Location <span className="text-red-500">*</span></label>
-                    <div className="relative">
-                      <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />
-                      <input name="location" value={formData.location} onChange={handleChange} className="w-full pl-12 pr-4 py-3.5 bg-white/10 border border-white/20 rounded-2xl text-white" placeholder="Kiambu, Kenya" />
-                    </div>
+                    <label className="block text-white/80 font-medium">
+                      Farm Location <span className="text-red-500">*</span>
+                    </label>
+                    <LocationPicker 
+                      onLocationSelect={handleLocationSelect}
+                      initialLocation={coordinates.address ? {
+                        lat: coordinates.lat,
+                        lng: coordinates.lng,
+                        address: coordinates.address
+                      } : undefined}
+                    />
                     {errors.location && <p className="text-sm text-red-400">{errors.location}</p>}
+                    
+                    {/* Display selected location summary */}
+                    {coordinates.address && (
+                      <div className="mt-3 p-3 bg-emerald-800/30 rounded-lg border border-emerald-700/50">
+                        <p className="text-xs text-emerald-300 font-medium mb-1">📍 Selected Location:</p>
+                        <p className="text-sm text-white">{coordinates.address}</p>
+                        <p className="text-xs text-emerald-400 mt-2">
+                          Coordinates: {coordinates.lat.toFixed(6)}, {coordinates.lng.toFixed(6)}
+                        </p>
+                      </div>
+                    )}
                   </div>
+                  
                   <div className="space-y-2">
                     <label className="block text-white/80 font-medium">Farm Description <span className="text-red-500">*</span></label>
                     <textarea name="farmDescription" rows={4} value={formData.farmDescription} onChange={handleChange} className="w-full px-5 py-3.5 bg-white/10 border border-white/20 rounded-2xl text-white" placeholder="Describe your farm..." />
@@ -713,96 +723,90 @@ const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
               )}
 
               {/* STEP 4 - PHOTO UPLOAD */}
-              {/* STEP 4 - Alternative with styled button */}
-{step === 4 && (
-  <motion.div key="step4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
-    
-    <div>
-      <label className="block text-white/80 font-medium text-base mb-2">
-        Farm Photos ({formData.photoPreviews.length}/10)
-      </label>
-      
-      {/* Hidden file input - but triggered by button */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/jpg,image/webp"
-        multiple
-        onChange={handleFileSelect}
-      disabled={formData.photoPreviews.length >= 10}
-  style={{
-    position: "absolute",
-    width: "1px",
-    height: "1px",
-    opacity: 0,
-    pointerEvents: "none",
-    overflow: "hidden",
-  }}
-/>
-      
-      {/* Visible button that triggers the hidden file input */}
-      <button
-  type="button"
-  onClick={(e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    console.log("Button clicked directly");
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
-  }}
-  disabled={uploading || formData.photoPreviews.length >= 10}
-  className="w-full py-3 px-4 bg-accent/20 hover:bg-accent/30 border-2 border-dashed border-accent rounded-xl text-white font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
->
-  <div className="flex items-center justify-center gap-2">
-    📸 {uploading ? "Processing..." : formData.photoPreviews.length === 0 ? "Click to Select Photos" : "Add More Photos"}
-  </div>
-</button>
-      
-      <p className="text-xs text-white/30 mt-2 text-center">
-        Click the button above to select photos (JPG, PNG - max 5MB each, up to 10 photos)
-      </p>
-      
-      {/* Photo Previews Grid */}
-      {formData.photoPreviews.length > 0 && (
-        <div className="grid grid-cols-3 md:grid-cols-4 gap-3 mt-4">
-          {formData.photoPreviews.map((preview, index) => (
-            <div key={preview} className="relative aspect-square rounded-xl overflow-hidden group bg-white/5 border border-white/10">
-              <img src={preview} alt={`Farm photo ${index + 1}`} className="w-full h-full object-cover" />
-              <button
-                type="button"
-                onClick={() => removePhoto(index)}
-                className="absolute top-2 right-2 bg-red-500/90 hover:bg-red-600 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-all"
-              >
-                <X className="h-4 w-4 text-white" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-      
-      {formData.photoPreviews.length > 0 && !uploading && (
-        <div className="mt-3 text-xs text-green-400 bg-green-500/10 rounded-lg p-2 text-center">
-          ✓ {formData.photoPreviews.length} photo(s) selected
-        </div>
-      )}
-    </div>
+              {step === 4 && (
+                <motion.div key="step4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+                  <div>
+                    <label className="block text-white/80 font-medium text-base mb-2">
+                      Farm Photos ({formData.photoPreviews.length}/10)
+                    </label>
+                    
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/jpg,image/webp"
+                      multiple
+                      onChange={handleFileSelect}
+                      disabled={formData.photoPreviews.length >= 10}
+                      style={{
+                        position: "absolute",
+                        width: "1px",
+                        height: "1px",
+                        opacity: 0,
+                        pointerEvents: "none",
+                        overflow: "hidden",
+                      }}
+                    />
+                    
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log("Button clicked directly");
+                        if (fileInputRef.current) {
+                          fileInputRef.current.click();
+                        }
+                      }}
+                      disabled={uploading || formData.photoPreviews.length >= 10}
+                      className="w-full py-3 px-4 bg-accent/20 hover:bg-accent/30 border-2 border-dashed border-accent rounded-xl text-white font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        📸 {uploading ? "Processing..." : formData.photoPreviews.length === 0 ? "Click to Select Photos" : "Add More Photos"}
+                      </div>
+                    </button>
+                    
+                    <p className="text-xs text-white/30 mt-2 text-center">
+                      Click the button above to select photos (JPG, PNG - max 5MB each, up to 10 photos)
+                    </p>
+                    
+                    {formData.photoPreviews.length > 0 && (
+                      <div className="grid grid-cols-3 md:grid-cols-4 gap-3 mt-4">
+                        {formData.photoPreviews.map((preview, index) => (
+                          <div key={preview} className="relative aspect-square rounded-xl overflow-hidden group bg-white/5 border border-white/10">
+                            <img src={preview} alt={`Farm photo ${index + 1}`} className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => removePhoto(index)}
+                              className="absolute top-2 right-2 bg-red-500/90 hover:bg-red-600 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-all"
+                            >
+                              <X className="h-4 w-4 text-white" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {formData.photoPreviews.length > 0 && !uploading && (
+                      <div className="mt-3 text-xs text-green-400 bg-green-500/10 rounded-lg p-2 text-center">
+                        ✓ {formData.photoPreviews.length} photo(s) selected
+                      </div>
+                    )}
+                  </div>
 
-    {/* VIDEO LINK SECTION */}
-    <div>
-      <label className="block text-white/80 font-medium text-base mb-2">
-        Video Link (Optional)
-      </label>
-      <input 
-        name="videoLink" 
-        value={formData.videoLink} 
-        onChange={handleChange} 
-        className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-accent"
-        placeholder="https://youtube.com/watch?v=..." 
-      />
-    </div>
-  </motion.div>
-)}
+                  <div>
+                    <label className="block text-white/80 font-medium text-base mb-2">
+                      Video Link (Optional)
+                    </label>
+                    <input 
+                      name="videoLink" 
+                      value={formData.videoLink} 
+                      onChange={handleChange} 
+                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-accent"
+                      placeholder="https://youtube.com/watch?v=..." 
+                    />
+                  </div>
+                </motion.div>
+              )}
             </AnimatePresence>
 
             {/* Navigation Buttons */}
