@@ -24,6 +24,7 @@ import BookingDetailsModal from "./components/BookingDetailsModal";
 import AvailabilityModal from "./components/AvailabilityModal";
 import UpcomingBookings from "./components/UpcomingBookings";
 
+
 interface Booking {
   id: number;
   booking_date: string;
