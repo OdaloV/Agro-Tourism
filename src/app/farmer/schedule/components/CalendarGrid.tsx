@@ -3,24 +3,7 @@
 
 import { useState } from "react";
 import BookingCard from "./BookingCard";
-
-interface Booking {
-  id: number;
-  booking_date: string;
-  start_time: string;
-  end_time: string;
-  guests_count: number;
-  status: string;
-  activity_name: string;
-  visitor_name: string;
-}
-
-interface BlockedDate {
-  id: number;
-  start_date: string;
-  end_date: string;
-  reason: string;
-}
+import { Booking, BlockedDate } from "../types";
 
 interface CalendarGridProps {
   currentDate: Date;
@@ -97,16 +80,6 @@ export default function CalendarGrid({
     return date.toDateString() === today.toDateString();
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "confirmed": return "bg-green-100 text-green-700";
-      case "pending": return "bg-yellow-100 text-yellow-700";
-      case "completed": return "bg-blue-100 text-blue-700";
-      case "cancelled": return "bg-red-100 text-red-700";
-      default: return "bg-gray-100 text-gray-700";
-    }
-  };
-
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden">
       {/* Weekday Headers */}
@@ -133,7 +106,6 @@ export default function CalendarGrid({
           return (
             <div
               key={index}
-              onClick={() => setSelectedDate(date.toISOString().split('T')[0])}
               className={`min-h-[120px] p-2 border-r border-b border-emerald-100 transition ${
                 !isCurrent ? "bg-gray-50" : "hover:bg-emerald-50/30"
               } ${today ? "bg-emerald-50" : ""}`}
