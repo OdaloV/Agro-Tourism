@@ -1,0 +1,179 @@
+// src/app/components/BookingModal.tsx
+"use client";
+
+import { useState } from "react";
+import { X, Calendar, Users, Clock, MessageCircle } from "lucide-react";
+import PriceCalculator from "./PriceCalculator";
+
+interface Activity {
+  id: number;
+  name: string;
+  price: number;
+  currency: string;
+  description: string;
+  duration_minutes: number;
+  max_capacity: number;
+}
+
+interface BookingModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  activity: Activity;
+  farmId: number;
+  farmName: string;
+  onBookingComplete: (booking: any) => void;
+}
+
+export default function BookingModal({ isOpen, onClose, activity, farmId, farmName, onBookingComplete }: BookingModalProps) {
+  const [bookingDate, setBookingDate] = useState("");
+  const [timeSlot, setTimeSlot] = useState("");
+  const [participants, setParticipants] = useState(1);
+  const [groupName, setGroupName] = useState("");
+  const [specialRequests, setSpecialRequests] = useState("");
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [discountPercent, setDiscountPercent] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [requiresQuote, setRequiresQuote] = useState(false);
+
+  const handlePriceChange = (total: number, count: number, discount: number) => {
+    setTotalAmount(total);
+    setParticipants(count);
+    setDiscountPercent(discount);
+  };
+
+  const handleSubmit = async () => {
+    if (!bookingDate) {
+      alert("Please select a date");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          farmId,
+          activityId: activity.id,
+          bookingDate,
+          timeSlot,
+          participants,
+          groupName: participants >= 11 ? groupName : undefined,
+          specialRequests,
+          contactPhone: "",
+          contactEmail: ""
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        if (data.requiresQuote) {
+          alert("Quote request sent! The farmer will respond within 24 hours.");
+          onClose();
+        } else {
+          onBookingComplete(data.booking);
+          // Redirect to payment
+          window.location.href = data.paymentUrl;
+        }
+      } else {
+        alert(data.error || "Booking failed");
+      }
+    } catch (error) {
+      console.error("Error creating booking:", error);
+      alert("Booking failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  const isLargeGroup = participants >= 51;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="p-4 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white">
+          <h3 className="text-lg font-semibold text-emerald-900">Book {activity.name}</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              Select Date
+            </label>
+            <input
+              type="date"
+              value={bookingDate}
+              onChange={(e) => setBookingDate(e.target.value)}
+              min={new Date().toISOString().split('T')[0]}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-emerald-500"
+              required
+            />
+          </div>
+
+          <PriceCalculator
+            pricePerPerson={activity.price}
+            currency={activity.currency}
+            onPriceChange={handlePriceChange}
+          />
+
+          {participants >= 11 && participants <= 50 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Group/Organization Name
+              </label>
+              <input
+                type="text"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                placeholder="e.g., ABC School, Company Name"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+              <MessageCircle className="h-4 w-4" />
+              Special Requests (Optional)
+            </label>
+            <textarea
+              value={specialRequests}
+              onChange={(e) => setSpecialRequests(e.target.value)}
+              rows={3}
+              placeholder="Dietary restrictions, accessibility needs, special arrangements..."
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-emerald-500"
+            />
+          </div>
+
+          {activity.duration_minutes > 0 && (
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <Clock className="h-4 w-4" />
+              Duration: {activity.duration_minutes} minutes
+            </div>
+          )}
+
+          <button
+            onClick={handleSubmit}
+            disabled={loading || (isLargeGroup && !requiresQuote)}
+            className="w-full py-3 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition disabled:opacity-50"
+          >
+            {loading ? "Processing..." : isLargeGroup ? "Request Quote" : "Proceed to Payment"}
+          </button>
+
+          <p className="text-xs text-gray-400 text-center">
+            {isLargeGroup 
+              ? "Large groups require farmer approval. You'll receive a custom quote within 24 hours."
+              : "You'll be redirected to complete payment"}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
