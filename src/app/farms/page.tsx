@@ -1,7 +1,7 @@
 // src/app/farms/page.tsx
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -11,9 +11,6 @@ import {
   Heart,
   MapPin,
   Star,
-  ChevronDown,
-  X,
-  SlidersHorizontal,
   Loader2,
 } from "lucide-react";
 
@@ -55,6 +52,10 @@ export default function DiscoverFarms() {
     offset: 0,
     hasMore: false
   });
+  
+  // Use ref to track initial load to prevent double fetch
+  const initialLoadDone = useRef(false);
+  const isFetching = useRef(false);
 
   const farmTypes = [
     "vegetables", "dairy", "livestock", "mixed", "orchard", "vineyard", "poultry", "fishery"
@@ -69,6 +70,10 @@ export default function DiscoverFarms() {
   ];
 
   const fetchFarms = useCallback(async (reset = true) => {
+    // Prevent multiple simultaneous fetches
+    if (isFetching.current) return;
+    isFetching.current = true;
+    
     if (reset) {
       setLoading(true);
     } else {
@@ -97,56 +102,93 @@ export default function DiscoverFarms() {
       
       if (reset) {
         setFarms(data.farms || []);
+        setPagination({
+          total: data.pagination?.total || 0,
+          limit: pagination.limit,
+          offset: pagination.limit,
+          hasMore: data.pagination?.hasMore || false
+        });
       } else {
         setFarms(prev => [...prev, ...(data.farms || [])]);
+        setPagination(prev => ({
+          ...prev,
+          offset: prev.offset + (data.farms?.length || 0),
+          hasMore: data.pagination?.hasMore || false
+        }));
       }
-      
-      setPagination({
-        total: data.pagination?.total || 0,
-        limit: pagination.limit,
-        offset: reset ? pagination.limit : pagination.offset + (data.farms?.length || 0),
-        hasMore: data.pagination?.hasMore || false
-      });
     } catch (error) {
       console.error("Error fetching farms:", error);
     } finally {
       setLoading(false);
       setLoadingMore(false);
+      isFetching.current = false;
     }
   }, [searchQuery, filters, pagination.limit, pagination.offset]);
 
+  // Initial load - only runs once
   useEffect(() => {
-    // Reset offset when filters change
+    if (!initialLoadDone.current) {
+      initialLoadDone.current = true;
+      fetchFarms(true);
+    }
+  }, [fetchFarms]);
+
+  // Handle filter changes - reset and refetch
+  const handleFilterChange = (newFilters: typeof filters) => {
+    setFilters(newFilters);
     setPagination(prev => ({ ...prev, offset: 0, hasMore: false }));
-    fetchFarms(true);
-  }, [searchQuery, filters, fetchFarms]);
+    initialLoadDone.current = false;
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setPagination(prev => ({ ...prev, offset: 0, hasMore: false }));
+    initialLoadDone.current = false;
+  };
 
   const handleLoadMore = () => {
-    if (pagination.hasMore && !loadingMore) {
+    if (pagination.hasMore && !loadingMore && !isFetching.current) {
       fetchFarms(false);
     }
   };
 
   const toggleFavorite = async (farmId: number, isCurrentlyFavorite: boolean) => {
-    try {
-      const url = '/api/favorites';
-      const method = isCurrentlyFavorite ? 'DELETE' : 'POST';
-      const body = JSON.stringify({ farmId });
-      
-      const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body });
-      
-      if (response.ok) {
-        setFarms(prev => prev.map(farm => 
-          farm.id === farmId ? { ...farm, is_favorite: !isCurrentlyFavorite } : farm
-        ));
+  try {
+    const url = '/api/favorites';
+    const method = isCurrentlyFavorite ? 'DELETE' : 'POST';
+    
+    // Make sure to send the body as JSON
+    const response = await fetch(url, { 
+      method, 
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ farmId: Number(farmId) })  // Ensure farmId is a number
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      // Update local state
+      setFarms(prev => prev.map(farm => 
+        farm.id === farmId ? { ...farm, is_favorite: !isCurrentlyFavorite } : farm
+      ));
+      console.log("Favorite toggled successfully:", data);
+    } else {
+      console.error("Failed to toggle favorite:", data.error);
+      // If user is not logged in, redirect to login
+      if (response.status === 401) {
+        alert("Please login to save favorites");
+        router.push("/auth/login/visitor");
+      } else {
+        alert(data.error || "Failed to update favorite");
       }
-    } catch (error) {
-      console.error("Error toggling favorite:", error);
     }
-  };
-
+  } catch (error) {
+    console.error("Error toggling favorite:", error);
+    alert("Network error. Please try again.");
+  }
+};
   const clearFilters = () => {
-    setFilters({
+    handleFilterChange({
       farmType: "",
       location: "",
       minPrice: "",
@@ -159,10 +201,14 @@ export default function DiscoverFarms() {
 
   const hasActiveFilters = Object.values(filters).some(v => v !== "" && v !== "newest") || searchQuery;
 
+  const handleViewDetails = (farmId: number) => {
+    window.location.href = `/farms/${farmId}`;
+  };
+
   if (loading && farms.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-accent" />
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
       </div>
     );
   }
@@ -189,7 +235,7 @@ export default function DiscoverFarms() {
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 placeholder="Search by farm name, location, or activity..."
                 className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-accent text-gray-900"
               />
@@ -239,7 +285,7 @@ export default function DiscoverFarms() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Farm Type</label>
                     <select
                       value={filters.farmType}
-                      onChange={(e) => setFilters({ ...filters, farmType: e.target.value })}
+                      onChange={(e) => handleFilterChange({ ...filters, farmType: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
                     >
                       <option value="">All Types</option>
@@ -255,7 +301,7 @@ export default function DiscoverFarms() {
                     <input
                       type="text"
                       value={filters.location}
-                      onChange={(e) => setFilters({ ...filters, location: e.target.value })}
+                      onChange={(e) => handleFilterChange({ ...filters, location: e.target.value })}
                       placeholder="e.g., Kiambu, Nakuru"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
                     />
@@ -268,14 +314,14 @@ export default function DiscoverFarms() {
                       <input
                         type="number"
                         value={filters.minPrice}
-                        onChange={(e) => setFilters({ ...filters, minPrice: e.target.value })}
+                        onChange={(e) => handleFilterChange({ ...filters, minPrice: e.target.value })}
                         placeholder="Min"
                         className="w-1/2 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
                       />
                       <input
                         type="number"
                         value={filters.maxPrice}
-                        onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value })}
+                        onChange={(e) => handleFilterChange({ ...filters, maxPrice: e.target.value })}
                         placeholder="Max"
                         className="w-1/2 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
                       />
@@ -287,7 +333,7 @@ export default function DiscoverFarms() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Rating</label>
                     <select
                       value={filters.minRating}
-                      onChange={(e) => setFilters({ ...filters, minRating: e.target.value })}
+                      onChange={(e) => handleFilterChange({ ...filters, minRating: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
                     >
                       <option value="">Any Rating</option>
@@ -302,7 +348,7 @@ export default function DiscoverFarms() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
                     <select
                       value={filters.sortBy}
-                      onChange={(e) => setFilters({ ...filters, sortBy: e.target.value })}
+                      onChange={(e) => handleFilterChange({ ...filters, sortBy: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
                     >
                       {sortOptions.map(option => (
@@ -345,6 +391,7 @@ export default function DiscoverFarms() {
                   farm={farm}
                   index={index}
                   onToggleFavorite={() => toggleFavorite(farm.id, farm.is_favorite)}
+                  onViewDetails={() => handleViewDetails(farm.id)}
                 />
               ))}
             </div>
@@ -373,9 +420,12 @@ export default function DiscoverFarms() {
 }
 
 // Farm Card Component
-// Farm Card Component - FIXED navigation
-function FarmCard({ farm, index, onToggleFavorite }: { farm: Farm; index: number; onToggleFavorite: () => void }) {
-  const router = useRouter();
+function FarmCard({ farm, index, onToggleFavorite, onViewDetails }: { 
+  farm: Farm; 
+  index: number; 
+  onToggleFavorite: () => void;
+  onViewDetails: () => void;
+}) {
   const [imageError, setImageError] = useState(false);
   
   const priceDisplay = () => {
@@ -384,26 +434,19 @@ function FarmCard({ farm, index, onToggleFavorite }: { farm: Farm; index: number
     return `KES ${farm.min_price.toLocaleString()} - ${farm.max_price.toLocaleString()}`;
   };
 
-  const handleViewDetails = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    console.log("Navigating to farm:", farm.id);
-    // Use window.location for a hard navigation to ensure it works
-    window.location.href = `/farms/${farm.id}`;
-  };
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
       className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden hover:shadow-md transition cursor-pointer group"
-      onClick={handleViewDetails}
+      onClick={onViewDetails}
     >
       {/* Image */}
       <div className="relative h-48 overflow-hidden">
         {farm.cover_photo || farm.profile_photo_url ? (
           <img
-            src={imageError ? '/farm-placeholder.jpg' : (farm.cover_photo || farm.profile_photo_url)}
+            src={farm.cover_photo || farm.profile_photo_url}
             alt={farm.farm_name}
             className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
             onError={() => setImageError(true)}
@@ -439,11 +482,9 @@ function FarmCard({ farm, index, onToggleFavorite }: { farm: Farm; index: number
       
       {/* Content */}
       <div className="p-4">
-        <div className="flex items-start justify-between mb-1">
-          <h3 className="font-semibold text-emerald-900 text-lg line-clamp-1">
-            {farm.farm_name}
-          </h3>
-        </div>
+        <h3 className="font-semibold text-emerald-900 text-lg line-clamp-1 mb-1">
+          {farm.farm_name}
+        </h3>
         
         <div className="flex items-center gap-1 text-sm text-emerald-600 mb-2">
           <MapPin className="h-3 w-3" />
@@ -460,7 +501,10 @@ function FarmCard({ farm, index, onToggleFavorite }: { farm: Farm; index: number
             <p className="font-semibold text-accent">{priceDisplay()}</p>
           </div>
           <button
-            onClick={handleViewDetails}
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewDetails();
+            }}
             className="px-4 py-1.5 bg-accent/10 text-accent rounded-lg text-sm font-medium hover:bg-accent/20 transition"
           >
             View Details
