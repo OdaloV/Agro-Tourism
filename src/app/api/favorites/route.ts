@@ -51,31 +51,41 @@ export async function POST(request: NextRequest) {
 }
 
 // DELETE - Remove from favorites
+// DELETE - Remove from favorites
 export async function DELETE(request: NextRequest) {
   try {
     const user = await getUserFromToken(request);
-    if (!user) {
+    if (!user || user.role !== 'visitor') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const { searchParams } = new URL(request.url);
-    const farmId = searchParams.get('farmId');
+    // Parse the request body
+    const body = await request.json();
+    const { farmId } = body;
+    
+    console.log("DELETE favorite - User:", user.id, "Farm:", farmId);
     
     if (!farmId) {
       return NextResponse.json({ error: 'Farm ID required' }, { status: 400 });
     }
     
-    await pool.query(
-      `DELETE FROM favorites WHERE visitor_id = $1 AND farm_id = $2`,
+    const result = await pool.query(
+      `DELETE FROM favorites WHERE visitor_id = $1 AND farm_id = $2 RETURNING *`,
       [user.id, farmId]
     );
     
-    return NextResponse.json({ success: true, message: 'Removed from favorites' });
+    console.log("Deleted rows:", result.rowCount);
+    
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Removed from favorites',
+      deleted: result.rowCount
+    });
     
   } catch (error) {
     console.error('Error removing favorite:', error);
     return NextResponse.json(
-      { error: 'Failed to remove favorite' },
+      { error: 'Failed to remove from favorites' },
       { status: 500 }
     );
   }
