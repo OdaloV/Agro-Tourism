@@ -18,6 +18,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import BookingModal from "@/app/components/BookingModal";
+import MessageModal from "@/app/components/MessageModal";
 
 interface Farm {
   id: number;
@@ -83,13 +84,21 @@ export default function FarmDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [showContactModal, setShowContactModal] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showMessageModal, setShowMessageModal] = useState(false); 
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
+  const [isVisitor, setIsVisitor] = useState(false);
   
   // Booking form state
   const [bookingDate, setBookingDate] = useState("");
   const [participants, setParticipants] = useState(1);
   const [specialRequests, setSpecialRequests] = useState("");
   const [bookingLoading, setBookingLoading] = useState(false);
+
+  // Check if user is logged in as visitor
+  useEffect(() => {
+    const userRole = localStorage.getItem("userRole");
+    setIsVisitor(userRole === "visitor");
+  }, []);
 
   useEffect(() => {
     fetchFarmDetails();
@@ -136,7 +145,6 @@ export default function FarmDetailsPage() {
     setShowBookingModal(true);
   };
 
- 
   const shareFarm = () => {
     if (navigator.share) {
       navigator.share({
@@ -149,11 +157,11 @@ export default function FarmDetailsPage() {
       alert("Link copied to clipboard!");
     }
   };
+
   const handleBookingComplete = (booking: any) => {
-  console.log("Booking created:", booking);
-  // Optional: Show success message
-  alert(`Booking created successfully! Booking reference: ${booking.reference}`);
-};
+    console.log("Booking created:", booking);
+    alert(`Booking created successfully! Booking reference: ${booking.reference}`);
+  };
 
   if (loading) {
     return (
@@ -180,11 +188,27 @@ export default function FarmDetailsPage() {
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-100/30">
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         
-        {/* Back Button */}
-        <Link href="/farms" className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 mb-4">
-          <ChevronLeft className="h-5 w-5" />
-          Back to Discover
-        </Link>
+        {/* Back Buttons - Show both Back to Dashboard (if visitor) and Back to Discover */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <div className="flex flex-wrap gap-3">
+            {isVisitor && (
+              <Link 
+                href="/visitor/dashboard" 
+                className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700"
+              >
+                <ChevronLeft className="h-5 w-5" />
+                Back to Dashboard
+              </Link>
+            )}
+            <Link 
+              href="/farms" 
+              className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700"
+            >
+              <ChevronLeft className="h-5 w-5" />
+              Back to Discover
+            </Link>
+          </div>
+        </div>
 
         {/* Farm Header */}
         <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden mb-6">
@@ -192,15 +216,26 @@ export default function FarmDetailsPage() {
           <div className="relative h-96 bg-gray-100">
             {photos.length > 0 ? (
               <img
-                src={photos[0].photo_url || farm.profile_photo_url}
+                src={photos[0].photo_url || photos[0].url || farm.profile_photo_url}
                 alt={farm.farm_name}
                 className="w-full h-full object-cover"
               />
-            ) : (
+            ) : farm.profile_photo_url ? (
+              <img
+      src={farm.profile_photo_url}
+      alt={farm.farm_name}
+      className="w-full h-full object-cover"
+    />
+  ) : (
               <div className="w-full h-full flex items-center justify-center">
                 <span className="text-6xl">🌾</span>
               </div>
             )}
+             {photos && photos.length > 1 && (
+    <div className="absolute bottom-4 right-4 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
+      {photos.length} photos
+    </div>
+  )}
             
             {/* Action Buttons */}
             <div className="absolute top-4 right-4 flex gap-2">
@@ -523,49 +558,55 @@ export default function FarmDetailsPage() {
       </div>
 
       {/* Contact Modal */}
-      {showContactModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowContactModal(false)}>
-          <div className="bg-white rounded-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-emerald-900">Contact {farm.farmer_name}</h3>
-              <button onClick={() => setShowContactModal(false)} className="p-1 hover:bg-gray-100 rounded-lg">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              {farm.farmer_phone && (
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                  <Phone className="h-5 w-5 text-emerald-600" />
-                  <a href={`tel:${farm.farmer_phone}`} className="text-gray-900 hover:text-emerald-600">
-                    {farm.farmer_phone}
-                  </a>
-                </div>
-              )}
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                <Mail className="h-5 w-5 text-emerald-600" />
-                <a href={`mailto:${farm.farmer_email}`} className="text-gray-900 hover:text-emerald-600">
-                  {farm.farmer_email}
-                </a>
-              </div>
-              <Link href={`/visitor/dashboard/messages?farmId=${farmId}`}>
-                <button className="w-full py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition">
-                  Send Message
-                </button>
-              </Link>
-            </div>
+   // In src/app/farms/[id]/page.tsx, update the Contact Modal section:
+
+{showContactModal && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowContactModal(false)}>
+    <div className="bg-white rounded-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+      <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+        <h3 className="text-lg font-semibold text-emerald-900">Contact {farm.farmer_name}</h3>
+        <button onClick={() => setShowContactModal(false)} className="p-1 hover:bg-gray-100 rounded-lg">
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+      <div className="p-6 space-y-4">
+        {farm.farmer_phone && (
+          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+            <Phone className="h-5 w-5 text-emerald-600" />
+            <a href={`tel:${farm.farmer_phone}`} className="text-gray-900 hover:text-emerald-600">
+              {farm.farmer_phone}
+            </a>
           </div>
+        )}
+        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+          <Mail className="h-5 w-5 text-emerald-600" />
+          <a href={`mailto:${farm.farmer_email}`} className="text-gray-900 hover:text-emerald-600">
+            {farm.farmer_email}
+          </a>
         </div>
-      )}
+        
+        {/* Send Message Button - Now opens a message modal */}
+       <button
+  onClick={() => {
+    setShowContactModal(false);
+    setShowMessageModal(true);
+  }}
+  className="w-full py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
+>
+  Send Message
+</button>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Booking Modal */}
-            {/* Booking Modal - Using the new component */}
       {showBookingModal && selectedActivity && (
         <BookingModal
           isOpen={showBookingModal}
           onClose={() => {
             setShowBookingModal(false);
             setSelectedActivity(null);
-            // Reset form state
             setBookingDate("");
             setParticipants(1);
             setSpecialRequests("");
@@ -576,7 +617,17 @@ export default function FarmDetailsPage() {
           onBookingComplete={handleBookingComplete}
         />
       )}
+            <MessageModal
+        isOpen={showMessageModal}
+        onClose={() => setShowMessageModal(false)}
+        farmId={parseInt(farmId)}
+        farmName={farm?.farm_name || ""}
+        farmerName={farm?.farmer_name || ""}
+        onMessageSent={() => {
+          console.log("Message sent successfully");
+        }}
+      />
     </div>
   );
 }
-  
+   
