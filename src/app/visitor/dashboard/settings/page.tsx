@@ -1,7 +1,7 @@
 // src/app/visitor/dashboard/settings/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -26,7 +26,11 @@ import {
   Shield,
   Trash2,
   LogOut,
+  Camera,
+  X,
+  Upload,
 } from "lucide-react";
+import Image from "next/image";
 
 interface UserProfile {
   id: number;
@@ -36,6 +40,7 @@ interface UserProfile {
   location: string;
   language: string;
   theme: "light" | "dark" | "system";
+  profilePhoto: string | null;
   notifications: {
     email: boolean;
     sms: boolean;
@@ -54,6 +59,8 @@ export default function VisitorSettings() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [profile, setProfile] = useState<UserProfile>({
     id: 0,
@@ -63,6 +70,7 @@ export default function VisitorSettings() {
     location: "",
     language: "en",
     theme: "light",
+    profilePhoto: null,
     notifications: {
       email: true,
       sms: false,
@@ -99,7 +107,9 @@ export default function VisitorSettings() {
 
         const user = JSON.parse(userData);
         
-        // Mock profile data - replace with API call
+        // Try to load profile photo from localStorage or API
+        const savedPhoto = localStorage.getItem("visitor_profile_photo");
+        
         setProfile({
           id: user.id || 1,
           name: user.name || "John Visitor",
@@ -108,6 +118,7 @@ export default function VisitorSettings() {
           location: "Nairobi, Kenya",
           language: "en",
           theme: "light",
+          profilePhoto: savedPhoto || null,
           notifications: {
             email: true,
             sms: false,
@@ -127,6 +138,134 @@ export default function VisitorSettings() {
     fetchProfile();
   }, [router, mounted]);
 
+ // Replace the handleProfilePhotoUpload function:
+const handleProfilePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  if (!file.type.startsWith("image/")) {
+    alert("Please select an image file (JPEG, PNG, etc.)");
+    return;
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    alert("File size must be less than 5MB");
+    return;
+  }
+
+  setUploadingPhoto(true);
+
+  try {
+    // Convert to base64
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64String = reader.result as string;
+      
+      // Save to database
+      const response = await fetch('/api/user/visitorpfp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visitorpfp: base64String })
+      });
+      
+      if (response.ok) {
+        setProfile({ ...profile, profilePhoto: base64String });
+        localStorage.setItem("visitor_profile_photo", base64String);
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 3000);
+      } else {
+        alert("Failed to save photo to database");
+      }
+    };
+    reader.readAsDataURL(file);
+  } catch (error) {
+    console.error("Error uploading photo:", error);
+    alert("Failed to upload photo. Please try again.");
+  } finally {
+    setUploadingPhoto(false);
+  }
+};
+
+// Replace the handleDeleteProfilePhoto function:
+const handleDeleteProfilePhoto = async () => {
+  if (confirm("Are you sure you want to remove your profile photo?")) {
+    try {
+      const response = await fetch('/api/user/visitorpfp', {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        setProfile({ ...profile, profilePhoto: null });
+        localStorage.removeItem("visitor_profile_photo");
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 3000);
+      } else {
+        alert("Failed to remove photo");
+      }
+    } catch (error) {
+      console.error("Error removing photo:", error);
+      alert("Failed to remove photo");
+    }
+  }
+};
+
+// Also update the useEffect to fetch from database:
+useEffect(() => {
+  if (!mounted) return;
+
+  const fetchProfile = async () => {
+    try {
+      const userData = localStorage.getItem("userData");
+      if (!userData) {
+        router.push("/auth/login/visitor");
+        return;
+      }
+
+      const user = JSON.parse(userData);
+      
+      // Fetch profile photo from database
+      const photoResponse = await fetch('/api/user/visitorpfp');
+      let profilePhoto = null;
+      if (photoResponse.ok) {
+        const photoData = await photoResponse.json();
+        profilePhoto = photoData.visitorpfp;
+      }
+      
+      setProfile({
+        id: user.id || 1,
+        name: user.name || "John Visitor",
+        email: user.email || "visitor@example.com",
+        phone: user.phone || "+254712345678",
+        location: "Nairobi, Kenya",
+        language: "en",
+        theme: "light",
+        profilePhoto: profilePhoto,
+        notifications: {
+          email: true,
+          sms: false,
+          push: true,
+          marketing: false,
+          bookingUpdates: true,
+          reminders: true,
+        },
+      });
+      
+      // Also save to localStorage for quick access
+      if (profilePhoto) {
+        localStorage.setItem("visitor_profile_photo", profilePhoto);
+      }
+      
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      setLoading(false);
+    }
+  };
+
+  fetchProfile();
+}, [router, mounted]);
+
+
   const handleSaveProfile = async () => {
     setSaving(true);
     // Simulate API call
@@ -142,6 +281,7 @@ export default function VisitorSettings() {
       user.name = profile.name;
       user.email = profile.email;
       user.phone = profile.phone;
+      user.profilePhoto = profile.profilePhoto;
       localStorage.setItem("userData", JSON.stringify(user));
     }
   };
@@ -160,7 +300,6 @@ export default function VisitorSettings() {
     }
     
     setSaving(true);
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
     setShowPasswordModal(false);
     setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
@@ -170,7 +309,6 @@ export default function VisitorSettings() {
 
   const handleDeleteAccount = async () => {
     setSaving(true);
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1500));
     setShowDeleteModal(false);
     setSaving(false);
@@ -191,15 +329,15 @@ export default function VisitorSettings() {
 
   if (!mounted || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-100/30 py-8">
-      <div className="container mx-auto px-4 max-w-3xl">
+    <div className="py-6">
+      <div className="max-w-3xl mx-auto">
         
         {/* Header */}
         <div className="mb-6">
@@ -223,7 +361,67 @@ export default function VisitorSettings() {
           </motion.div>
         )}
 
-        {/* Profile Section */}
+        {/* Profile Photo Section */}
+        <div className="bg-white rounded-2xl border border-emerald-100 overflow-hidden mb-6">
+          <div className="p-5 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-white">
+            <h2 className="text-lg font-heading font-semibold text-emerald-900">Profile Photo</h2>
+            <p className="text-sm text-emerald-500">Upload a photo to personalize your account</p>
+          </div>
+          <div className="p-5 flex flex-col items-center gap-4">
+            <div className="relative">
+              <div className="w-32 h-32 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center overflow-hidden">
+                {profile.profilePhoto ? (
+                  <img
+                    src={profile.profilePhoto}
+                    alt="Profile"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-white text-4xl font-bold">
+                    {profile.name?.charAt(0).toUpperCase() || "V"}
+                  </span>
+                )}
+              </div>
+              <div className="absolute -bottom-2 -right-2 flex gap-2">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingPhoto}
+                  className="p-2 bg-accent text-white rounded-full hover:bg-accent/90 transition shadow-lg"
+                  title="Upload photo"
+                >
+                  <Camera className="h-4 w-4" />
+                </button>
+                {profile.profilePhoto && (
+                  <button
+                    onClick={handleDeleteProfilePhoto}
+                    className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition shadow-lg"
+                    title="Remove photo"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/jpg,image/webp"
+                onChange={handleProfilePhotoUpload}
+                className="hidden"
+              />
+            </div>
+            <p className="text-xs text-emerald-500 text-center">
+              Click the camera icon to upload a profile photo (max 5MB)
+            </p>
+            {uploadingPhoto && (
+              <div className="flex items-center gap-2 text-sm text-emerald-600">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-600"></div>
+                Uploading...
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Profile Information Section */}
         <div className="bg-white rounded-2xl border border-emerald-100 overflow-hidden mb-6">
           <div className="p-5 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-white">
             <h2 className="text-lg font-heading font-semibold text-emerald-900">Profile Information</h2>
