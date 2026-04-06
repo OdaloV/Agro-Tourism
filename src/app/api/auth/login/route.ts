@@ -1,8 +1,9 @@
+// src/app/api/auth/login/route.ts
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
 import pool from '@/lib/db';
-import { sendVerificationEmail } from '@/lib/services/notificationService';
+import { sendVisitorVerificationEmail } from '@/lib/services/notificationService';
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'your-secret-key-change-in-production'
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
        FROM users u
        LEFT JOIN farmer_profiles fp ON u.id = fp.user_id
        WHERE u.email = $1 AND u.role = $2`,
-      [email, role]
+      [email.toLowerCase(), role]
     );
 
     if (result.rows.length === 0) {
@@ -48,14 +49,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // ✅ Check if email is verified (for farmers and visitors)
-    if (role === 'farmer' || role === 'visitor') {
+    // Check email verification for visitors and farmers
+    if (role === 'visitor' || role === 'farmer') {
       if (!user.email_verified) {
         // Generate new verification code
         const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-        const codeExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+        const codeExpires = new Date(Date.now() + 15 * 60 * 1000);
         
-        // Store verification code in database
         await pool.query(
           `UPDATE users 
            SET verification_code = $1, 
@@ -64,8 +64,7 @@ export async function POST(request: Request) {
           [verificationCode, codeExpires, user.id]
         );
         
-        // Send verification email
-        await sendVerificationEmail(user.email, user.name, verificationCode);
+        await sendVisitorVerificationEmail(user.email, user.name, verificationCode);
         
         return NextResponse.json(
           { 
@@ -77,7 +76,7 @@ export async function POST(request: Request) {
         );
       }
       
-      // ✅ For farmers: Check if they have submitted documents (verification_status should not be null)
+      // For farmers: Check if they have submitted documents
       if (role === 'farmer' && !user.verification_status) {
         return NextResponse.json(
           { 
@@ -100,6 +99,7 @@ export async function POST(request: Request) {
       .setExpirationTime('7d')
       .sign(JWT_SECRET);
 
+    // Remove sensitive data
     delete user.password_hash;
 
     const response = NextResponse.json({
@@ -112,19 +112,19 @@ export async function POST(request: Request) {
         role: user.role,
         isVerified: user.is_verified,
         emailVerified: user.email_verified,
-        verificationStatus: user.verification_status || 'pending',
+        verificationStatus: user.verification_status || null,
         farmName: user.farm_name,
         farmerProfileId: user.farmer_profile_id,
         hasSubmittedDocuments: !!user.verification_status
       }
     });
 
-    // Set cookie for middleware
+    // Set cookies
     response.cookies.set('auth_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      maxAge: 60 * 60 * 24 * 7,
       path: '/',
     });
     
