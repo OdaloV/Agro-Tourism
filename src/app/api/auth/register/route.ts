@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     // Check if user already exists
     const existingUser = await pool.query(
       'SELECT id FROM users WHERE email = $1',
-      [email]
+      [email.toLowerCase()]
     );
 
     if (existingUser.rows.length > 0) {
@@ -82,12 +82,12 @@ export async function POST(request: Request) {
       const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
       const codeExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
-      // Insert user with email_verified = false and verification code for visitors
+      // Insert user with visitorpfp column
       const userResult = await client.query(
-        `INSERT INTO users (name, email, phone, password_hash, role, is_verified, email_verified, verification_code, verification_code_expires)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-         RETURNING id, name, email, role`,
-        [name, email, phone, hashedPassword, role, role === 'visitor', false, verificationCode, codeExpires]
+        `INSERT INTO users (name, email, phone, password_hash, role, is_verified, email_verified, verification_code, verification_code_expires, visitorpfp, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+         RETURNING id, name, email, role, visitorpfp`,
+        [name, email.toLowerCase(), phone, hashedPassword, role, role === 'visitor', false, verificationCode, codeExpires, null]
       );
 
       const userId = userResult.rows[0].id;
@@ -193,7 +193,8 @@ export async function POST(request: Request) {
           role: user.role,
           isVerified: false,
           verificationStatus: role === 'farmer' ? 'pending' : null,
-          emailVerified: false
+          emailVerified: false,
+          visitorpfp: null
         },
         requiresVerification: role === 'farmer',
         requiresEmailVerification: role === 'visitor'  // Visitors need email verification
