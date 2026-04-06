@@ -21,12 +21,24 @@ async function getUserFromToken(request: NextRequest) {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
-    const farmId = parseInt(params.id);
+    // ✅ FIX: Await params to get the id (Next.js 15 requirement)
+    const resolvedParams = await params;
+    const farmId = parseInt(resolvedParams.id);
+    
+    console.log("=== FARM DETAILS API CALLED ===");
+    console.log("Fetching farm details for ID:", farmId);
+    
+    if (isNaN(farmId)) {
+      return NextResponse.json({ error: 'Invalid farm ID' }, { status: 400 });
+    }
+    
     const user = await getUserFromToken(request);
     const userId = user?.id || null;
+    console.log("User ID from token:", userId);
+    console.log("User role:", user?.role);
     
     // Get farm details
     const farmResult = await pool.query(`
@@ -53,14 +65,11 @@ export async function GET(
         u.name as farmer_name,
         u.email as farmer_email,
         u.phone as farmer_phone,
-        CASE WHEN $1 IS NOT NULL THEN (
-          SELECT EXISTS(SELECT 1 FROM favorites WHERE visitor_id = $1 AND farm_id = fp.id)
-        ) ELSE false END as is_favorite,
         (SELECT COUNT(*) FROM reviews WHERE farm_id = fp.id) as review_count
       FROM farmer_profiles fp
       JOIN users u ON fp.user_id = u.id
-      WHERE fp.id = $2 AND fp.verification_status = 'approved'
-    `, [userId, farmId]);
+      WHERE fp.id = $1 AND fp.verification_status = 'approved'
+    `, [farmId]);
     
     if (farmResult.rows.length === 0) {
       return NextResponse.json({ error: 'Farm not found' }, { status: 404 });
@@ -68,12 +77,22 @@ export async function GET(
     
     const farm = farmResult.rows[0];
     
+    // Get favorite status separately
+    let isFavorite = false;
+    if (userId) {
+      const favResult = await pool.query(
+        `SELECT EXISTS(SELECT 1 FROM favorites WHERE visitor_id = $1 AND farm_id = $2) as is_fav`,
+        [userId, farmId]
+      );
+      isFavorite = favResult.rows[0]?.is_fav || false;
+    }
+    
     // Get farm photos
     const photosResult = await pool.query(`
       SELECT id, photo_url, sort_order, created_at
       FROM farm_photos 
       WHERE farmer_id = $1 
-      ORDER BY sort_order ASC, created_at ASC
+      ORDER BY sort_order ASC NULLS LAST, created_at ASC
     `, [farmId]);
     
     // Get activities
@@ -136,24 +155,59 @@ export async function GET(
       ORDER BY start_date ASC
     `, [farmId]);
     
-    // Log recent view - FIXED: Use ON CONFLICT with unique constraint
-    if (userId) {
-      await pool.query(`
-        INSERT INTO recent_views (visitor_id, farm_id, viewed_at) 
-        VALUES ($1, $2, NOW())
-        ON CONFLICT (visitor_id, farm_id) 
-        DO UPDATE SET viewed_at = NOW()
-      `, [userId, farmId]);
-      
-      // Increment profile views
-      await pool.query(`
-        UPDATE farmer_profiles 
-        SET profile_views = COALESCE(profile_views, 0) + 1 
-        WHERE id = $1
-      `, [farmId]);
-    }
+    // ============================================
+    // LOG RECENT VIEW - WITH FULL DEBUGGING
+    // ============================================
+    console.log("\n=== RECENT VIEW LOGGING ===");
+    console.log("User ID:", userId);
+    console.log("Farm ID:", farmId);
     
-    // Calculate rating distribution - FIXED: Type-safe rating distribution
+    if (userId) {
+      try {
+        // Check if user exists in database
+        const userCheck = await pool.query(`SELECT id FROM users WHERE id = $1`, [userId]);
+        console.log("User exists in DB:", userCheck.rows.length > 0);
+        
+        // Check if farm exists
+        const farmCheck = await pool.query(`SELECT id FROM farmer_profiles WHERE id = $1`, [farmId]);
+        console.log("Farm exists in DB:", farmCheck.rows.length > 0);
+        
+        // Attempt to insert/update recent view
+        const recentViewResult = await pool.query(`
+          INSERT INTO recent_views (visitor_id, farm_id, viewed_at) 
+          VALUES ($1, $2, NOW())
+          ON CONFLICT (visitor_id, farm_id) 
+          DO UPDATE SET viewed_at = NOW()
+          RETURNING *
+        `, [userId, farmId]);
+        
+        console.log("✅ Recent view saved successfully!");
+        console.log("Recent view record:", recentViewResult.rows[0]);
+        
+        // Increment profile views
+        const updateResult = await pool.query(`
+          UPDATE farmer_profiles 
+          SET profile_views = COALESCE(profile_views, 0) + 1 
+          WHERE id = $1
+          RETURNING profile_views
+        `, [farmId]);
+        
+        console.log("✅ Profile views incremented!");
+        console.log("New profile view count:", updateResult.rows[0]?.profile_views);
+        
+      } catch (error: any) {
+        console.error("❌ ERROR in recent view logging:");
+        console.error("Error message:", error.message);
+        console.error("Error code:", error.code);
+        console.error("Error detail:", error.detail);
+        console.error("Full error:", error);
+      }
+    } else {
+      console.log("⚠️ No user logged in - skipping recent view logging");
+    }
+    console.log("=== END RECENT VIEW LOGGING ===\n");
+    
+    // Calculate rating distribution
     const ratingDistResult = await pool.query(`
       SELECT 
         rating,
@@ -178,7 +232,7 @@ export async function GET(
     
     return NextResponse.json({
       farm,
-      photos: photosResult.rows,
+      photos: photosResult.rows.map(p => ({ ...p, url: p.photo_url })),
       activities: activitiesResult.rows,
       facilities: facilitiesResult.rows.map((f: { facility_name: string }) => f.facility_name),
       reviews: reviewsResult.rows,
@@ -189,7 +243,7 @@ export async function GET(
       },
       blockedDates: blockedDatesResult.rows,
       hasBooked,
-      isFavorite: farm.is_favorite
+      isFavorite
     });
     
   } catch (error) {
