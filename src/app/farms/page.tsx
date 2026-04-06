@@ -1,7 +1,7 @@
 // src/app/farms/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -51,7 +51,7 @@ export default function DiscoverFarms() {
   });
   const [pagination, setPagination] = useState({
     total: 0,
-    limit: 20,
+    limit: 12,
     offset: 0,
     hasMore: false
   });
@@ -68,14 +68,9 @@ export default function DiscoverFarms() {
     { value: "popular", label: "Most Popular" }
   ];
 
-  useEffect(() => {
-    fetchFarms();
-  }, [filters, searchQuery]);
-
-  const fetchFarms = async (reset = true) => {
+  const fetchFarms = useCallback(async (reset = true) => {
     if (reset) {
       setLoading(true);
-      setPagination(prev => ({ ...prev, offset: 0 }));
     } else {
       setLoadingMore(true);
     }
@@ -96,26 +91,35 @@ export default function DiscoverFarms() {
       const response = await fetch(`/api/farms?${params}`);
       const data = await response.json();
       
-      if (reset) {
-        setFarms(data.farms);
-        setPagination({
-          ...data.pagination,
-          offset: data.pagination.limit
-        });
-      } else {
-        setFarms(prev => [...prev, ...data.farms]);
-        setPagination({
-          ...data.pagination,
-          offset: pagination.offset + data.farms.length
-        });
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch farms');
       }
+      
+      if (reset) {
+        setFarms(data.farms || []);
+      } else {
+        setFarms(prev => [...prev, ...(data.farms || [])]);
+      }
+      
+      setPagination({
+        total: data.pagination?.total || 0,
+        limit: pagination.limit,
+        offset: reset ? pagination.limit : pagination.offset + (data.farms?.length || 0),
+        hasMore: data.pagination?.hasMore || false
+      });
     } catch (error) {
       console.error("Error fetching farms:", error);
     } finally {
       setLoading(false);
       setLoadingMore(false);
     }
-  };
+  }, [searchQuery, filters, pagination.limit, pagination.offset]);
+
+  useEffect(() => {
+    // Reset offset when filters change
+    setPagination(prev => ({ ...prev, offset: 0, hasMore: false }));
+    fetchFarms(true);
+  }, [searchQuery, filters, fetchFarms]);
 
   const handleLoadMore = () => {
     if (pagination.hasMore && !loadingMore) {
@@ -154,6 +158,14 @@ export default function DiscoverFarms() {
   };
 
   const hasActiveFilters = Object.values(filters).some(v => v !== "" && v !== "newest") || searchQuery;
+
+  if (loading && farms.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-accent" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-100/30">
@@ -312,11 +324,7 @@ export default function DiscoverFarms() {
         </div>
 
         {/* Farms Grid */}
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-accent" />
-          </div>
-        ) : farms.length === 0 ? (
+        {farms.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
             <Search className="h-16 w-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500 text-lg mb-2">No farms found</p>
@@ -365,6 +373,7 @@ export default function DiscoverFarms() {
 }
 
 // Farm Card Component
+// Farm Card Component - FIXED navigation
 function FarmCard({ farm, index, onToggleFavorite }: { farm: Farm; index: number; onToggleFavorite: () => void }) {
   const router = useRouter();
   const [imageError, setImageError] = useState(false);
@@ -375,13 +384,20 @@ function FarmCard({ farm, index, onToggleFavorite }: { farm: Farm; index: number
     return `KES ${farm.min_price.toLocaleString()} - ${farm.max_price.toLocaleString()}`;
   };
 
+  const handleViewDetails = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    console.log("Navigating to farm:", farm.id);
+    // Use window.location for a hard navigation to ensure it works
+    window.location.href = `/farms/${farm.id}`;
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
       className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden hover:shadow-md transition cursor-pointer group"
-      onClick={() => router.push(`/farms/${farm.id}`)}
+      onClick={handleViewDetails}
     >
       {/* Image */}
       <div className="relative h-48 overflow-hidden">
@@ -414,7 +430,7 @@ function FarmCard({ farm, index, onToggleFavorite }: { farm: Farm; index: number
         {/* Rating Badge */}
         {farm.average_rating > 0 && (
           <div className="absolute bottom-3 left-3 bg-white/90 rounded-full px-2 py-1 flex items-center gap-1">
-            <Star className="h-3 w-3 fill-accent text-accent" />
+            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
             <span className="text-xs font-medium">{farm.average_rating.toFixed(1)}</span>
             <span className="text-xs text-gray-500">({farm.review_count})</span>
           </div>
@@ -444,10 +460,7 @@ function FarmCard({ farm, index, onToggleFavorite }: { farm: Farm; index: number
             <p className="font-semibold text-accent">{priceDisplay()}</p>
           </div>
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              router.push(`/farms/${farm.id}`);
-            }}
+            onClick={handleViewDetails}
             className="px-4 py-1.5 bg-accent/10 text-accent rounded-lg text-sm font-medium hover:bg-accent/20 transition"
           >
             View Details
