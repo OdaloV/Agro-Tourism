@@ -16,11 +16,15 @@ import {
 } from "lucide-react";
 
 interface RecentView {
-  id: number;
-  farmName: string;
-  location: string;
-  rating: number;
-  viewedAt: string;
+  farm_id: number;
+  farm_name: string;
+  farm_location: string;
+  average_rating: number;
+  review_count: number;
+  cover_photo: string;
+  city: string;
+  county: string;
+  viewed_at: string;
 }
 
 export default function VisitorRecent() {
@@ -44,49 +48,20 @@ export default function VisitorRecent() {
           return;
         }
 
-        // Mock recent views data - replace with API call
-        const mockRecentViews: RecentView[] = [
-          {
-            id: 1,
-            farmName: "Green Valley Farm",
-            location: "Kiambu, Kenya",
-            rating: 4.7,
-            viewedAt: "2024-04-01T14:30:00",
-          },
-          {
-            id: 2,
-            farmName: "Sunrise Dairy",
-            location: "Nakuru, Kenya",
-            rating: 4.6,
-            viewedAt: "2024-03-30T10:15:00",
-          },
-          {
-            id: 3,
-            farmName: "Mountain B&B",
-            location: "Nyeri, Kenya",
-            rating: 4.9,
-            viewedAt: "2024-03-28T16:45:00",
-          },
-          {
-            id: 4,
-            farmName: "Highland Orchard",
-            location: "Nyeri, Kenya",
-            rating: 4.8,
-            viewedAt: "2024-03-25T11:20:00",
-          },
-          {
-            id: 5,
-            farmName: "Green Acres Farm",
-            location: "Kiambu, Kenya",
-            rating: 4.5,
-            viewedAt: "2024-03-22T09:00:00",
-          },
-        ];
-
-        setRecentViews(mockRecentViews);
-        setLoading(false);
+        console.log("Fetching recent views...");
+        const response = await fetch("/api/recent-views");
+        const data = await response.json();
+        
+        console.log("Recent views data:", data);
+        
+        if (response.ok) {
+          setRecentViews(data.recentViews || []);
+        } else {
+          console.error("Failed to fetch:", data.error);
+        }
       } catch (error) {
         console.error("Error fetching recent views:", error);
+      } finally {
         setLoading(false);
       }
     };
@@ -94,15 +69,17 @@ export default function VisitorRecent() {
     fetchRecentViews();
   }, [router, mounted]);
 
-  const handleClearHistory = () => {
+  const handleClearHistory = async () => {
     if (confirm("Clear your entire viewing history?")) {
+      // You can add a DELETE API endpoint here
       setRecentViews([]);
       alert("History cleared");
     }
   };
 
-  const handleRemoveItem = (id: number) => {
-    setRecentViews(recentViews.filter(v => v.id !== id));
+  const handleRemoveItem = async (farmId: number) => {
+    // You can add a DELETE API endpoint for single item
+    setRecentViews(recentViews.filter(v => v.farm_id !== farmId));
   };
 
   const timeAgo = (date: string) => {
@@ -114,14 +91,14 @@ export default function VisitorRecent() {
 
   if (!mounted || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-100/30 py-8">
+    <div className="py-8">
       <div className="container mx-auto px-4 max-w-4xl">
         
         {/* Header */}
@@ -181,7 +158,7 @@ export default function VisitorRecent() {
           <div className="space-y-3">
             {recentViews.map((view, index) => (
               <motion.div
-                key={view.id}
+                key={view.farm_id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
@@ -192,31 +169,34 @@ export default function VisitorRecent() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-sm text-emerald-400">#{index + 1}</span>
-                        <h3 className="font-semibold text-emerald-900">{view.farmName}</h3>
-                        <div className="flex items-center gap-1">
-                          <Star className="h-3 w-3 fill-accent text-accent" />
-                          <span className="text-xs text-emerald-600">{view.rating}</span>
-                        </div>
+                        <h3 className="font-semibold text-emerald-900">{view.farm_name}</h3>
+                        {view.average_rating > 0 && (
+                          <div className="flex items-center gap-1">
+                            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                            <span className="text-xs text-emerald-600">{view.average_rating.toFixed(1)}</span>
+                            <span className="text-xs text-gray-400">({view.review_count})</span>
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 text-sm text-emerald-600">
                         <span className="flex items-center gap-1">
                           <MapPin className="h-3 w-3" />
-                          {view.location}
+                          {view.city || view.county || view.farm_location}
                         </span>
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          {timeAgo(view.viewedAt)}
+                          {timeAgo(view.viewed_at)}
                         </span>
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Link href={`/farms/${view.id}`}>
+                      <Link href={`/farms/${view.farm_id}`}>
                         <button className="px-4 py-2 bg-accent text-white rounded-lg text-sm hover:bg-accent/90">
                           View Again
                         </button>
                       </Link>
                       <button
-                        onClick={() => handleRemoveItem(view.id)}
+                        onClick={() => handleRemoveItem(view.farm_id)}
                         className="p-2 hover:bg-red-50 rounded-lg"
                         title="Remove"
                       >
