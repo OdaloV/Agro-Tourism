@@ -39,37 +39,37 @@ export async function GET(request: NextRequest) {
     // Build query with proper parameter handling
     let query = `
       SELECT 
-        fp.id,
-        fp.farm_name,
-        fp.farm_location,
-        fp.farm_description,
-        fp.farm_type,
-        fp.accommodation,
-        fp.average_rating,
-        fp.profile_photo_url,
-        fp.city,
-        fp.county,
-        fp.latitude,
-        fp.longitude,
-        fp.verification_status,
-        fp.profile_views,
-        COALESCE(
-          (SELECT MIN(price) FROM farmer_activities WHERE farmer_id = fp.id AND (is_free = false OR price > 0)),
-          0
-        ) as min_price,
-        COALESCE(
-          (SELECT MAX(price) FROM farmer_activities WHERE farmer_id = fp.id AND (is_free = false OR price > 0)),
-          0
-        ) as max_price,
-        (SELECT COUNT(*) FROM reviews WHERE farm_id = fp.id) as review_count,
-        COALESCE(
-          (SELECT photo_url FROM farm_photos WHERE farmer_id = fp.id ORDER BY sort_order ASC NULLS LAST, created_at ASC LIMIT 1),
-          fp.profile_photo_url
-        ) as cover_photo,
-        false as is_favorite
-      FROM farmer_profiles fp
-      WHERE fp.verification_status = 'approved'
-    `;
+    fp.id,
+    fp.farm_name,
+    fp.farm_location,
+    fp.farm_description,
+    fp.farm_type,
+    fp.accommodation,
+    fp.average_rating,
+    fp.profile_photo_url,
+    fp.city,
+    fp.county,
+    fp.latitude,
+    fp.longitude,
+    fp.verification_status,
+    fp.profile_views,
+    COALESCE(
+      (SELECT MIN(price) FROM farmer_activities WHERE farmer_id = fp.id AND (is_free = false OR price > 0)),
+      0
+    ) as min_price,
+    COALESCE(
+      (SELECT MAX(price) FROM farmer_activities WHERE farmer_id = fp.id AND (is_free = false OR price > 0)),
+      0
+    ) as max_price,
+    (SELECT COUNT(*) FROM reviews WHERE farm_id = fp.id) as review_count,
+    COALESCE(
+      (SELECT photo_url FROM farm_photos WHERE farmer_id = fp.id ORDER BY sort_order ASC NULLS LAST, created_at ASC LIMIT 1),
+      fp.profile_photo_url
+    ) as cover_photo,
+    false as is_favorite
+  FROM farmer_profiles fp
+  WHERE fp.verification_status = 'approved'
+`;
     
     const queryParams: any[] = [];
     let paramIndex = 1;
