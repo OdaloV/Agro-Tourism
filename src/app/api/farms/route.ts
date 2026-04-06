@@ -29,13 +29,14 @@ export async function GET(request: NextRequest) {
     const maxPrice = searchParams.get('maxPrice');
     const minRating = searchParams.get('minRating');
     const sortBy = searchParams.get('sortBy') || 'newest';
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const limit = parseInt(searchParams.get('limit') || '12');
     const offset = parseInt(searchParams.get('offset') || '0');
     
     // Get current user for favorite status
     const user = await getUserFromToken(request);
     const userId = user?.id || null;
     
+    // Build query with proper parameter handling
     let query = `
       SELECT 
         fp.id,
@@ -62,18 +63,16 @@ export async function GET(request: NextRequest) {
         ) as max_price,
         (SELECT COUNT(*) FROM reviews WHERE farm_id = fp.id) as review_count,
         COALESCE(
-          (SELECT photo_url FROM farm_photos WHERE farmer_id = fp.id ORDER BY sort_order ASC LIMIT 1),
+          (SELECT photo_url FROM farm_photos WHERE farmer_id = fp.id ORDER BY sort_order ASC NULLS LAST, created_at ASC LIMIT 1),
           fp.profile_photo_url
         ) as cover_photo,
-        CASE WHEN $1 IS NOT NULL THEN (
-          SELECT EXISTS(SELECT 1 FROM favorites WHERE visitor_id = $1 AND farm_id = fp.id)
-        ) ELSE false END as is_favorite
+        false as is_favorite
       FROM farmer_profiles fp
       WHERE fp.verification_status = 'approved'
     `;
     
-    const queryParams: any[] = [userId];
-    let paramIndex = 2;
+    const queryParams: any[] = [];
+    let paramIndex = 1;
     
     // Search filter
     if (search) {
@@ -121,10 +120,10 @@ export async function GET(request: NextRequest) {
         query += ` ORDER BY fp.average_rating DESC NULLS LAST`;
         break;
       case 'price_low':
-        query += ` ORDER BY min_price ASC`;
+        query += ` ORDER BY min_price ASC NULLS LAST`;
         break;
       case 'price_high':
-        query += ` ORDER BY max_price DESC`;
+        query += ` ORDER BY max_price DESC NULLS LAST`;
         break;
       case 'popular':
         query += ` ORDER BY review_count DESC`;
@@ -142,7 +141,24 @@ export async function GET(request: NextRequest) {
     
     const result = await pool.query(query, queryParams);
     
-    // Get total count for pagination
+    // If user is logged in, fetch favorite status separately
+    let farmsWithFavorites = result.rows;
+    if (userId) {
+      const farmIds = result.rows.map((farm: any) => farm.id);
+      if (farmIds.length > 0) {
+        const favoritesResult = await pool.query(
+          `SELECT farm_id FROM favorites WHERE visitor_id = $1 AND farm_id = ANY($2::int[])`,
+          [userId, farmIds]
+        );
+        const favoriteIds = new Set(favoritesResult.rows.map((row: any) => row.farm_id));
+        farmsWithFavorites = result.rows.map((farm: any) => ({
+          ...farm,
+          is_favorite: favoriteIds.has(farm.id)
+        }));
+      }
+    }
+    
+    // Get total count for pagination (simplified count query)
     let countQuery = `
       SELECT COUNT(*) as total
       FROM farmer_profiles fp
@@ -166,72 +182,23 @@ export async function GET(request: NextRequest) {
       countParams.push(`%${location}%`);
       countIndex++;
     }
+    if (minRating) {
+      countQuery += ` AND fp.average_rating >= $${countIndex}`;
+      countParams.push(parseFloat(minRating));
+      countIndex++;
+    }
     
     const countResult = await pool.query(countQuery, countParams);
     const total = parseInt(countResult.rows[0].total);
     
-    // Get featured farms (top 3 highest rated)
-    let featuredQuery = `
-      SELECT 
-        fp.id,
-        fp.farm_name,
-        fp.farm_location,
-        fp.average_rating,
-        fp.profile_photo_url,
-        COALESCE(
-          (SELECT photo_url FROM farm_photos WHERE farmer_id = fp.id ORDER BY sort_order ASC LIMIT 1),
-          fp.profile_photo_url
-        ) as cover_photo
-      FROM farmer_profiles fp
-      WHERE fp.verification_status = 'approved' AND fp.average_rating >= 4.0
-      ORDER BY fp.average_rating DESC
-      LIMIT 3
-    `;
-    
-    const featuredResult = await pool.query(featuredQuery);
-    
-    // Get popular activities across all farms
-    const activitiesQuery = `
-      SELECT 
-        a.activity_name,
-        a.category,
-        COUNT(*) as farm_count,
-        MIN(a.price) as min_price
-      FROM farmer_activities a
-      JOIN farmer_profiles fp ON a.farmer_id = fp.id
-      WHERE fp.verification_status = 'approved'
-      GROUP BY a.activity_name, a.category
-      ORDER BY farm_count DESC
-      LIMIT 10
-    `;
-    
-    const activitiesResult = await pool.query(activitiesQuery);
-    
-    // Get top locations (counties with most farms)
-    const locationsQuery = `
-      SELECT 
-        COALESCE(county, city, 'Other') as location,
-        COUNT(*) as farm_count
-      FROM farmer_profiles fp
-      WHERE fp.verification_status = 'approved'
-      GROUP BY COALESCE(county, city, 'Other')
-      ORDER BY farm_count DESC
-      LIMIT 10
-    `;
-    
-    const locationsResult = await pool.query(locationsQuery);
-    
     return NextResponse.json({
-      farms: result.rows,
+      farms: farmsWithFavorites,
       pagination: {
         total,
         limit,
         offset,
         hasMore: offset + limit < total
-      },
-      featured: featuredResult.rows,
-      popularActivities: activitiesResult.rows,
-      topLocations: locationsResult.rows
+      }
     });
     
   } catch (error) {
