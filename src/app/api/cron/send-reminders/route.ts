@@ -1,24 +1,8 @@
 // src/app/api/cron/send-reminders/route.ts
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
-
-// Helper function to send email (you'll need to implement this)
-async function sendEmail(to: string, subject: string, html: string) {
-  // Use your email service (Resend, SendGrid, Nodemailer, etc.)
-  // Example with Resend:
-  // const { Resend } = require('resend');
-  // const resend = new Resend(process.env.RESEND_API_KEY);
-  // await resend.emails.send({ from: 'noreply@harvesthost.com', to, subject, html });
-  
-  console.log(`Sending email to ${to}: ${subject}`);
-  // For now, just log it
-}
-
-// Helper function to send SMS
-async function sendSMS(to: string, message: string) {
-  // Use your SMS service (Twilio, Africa's Talking, etc.)
-  console.log(`Sending SMS to ${to}: ${message}`);
-}
+import { sendEmail } from '@/lib/email';
+import { sendSMS } from '@/lib/sms';
 
 export async function GET(request: Request) {
   // Verify cron job secret
@@ -31,21 +15,16 @@ export async function GET(request: Request) {
   try {
     console.log('Running reminder cron job...');
     
-    // Get tomorrow's date
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = tomorrow.toISOString().split('T')[0];
     
-    console.log(`Checking for bookings on: ${tomorrowStr}`);
-    
-    // Find bookings that are tomorrow and haven't had a reminder sent
     const bookings = await pool.query(`
       SELECT 
         b.id,
         b.booking_date,
         b.activity_name,
         b.participants,
-        b.total_amount,
         u.id as visitor_id,
         u.name as visitor_name,
         u.email as visitor_email,
@@ -61,8 +40,6 @@ export async function GET(request: Request) {
         AND b.status = 'confirmed'
         AND (b.reminder_sent IS NULL OR b.reminder_sent < NOW() - INTERVAL '1 day')
     `, [tomorrowStr]);
-    
-    console.log(`Found ${bookings.rows.length} bookings needing reminders`);
     
     let remindersSent = 0;
     let errors = 0;
@@ -107,7 +84,7 @@ export async function GET(request: Request) {
         
         // Send SMS reminder if phone number exists
         if (booking.visitor_phone) {
-          const smsMessage = `HarvestHost Reminder: Your farm visit at ${booking.farm_name} is tomorrow at ${new Date(booking.booking_date).toLocaleDateString()}. Please arrive 15 minutes early. View details: ${process.env.NEXT_PUBLIC_APP_URL}/visitor/dashboard/bookings`;
+          const smsMessage = `HarvestHost Reminder: Your farm visit at ${booking.farm_name} is tomorrow. Please arrive 15 minutes early. View details: ${process.env.NEXT_PUBLIC_APP_URL}/visitor/dashboard/bookings`;
           await sendSMS(booking.visitor_phone, smsMessage);
         }
         
@@ -125,14 +102,11 @@ export async function GET(request: Request) {
       }
     }
     
-    console.log(`Cron job completed: ${remindersSent} reminders sent, ${errors} errors`);
-    
     return NextResponse.json({ 
       success: true, 
       remindersSent,
       errors,
-      totalBookings: bookings.rows.length,
-      date: tomorrowStr
+      totalBookings: bookings.rows.length
     });
     
   } catch (error) {
