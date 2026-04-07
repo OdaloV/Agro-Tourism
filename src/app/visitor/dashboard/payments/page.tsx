@@ -51,85 +51,28 @@ export default function VisitorPayments() {
   useEffect(() => {
     if (!mounted) return;
 
-    const fetchPayments = async () => {
-      try {
-        const userData = localStorage.getItem("userData");
-        if (!userData) {
-          router.push("/auth/login/visitor");
-          return;
-        }
+   const fetchPayments = async () => {
+  try {
+    const userData = localStorage.getItem("userData");
+    if (!userData) {
+      router.push("/auth/login/visitor");
+      return;
+    }
 
-        // Mock payments data - replace with API call
-        const mockPayments: Payment[] = [
-          {
-            id: 1,
-            bookingId: 1,
-            farmName: "Green Acres Farm",
-            farmId: 1,
-            amount: 3000,
-            date: "2024-04-01",
-            status: "completed",
-            paymentMethod: "M-Pesa",
-            transactionId: "MPESA-ABC123XYZ",
-            invoiceUrl: "#",
-            items: [
-              { name: "Farm Tour", quantity: 2, price: 1500 },
-            ],
-          },
-          {
-            id: 2,
-            bookingId: 2,
-            farmName: "Sunrise Dairy",
-            farmId: 2,
-            amount: 6000,
-            date: "2024-04-05",
-            status: "pending",
-            paymentMethod: "Credit Card",
-            transactionId: "PENDING-456",
-            invoiceUrl: "#",
-            items: [
-              { name: "Milking Experience", quantity: 4, price: 1500 },
-            ],
-          },
-          {
-            id: 3,
-            bookingId: 3,
-            farmName: "Highland Orchard",
-            farmId: 3,
-            amount: 4500,
-            date: "2024-03-20",
-            status: "refunded",
-            paymentMethod: "M-Pesa",
-            transactionId: "MPESA-REF-789",
-            invoiceUrl: "#",
-            items: [
-              { name: "Apple Picking", quantity: 3, price: 1500 },
-            ],
-          },
-          {
-            id: 4,
-            bookingId: 4,
-            farmName: "Green Valley Farm",
-            farmId: 4,
-            amount: 2500,
-            date: "2024-03-15",
-            status: "completed",
-            paymentMethod: "M-Pesa",
-            transactionId: "MPESA-DEF456",
-            invoiceUrl: "#",
-            items: [
-              { name: "Vegetable Harvesting", quantity: 1, price: 2500 },
-            ],
-          },
-        ];
-
-        setPayments(mockPayments);
-        setLoading(false);
-      } catch (error) {
-        console.error("Error fetching payments:", error);
-        setLoading(false);
-      }
-    };
+    const response = await fetch("/api/payments/user");
+    const data = await response.json();
+    
+    if (response.ok) {
+      setPayments(data.payments || []);
+    } else {
+      console.error("Failed to fetch payments:", data.error);
+    }
+  } catch (error) {
+    console.error("Error fetching payments:", error);
+  } finally {
+    setLoading(false);
+  }
+};
 
     fetchPayments();
   }, [router, mounted]);
