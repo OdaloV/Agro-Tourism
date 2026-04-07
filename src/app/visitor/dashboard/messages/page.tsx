@@ -1,7 +1,7 @@
 // src/app/visitor/dashboard/messages/page.tsx
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -11,6 +11,9 @@ import {
   ChevronLeft,
   CheckCheck,
   Check,
+  Search,
+  MapPin,
+  Star,
 } from "lucide-react";
 
 interface Conversation {
@@ -37,12 +40,23 @@ interface Message {
   created_at: string;
 }
 
+interface Farm {
+  id: number;
+  farm_name: string;
+  farm_location: string;
+  city: string;
+  county: string;
+  average_rating: number;
+  cover_photo: string;
+}
+
 export default function VisitorMessages() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const farmIdParam = searchParams.get("farmId");
   const farmNameParam = searchParams.get("farmName");
   
+  // State
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -51,15 +65,20 @@ export default function VisitorMessages() {
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [showNewChatModal, setShowNewChatModal] = useState(false);
-  const [newChatFarmId, setNewChatFarmId] = useState("");
+  const [selectedFarm, setSelectedFarm] = useState<Farm | null>(null);
   const [newChatSubject, setNewChatSubject] = useState("");
+  const [farms, setFarms] = useState<Farm[]>([]);
+  const [loadingFarms, setLoadingFarms] = useState(false);
+  const [farmSearch, setFarmSearch] = useState("");
   const [isOtherOnline, setIsOtherOnline] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   
+  // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastTypingSentRef = useRef<number>(0);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
 
   // Get current user ID from localStorage
   useEffect(() => {
@@ -74,15 +93,58 @@ export default function VisitorMessages() {
     }
   }, []);
 
-  // Fetch conversations
+  // Cleanup on unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+      // Set user offline
+      fetch('/api/messages/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isOnline: false })
+      }).catch(() => {});
+    };
+  }, []);
+
+  // Set user online status when logged in
+  useEffect(() => {
+    if (currentUserId) {
+      fetch('/api/messages/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isOnline: true })
+      }).catch(() => {});
+    }
+  }, [currentUserId]);
+
+  // Fetch conversations on mount
   useEffect(() => {
     fetchConversations();
   }, []);
 
+  // Fetch farms when modal opens
+  useEffect(() => {
+    if (showNewChatModal) {
+      fetchFarms();
+    }
+  }, [showNewChatModal]);
+
   // Handle farm ID from URL params
   useEffect(() => {
     if (farmIdParam && farmNameParam) {
-      setNewChatFarmId(farmIdParam);
+      setSelectedFarm({ 
+        id: parseInt(farmIdParam), 
+        farm_name: farmNameParam,
+        farm_location: "",
+        city: "",
+        county: "",
+        average_rating: 0,
+        cover_photo: ""
+      });
       setNewChatSubject(`Inquiry about ${farmNameParam}`);
       setShowNewChatModal(true);
     }
@@ -94,6 +156,8 @@ export default function VisitorMessages() {
       fetchMessages(selectedConversation.conversation_id);
       checkOnlineStatus();
       startPolling();
+    } else {
+      stopPolling();
     }
     
     return () => {
@@ -103,40 +167,62 @@ export default function VisitorMessages() {
 
   // Scroll to bottom when messages change
   useEffect(() => {
-    scrollToBottom();
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages]);
+
+  // Handle tab visibility
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        if (selectedConversation) {
+          startPolling();
+          checkOnlineStatus();
+        }
+      } else {
+        stopPolling();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [selectedConversation]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const startPolling = () => {
-    // Clear any existing interval
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-    }
-    
-    // Only poll every 10 seconds (not 2 seconds)
-    pollingIntervalRef.current = setInterval(() => {
-      // Only poll if the tab is visible and we have a selected conversation
-      if (selectedConversation && document.visibilityState === 'visible') {
-        checkTypingStatus(selectedConversation.conversation_id);
-      }
-    }, 10000); // 10 seconds instead of 2
-  };
-
-  const stopPolling = () => {
+  const startPolling = useCallback(() => {
+    // Clear existing interval
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
     }
-  };
+    
+    // Only start polling if we have a selected conversation
+    if (!selectedConversation) return;
+    
+    // Poll every 30 seconds (reduced frequency)
+    pollingIntervalRef.current = setInterval(() => {
+      if (selectedConversation && document.visibilityState === 'visible' && isMountedRef.current) {
+        checkTypingStatus(selectedConversation.conversation_id);
+      }
+    }, 30000);
+  }, [selectedConversation]);
+
+  const stopPolling = useCallback(() => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+  }, []);
 
   const fetchConversations = async () => {
     try {
       const response = await fetch("/api/messages");
       const data = await response.json();
-      if (response.ok) {
+      if (response.ok && isMountedRef.current) {
         setConversations(data.conversations || []);
         if (data.conversations?.length > 0 && !selectedConversation) {
           setSelectedConversation(data.conversations[0]);
@@ -145,7 +231,22 @@ export default function VisitorMessages() {
     } catch (error) {
       console.error("Error fetching conversations:", error);
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) setLoading(false);
+    }
+  };
+
+  const fetchFarms = async () => {
+    setLoadingFarms(true);
+    try {
+      const response = await fetch(`/api/farms?limit=50`);
+      const data = await response.json();
+      if (response.ok && isMountedRef.current) {
+        setFarms(data.farms || []);
+      }
+    } catch (error) {
+      console.error("Error fetching farms:", error);
+    } finally {
+      if (isMountedRef.current) setLoadingFarms(false);
     }
   };
 
@@ -153,7 +254,7 @@ export default function VisitorMessages() {
     try {
       const response = await fetch(`/api/messages?conversationId=${conversationId}`);
       const data = await response.json();
-      if (response.ok) {
+      if (response.ok && isMountedRef.current) {
         setMessages(data.messages || []);
       }
     } catch (error) {
@@ -167,7 +268,7 @@ export default function VisitorMessages() {
     try {
       const response = await fetch(`/api/messages/status?userId=${selectedConversation.other_party_id}&userRole=farmer`);
       const data = await response.json();
-      setIsOtherOnline(data.isOnline);
+      if (isMountedRef.current) setIsOtherOnline(data.isOnline);
     } catch (error) {
       console.error("Error checking online status:", error);
     }
@@ -177,9 +278,9 @@ export default function VisitorMessages() {
     try {
       const response = await fetch(`/api/messages/typing?conversationId=${conversationId}`);
       const data = await response.json();
-      setIsTyping(data.isTyping);
+      if (isMountedRef.current) setIsTyping(data.isTyping);
     } catch (error) {
-      console.error("Error checking typing status:", error);
+      // Silent fail for typing indicator
     }
   };
 
@@ -196,7 +297,7 @@ export default function VisitorMessages() {
         })
       });
     } catch (error) {
-      console.error("Error sending typing indicator:", error);
+      // Silent fail
     }
   };
 
@@ -204,7 +305,6 @@ export default function VisitorMessages() {
     if (!selectedConversation) return;
     
     const now = Date.now();
-    // Only send typing indicator every 3 seconds max (debounce)
     if (now - lastTypingSentRef.current < 3000) return;
     lastTypingSentRef.current = now;
     
@@ -232,9 +332,9 @@ export default function VisitorMessages() {
       
       if (selectedConversation) {
         body.conversationId = selectedConversation.conversation_id;
-      } else if (newChatFarmId) {
-        body.farmId = parseInt(newChatFarmId);
-        body.subject = newChatSubject;
+      } else if (selectedFarm) {
+        body.farmId = selectedFarm.id;
+        body.subject = newChatSubject || `Inquiry about ${selectedFarm.farm_name}`;
       }
       
       const response = await fetch("/api/messages", {
@@ -247,7 +347,6 @@ export default function VisitorMessages() {
       
       if (response.ok) {
         setNewMessage("");
-        // Stop typing indicator
         sendTypingIndicator(false);
         
         if (!selectedConversation && data.conversationId) {
@@ -259,7 +358,7 @@ export default function VisitorMessages() {
           await fetchConversations();
         }
         setShowNewChatModal(false);
-        setNewChatFarmId("");
+        setSelectedFarm(null);
         setNewChatSubject("");
       } else {
         alert(data.error || "Failed to send message");
@@ -286,29 +385,11 @@ export default function VisitorMessages() {
     }
   };
 
-  // Set user online status when component mounts
-  useEffect(() => {
-    const setOnlineStatus = async () => {
-      if (currentUserId) {
-        await fetch('/api/messages/status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ isOnline: true })
-        });
-      }
-    };
-    
-    setOnlineStatus();
-    
-    // Set offline when component unmounts
-    return () => {
-      fetch('/api/messages/status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isOnline: false })
-      });
-    };
-  }, [currentUserId]);
+  const filteredFarms = farms.filter(farm =>
+    farm.farm_name.toLowerCase().includes(farmSearch.toLowerCase()) ||
+    (farm.city && farm.city.toLowerCase().includes(farmSearch.toLowerCase())) ||
+    (farm.county && farm.county.toLowerCase().includes(farmSearch.toLowerCase()))
+  );
 
   if (loading) {
     return (
@@ -534,34 +615,104 @@ export default function VisitorMessages() {
         </div>
       </div>
 
-      {/* New Chat Modal */}
+      {/* New Chat Modal - Farm Selector */}
       {showNewChatModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full">
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
             <div className="p-4 border-b border-emerald-100 flex justify-between items-center">
               <h3 className="text-lg font-heading font-semibold text-emerald-900">
                 Start New Conversation
               </h3>
               <button
-                onClick={() => setShowNewChatModal(false)}
+                onClick={() => {
+                  setShowNewChatModal(false);
+                  setSelectedFarm(null);
+                  setNewChatSubject("");
+                  setNewMessage("");
+                }}
                 className="p-1 hover:bg-emerald-50 rounded-lg"
               >
                 <X className="h-5 w-5 text-emerald-500" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
+            
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Search Farms */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Farm ID
+                  Search Farms
                 </label>
-                <input
-                  type="number"
-                  value={newChatFarmId}
-                  onChange={(e) => setNewChatFarmId(e.target.value)}
-                  placeholder="Enter farm ID"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
-                />
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={farmSearch}
+                    onChange={(e) => setFarmSearch(e.target.value)}
+                    placeholder="Search by farm name or location..."
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
+                  />
+                </div>
               </div>
+
+              {/* Select Farm */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select a Farm to Contact
+                </label>
+                {loadingFarms ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent mx-auto"></div>
+                    <p className="text-sm text-gray-500 mt-2">Loading farms...</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                    {filteredFarms.length === 0 ? (
+                      <p className="text-center text-gray-500 py-4">No farms found</p>
+                    ) : (
+                      filteredFarms.map((farm) => (
+                        <div
+                          key={farm.id}
+                          onClick={() => setSelectedFarm(farm)}
+                          className={`p-3 rounded-lg cursor-pointer transition-all ${
+                            selectedFarm?.id === farm.id
+                              ? "bg-accent/10 border-accent border"
+                              : "hover:bg-gray-50 border border-transparent"
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
+                              <span className="text-emerald-600">🌾</span>
+                            </div>
+                            <div className="flex-1">
+                              <h4 className="font-medium text-emerald-900">{farm.farm_name}</h4>
+                              <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                                <MapPin className="h-3 w-3" />
+                                <span>{farm.city || farm.county || farm.farm_location}</span>
+                              </div>
+                              {farm.average_rating > 0 && (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                                  <span className="text-xs">{farm.average_rating.toFixed(1)}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Selected Farm Info */}
+              {selectedFarm && (
+                <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-200">
+                  <p className="text-xs text-emerald-600 mb-1">Selected Farm:</p>
+                  <p className="font-medium text-emerald-900">{selectedFarm.farm_name}</p>
+                </div>
+              )}
+
+              {/* Subject */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Subject
@@ -574,6 +725,8 @@ export default function VisitorMessages() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
                 />
               </div>
+
+              {/* Message */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Your Message
@@ -586,10 +739,24 @@ export default function VisitorMessages() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
                 />
               </div>
+            </div>
+
+            <div className="p-4 border-t border-emerald-100 flex gap-3">
+              <button
+                onClick={() => {
+                  setShowNewChatModal(false);
+                  setSelectedFarm(null);
+                  setNewChatSubject("");
+                  setNewMessage("");
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
               <button
                 onClick={sendMessage}
-                disabled={sending || !newMessage.trim() || !newChatFarmId}
-                className="w-full py-2 bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50"
+                disabled={sending || !newMessage.trim() || !selectedFarm}
+                className="flex-1 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50"
               >
                 {sending ? "Sending..." : "Send Message"}
               </button>
