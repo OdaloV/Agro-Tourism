@@ -56,63 +56,29 @@ export default function VisitorBookings() {
           return;
         }
 
-        // Mock bookings data - replace with API call
-        const mockBookings: Booking[] = [
-          {
-            id: 1,
-            farmId: 1,
-            farmName: "Green Acres Farm",
-            activity: "Farm Tour",
-            date: "2024-04-15",
-            participants: 2,
-            status: "confirmed",
-            totalPrice: 3000,
-            specialRequests: "Vegetarian lunch preferred",
-          },
-          {
-            id: 2,
-            farmId: 2,
-            farmName: "Sunrise Dairy",
-            activity: "Milking Experience",
-            date: "2024-04-20",
-            participants: 4,
-            status: "pending",
-            totalPrice: 6000,
-          },
-          {
-            id: 3,
-            farmId: 3,
-            farmName: "Highland Orchard",
-            activity: "Apple Picking",
-            date: "2024-05-01",
-            participants: 3,
-            status: "waitlisted",
-            totalPrice: 4500,
-            waitlistPosition: 2,
-          },
-          {
-            id: 4,
-            farmId: 1,
-            farmName: "Green Acres Farm",
-            activity: "Harvesting",
-            date: "2024-03-15",
-            participants: 3,
-            status: "cancelled",
-            totalPrice: 4500,
-          },
-          {
-            id: 5,
-            farmId: 2,
-            farmName: "Sunrise Dairy",
-            activity: "Cheese Making Workshop",
-            date: "2024-03-10",
-            participants: 2,
-            status: "confirmed",
-            totalPrice: 5000,
-          },
-        ];
-
-        setBookings(mockBookings);
+        // 🔥 FETCH REAL BOOKINGS FROM API
+        const response = await fetch('/api/bookings');
+        const data = await response.json();
+        
+        if (response.ok) {
+          // Transform API data to match Booking interface
+          const realBookings: Booking[] = (data.bookings || []).map((b: any) => ({
+            id: b.id,
+            farmId: b.farm_id,
+            farmName: b.farm_name,
+            activity: b.activity_name,
+            date: b.booking_date,
+            participants: b.participants,
+            status: b.status,
+            totalPrice: parseFloat(b.total_amount),
+            specialRequests: b.special_requests,
+            waitlistPosition: b.waitlist_position
+          }));
+          
+          setBookings(realBookings);
+        } else {
+          console.error("Failed to fetch bookings:", data.error);
+        }
         setLoading(false);
       } catch (error) {
         console.error("Error fetching bookings:", error);
@@ -135,14 +101,29 @@ export default function VisitorBookings() {
 
   const waitlistedBookings = bookings.filter((b) => b.status === "waitlisted");
 
-  const handleCancel = (bookingId: number) => {
+  const handleCancel = async (bookingId: number) => {
     if (confirm("Are you sure you want to cancel this booking?")) {
-      setBookings(
-        bookings.map((b) =>
-          b.id === bookingId ? { ...b, status: "cancelled" } : b
-        )
-      );
-      alert("Booking cancelled. Refund will be processed within 5-7 business days.");
+      try {
+        const response = await fetch(`/api/bookings/${bookingId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'cancelled' })
+        });
+        
+        if (response.ok) {
+          setBookings(
+            bookings.map((b) =>
+              b.id === bookingId ? { ...b, status: "cancelled" } : b
+            )
+          );
+          alert("Booking cancelled. Refund will be processed within 5-7 business days.");
+        } else {
+          alert("Failed to cancel booking");
+        }
+      } catch (error) {
+        console.error("Error cancelling booking:", error);
+        alert("Failed to cancel booking");
+      }
     }
   };
 
@@ -167,7 +148,7 @@ export default function VisitorBookings() {
   };
 
   const handleRebook = (booking: Booking) => {
-    alert(`Rebooking ${booking.activity} at ${booking.farmName}`);
+    router.push(`/farms/${booking.farmId}`);
   };
 
   const handleWriteReview = (booking: Booking) => {
@@ -177,7 +158,7 @@ export default function VisitorBookings() {
   if (!mounted || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
       </div>
     );
   }
@@ -327,7 +308,7 @@ export default function VisitorBookings() {
               </button>
               <button
                 onClick={handleAddSpecialRequest}
-                className="flex-1 px-4 py-2 bg-accent text-white rounded-xl hover:bg-accent/90"
+                className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700"
               >
                 Send Request
               </button>
@@ -351,7 +332,7 @@ function TabButton({ active, onClick, label, count }: {
       onClick={onClick}
       className={`flex items-center gap-2 px-4 py-2 rounded-t-xl transition-all ${
         active
-          ? "bg-white text-accent border-t border-l border-r border-emerald-200 -mb-px"
+          ? "bg-white text-emerald-600 border-t border-l border-r border-emerald-200 -mb-px"
           : "text-emerald-600 hover:bg-emerald-50"
       }`}
     >
@@ -360,7 +341,7 @@ function TabButton({ active, onClick, label, count }: {
         <span
           className={`text-xs px-2 py-0.5 rounded-full ${
             active
-              ? "bg-accent/10 text-accent"
+              ? "bg-emerald-100 text-emerald-600"
               : "bg-emerald-100 text-emerald-600"
           }`}
         >
@@ -391,7 +372,7 @@ function BookingCard({ booking, onCancel, onReschedule, onSpecialRequest }: {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
-              <h3 className="text-lg font-heading font-semibold text-emerald-900">
+              <h3 className="text-lg font-semibold text-emerald-900">
                 {booking.farmName}
               </h3>
               <span className={`text-xs px-2 py-1 rounded-full ${statusColors[booking.status]}`}>
@@ -460,7 +441,7 @@ function PastBookingCard({ booking, onRebook, onWriteReview }: {
       <div className="p-5">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex-1">
-            <h3 className="text-lg font-heading font-semibold text-emerald-900">
+            <h3 className="text-lg font-semibold text-emerald-900">
               {booking.farmName}
             </h3>
             <p className="text-sm text-emerald-600">{booking.activity}</p>
@@ -478,13 +459,13 @@ function PastBookingCard({ booking, onRebook, onWriteReview }: {
           <div className="flex gap-2">
             <button
               onClick={() => onWriteReview(booking)}
-              className="px-3 py-1.5 text-sm border border-accent text-accent rounded-lg hover:bg-accent/10"
+              className="px-3 py-1.5 text-sm border border-emerald-600 text-emerald-600 rounded-lg hover:bg-emerald-50"
             >
               Write Review
             </button>
             <button
               onClick={() => onRebook(booking)}
-              className="px-3 py-1.5 text-sm bg-accent text-white rounded-lg hover:bg-accent/90"
+              className="px-3 py-1.5 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
             >
               Book Again
             </button>
@@ -503,7 +484,7 @@ function WaitlistCard({ booking }: { booking: Booking }) {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
-              <h3 className="text-lg font-heading font-semibold text-emerald-900">
+              <h3 className="text-lg font-semibold text-emerald-900">
                 {booking.farmName}
               </h3>
               <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-600">
@@ -551,7 +532,7 @@ function EmptyState({ icon: Icon, title, description, buttonText, buttonLink }: 
       <p className="text-emerald-500 mb-2">{title}</p>
       <p className="text-sm text-emerald-400">{description}</p>
       <Link href={buttonLink}>
-        <button className="mt-4 px-4 py-2 bg-accent text-white rounded-xl text-sm">
+        <button className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm">
           {buttonText}
         </button>
       </Link>
