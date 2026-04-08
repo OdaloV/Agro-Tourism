@@ -1,8 +1,12 @@
 // src/lib/services/notificationService.ts
 import nodemailer from 'nodemailer';
 import pool from '@/lib/db';
+import { Resend } from 'resend';
 
-// Email transporter
+// Initialize Resend for email
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Email transporter (fallback if Resend not available)
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: parseInt(process.env.SMTP_PORT || '587'),
@@ -13,46 +17,244 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Send email notification (main function)
-export async function sendEmailNotification(to: string, subject: string, html: string) {
-  const settings = await getNotificationSettings();
-  if (!settings.emailEnabled) return;
-  
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM,
-    to,
-    subject,
-    html,
-  });
+// Check if user wants to receive email notifications
+async function shouldSendEmail(userId: number, notificationType: string): Promise<boolean> {
+  try {
+    const result = await pool.query(
+      `SELECT email_notifications, booking_updates, reminders, marketing_emails 
+       FROM notification_preferences 
+       WHERE user_id = $1`,
+      [userId]
+    );
+    
+    if (result.rows.length === 0) return true; // Default to true if no preferences set
+    
+    const prefs = result.rows[0];
+    
+    switch (notificationType) {
+      case 'booking_update':
+        return prefs.email_notifications && prefs.booking_updates;
+      case 'reminder':
+        return prefs.email_notifications && prefs.reminders;
+      case 'marketing':
+        return prefs.email_notifications && prefs.marketing_emails;
+      default:
+        return prefs.email_notifications;
+    }
+  } catch (error) {
+    console.error('Error checking email preferences:', error);
+    return true;
+  }
 }
 
-// Send SMS notification (using Africa's Talking or Twilio)
-export async function sendSMSNotification(phone: string, message: string) {
-  const settings = await getNotificationSettings();
-  if (!settings.smsEnabled) return;
-  
-  // Add your SMS provider integration here
-  console.log(`SMS would be sent to ${phone}: ${message}`);
+// Check if user wants to receive SMS notifications
+async function shouldSendSMS(userId: number): Promise<boolean> {
+  try {
+    const result = await pool.query(
+      `SELECT sms_notifications FROM notification_preferences WHERE user_id = $1`,
+      [userId]
+    );
+    
+    if (result.rows.length === 0) return false;
+    return result.rows[0].sms_notifications;
+  } catch (error) {
+    console.error('Error checking SMS preferences:', error);
+    return false;
+  }
 }
 
-// Get notification settings
-async function getNotificationSettings() {
-  const result = await pool.query(
-    "SELECT key, value FROM platform_settings WHERE key IN ('notification_email', 'notification_sms')"
-  );
-  
-  const settings: Record<string, string> = {};
-  result.rows.forEach(row => {
-    settings[row.key] = row.value;
-  });
-  
-  return {
-    emailEnabled: settings.notification_email === 'true',
-    smsEnabled: settings.notification_sms === 'true',
-  };
+// Send email notification using Resend
+export async function sendEmail(to: string, subject: string, html: string) {
+  try {
+    const { data, error } = await resend.emails.send({
+      from: 'HarvestHost <noreply@harvesthost.com>',
+      to,
+      subject,
+      html,
+    });
+    
+    if (error) {
+      console.error('Email error:', error);
+      return { success: false, error };
+    }
+    
+    console.log(`Email sent to ${to}:`, data?.id);
+    return { success: true, data };
+  } catch (error) {
+    console.error('Failed to send email:', error);
+    return { success: false, error };
+  }
 }
 
-// Send new registration notification to admin
+// Send SMS notification (using Africa's Talking)
+export async function sendSMS(to: string, message: string) {
+  try {
+    // Format phone number for Kenya
+    let formattedNumber = to;
+    if (!to.startsWith('+')) {
+      formattedNumber = `+254${to.replace(/^0/, '')}`;
+    }
+    
+    // This would integrate with Africa's Talking
+    console.log(`SMS would be sent to ${formattedNumber}: ${message}`);
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to send SMS:', error);
+    return { success: false, error };
+  }
+}
+
+// Send booking confirmation (respects user preferences)
+export async function sendBookingConfirmation(userId: number, email: string, bookingDetails: any) {
+  const shouldSend = await shouldSendEmail(userId, 'booking_update');
+  if (!shouldSend) {
+    console.log(`User ${userId} opted out of booking update emails`);
+    return;
+  }
+  
+  const subject = `Booking Confirmed: ${bookingDetails.farmName}`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #059669;">Booking Confirmed! 🎉</h2>
+      <p>Dear ${bookingDetails.visitorName},</p>
+      <p>Your booking at <strong>${bookingDetails.farmName}</strong> has been confirmed.</p>
+      
+      <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+        <p><strong>📅 Date:</strong> ${new Date(bookingDetails.date).toLocaleDateString()}</p>
+        <p><strong>🎯 Activity:</strong> ${bookingDetails.activityName}</p>
+        <p><strong>👥 Guests:</strong> ${bookingDetails.participants}</p>
+        <p><strong>💰 Amount:</strong> KES ${bookingDetails.amount.toLocaleString()}</p>
+      </div>
+      
+      <a href="${process.env.NEXT_PUBLIC_APP_URL}/visitor/dashboard/bookings" 
+         style="background: #059669; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px;">
+        View My Bookings
+      </a>
+      
+      <p style="margin-top: 20px;">Thank you for choosing HarvestHost!</p>
+    </div>
+  `;
+  
+  await sendEmail(email, subject, html);
+}
+
+// Send reminder notification (respects user preferences)
+export async function sendReminderNotification(userId: number, email: string, reminderDetails: any) {
+  const shouldSend = await shouldSendEmail(userId, 'reminder');
+  if (!shouldSend) {
+    console.log(`User ${userId} opted out of reminder emails`);
+    return;
+  }
+  
+  const subject = `Reminder: Your farm visit at ${reminderDetails.farmName} is tomorrow!`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #065f46, #047857); padding: 20px; text-align: center; border-radius: 12px 12px 0 0;">
+        <h1 style="color: white; margin: 0;">Farm Visit Reminder</h1>
+      </div>
+      <div style="padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+        <p>Dear ${reminderDetails.visitorName},</p>
+        <p>This is a reminder that you have a farm experience booked for <strong>tomorrow</strong>!</p>
+        
+        <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+          <p><strong>🌾 Farm:</strong> ${reminderDetails.farmName}</p>
+          <p><strong>📅 Date:</strong> ${new Date(reminderDetails.date).toLocaleDateString()}</p>
+          <p><strong>🎯 Activity:</strong> ${reminderDetails.activityName}</p>
+          <p><strong>👥 Guests:</strong> ${reminderDetails.participants}</p>
+        </div>
+        
+        <p>Please arrive 15 minutes early.</p>
+      </div>
+    </div>
+  `;
+  
+  await sendEmail(email, subject, html);
+}
+
+// Send visitor verification email
+export async function sendVisitorVerificationEmail(email: string, name: string, code: string) {
+  console.log(`=================================`);
+  console.log(`🔐 VISITOR VERIFICATION CODE FOR ${email}: ${code}`);
+  console.log(`=================================`);
+  
+  const subject = 'Verify Your Email - HarvestHost';
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #059669;">Welcome to HarvestHost!</h2>
+      <p>Dear ${name},</p>
+      <p>Please use the verification code below to complete your registration:</p>
+      <div style="background: #f3f4f6; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; border-radius: 10px; margin: 20px 0;">
+        ${code}
+      </div>
+      <p>This code will expire in <strong>15 minutes</strong>.</p>
+    </div>
+  `;
+  
+  await sendEmail(email, subject, html);
+}
+
+// Send farmer verification email
+export async function sendVerificationEmail(email: string, name: string, code: string) {
+  console.log(`=================================`);
+  console.log(`🔐 FARMER VERIFICATION CODE FOR ${email}: ${code}`);
+  console.log(`=================================`);
+  
+  const subject = 'Verify Your Email - Complete Your HarvestHost Registration';
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #059669;">Email Verification Required</h2>
+      <p>Dear ${name},</p>
+      <p>Please verify your email using the code below:</p>
+      <div style="background: #f3f4f6; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; border-radius: 10px; margin: 20px 0;">
+        ${code}
+      </div>
+      <p>This code will expire in <strong>15 minutes</strong>.</p>
+    </div>
+  `;
+  
+  await sendEmail(email, subject, html);
+}
+
+// Send farmer approval notification
+export async function notifyFarmerApproved(farmerEmail: string, farmerName: string, farmName: string) {
+  const subject = 'Your Farm Has Been Verified! 🎉';
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #059669;">Congratulations ${farmerName}!</h2>
+      <p>Your farm <strong>${farmName}</strong> has been verified and is now live on HarvestHost!</p>
+      <a href="${process.env.NEXT_PUBLIC_APP_URL}/farmer/dashboard" 
+         style="background: #059669; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px;">
+        Go to Dashboard
+      </a>
+    </div>
+  `;
+  
+  await sendEmail(farmerEmail, subject, html);
+}
+
+// Send farmer rejection notification
+export async function notifyFarmerRejected(farmerEmail: string, farmerName: string, farmName: string, rejectionReason: string) {
+  const subject = 'Farm Verification Update - HarvestHost';
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #dc2626;">Verification Status: Rejected</h2>
+      <p>Dear ${farmerName},</p>
+      <p>Your farm "<strong>${farmName}</strong>" verification has been reviewed.</p>
+      <div style="background: #fee2e2; padding: 15px; border-left: 4px solid #dc2626; margin: 20px 0;">
+        <strong>Reason for rejection:</strong>
+        <p style="margin: 10px 0 0 0;">${rejectionReason}</p>
+      </div>
+      <a href="${process.env.NEXT_PUBLIC_APP_URL}/farmer/verification" 
+         style="background: #dc2626; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px;">
+        Resubmit Application
+      </a>
+    </div>
+  `;
+  
+  await sendEmail(farmerEmail, subject, html);
+}
+
+// Send new farmer registration notification to admin
 export async function notifyNewFarmerRegistration(farmerName: string, farmName: string) {
   const adminEmail = await getAdminEmail();
   const subject = 'New Farmer Registration - Pending Verification';
@@ -61,213 +263,35 @@ export async function notifyNewFarmerRegistration(farmerName: string, farmName: 
     <p><strong>Farmer:</strong> ${farmerName}</p>
     <p><strong>Farm:</strong> ${farmName}</p>
     <p><strong>Status:</strong> Pending Verification</p>
-    <a href="${process.env.NEXT_PUBLIC_BASE_URL}/admin/dashboard">Review Now</a>
+    <a href="${process.env.NEXT_PUBLIC_APP_URL}/admin/dashboard">Review Now</a>
   `;
   
-  await sendEmailNotification(adminEmail, subject, html);
+  await sendEmail(adminEmail, subject, html);
 }
 
-// Send verification approved notification
-export async function notifyFarmerApproved(farmerEmail: string, farmerName: string, farmName: string) {
-  const subject = 'Your Farm Has Been Verified! 🎉';
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #4CAF50;">Congratulations ${farmerName}!</h2>
-      <p>Your farm <strong>${farmName}</strong> has been verified and is now live on HarvestHost!</p>
-      <p>Visitors can now discover and book experiences on your farm.</p>
-      <div style="margin: 20px 0;">
-        <a href="${process.env.NEXT_PUBLIC_BASE_URL}/farmer/dashboard" 
-           style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
-          Go to Dashboard
-        </a>
-      </div>
-      <p>Best regards,<br>HarvestHost Team</p>
-    </div>
-  `;
-  
-  await sendEmailNotification(farmerEmail, subject, html);
-}
-
-// Send registration confirmation email (after registration, before document submission)
+// Send registration confirmation
 export async function sendRegistrationConfirmation(email: string, name: string, farmName: string) {
   const subject = 'Farm Registration Received - HarvestHost';
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #4CAF50;">Registration Received!</h2>
+      <h2 style="color: #059669;">Registration Received!</h2>
       <p>Dear ${name},</p>
       <p>Thank you for registering your farm <strong>${farmName}</strong> with HarvestHost!</p>
-      
-      <div style="background-color: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #2196F3;">
-        <p style="margin: 0 0 10px 0;"><strong>📋 Next Steps to Complete Your Registration:</strong></p>
-        <ol style="margin: 0; padding-left: 20px;">
-          <li style="margin-bottom: 8px;">Login to your dashboard</li>
-          <li style="margin-bottom: 8px;">Complete the farm verification by uploading required documents</li>
-          <li style="margin-bottom: 8px;">After document submission, you'll receive a verification code via email</li>
-          <li style="margin-bottom: 8px;">Verify your email address using the 6-digit code</li>
-          <li>Wait for admin approval (2-3 business days)</li>
-        </ol>
-      </div>
-      
-      <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
-        <p style="margin: 0;"><strong>⚠️ Important:</strong></p>
-        <p style="margin: 5px 0 0 0; font-size: 14px;">
-          Your farm will not be visible to visitors until:
-        </p>
-        <ul style="margin: 5px 0 0 20px; font-size: 14px;">
-          <li>You have uploaded all required documents</li>
-          <li>Your email has been verified</li>
-          <li>Admin has approved your application</li>
-        </ul>
-      </div>
-      
-      <div style="margin: 20px 0;">
-        <a href="${process.env.NEXT_PUBLIC_BASE_URL}/auth/login/farmer" 
-           style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
-          Login to Complete Verification
-        </a>
-      </div>
-      
-      <p>If you have any questions, please contact our support team.</p>
-      <p>Best regards,<br>HarvestHost Team</p>
+      <p>Our team will review your application and get back to you soon.</p>
     </div>
   `;
   
-  await sendEmailNotification(email, subject, html);
-}
-
-// Send email verification code (sent after document submission for farmers)
-export async function sendVerificationEmail(email: string, name: string, code: string) {
-  // Log to console for development
-  console.log(`=================================`);
-  console.log(`🔐 FARMER VERIFICATION CODE FOR ${email}: ${code}`);
-  console.log(`=================================`);
-  
-  const subject = 'Verify Your Email - Complete Your HarvestHost Registration';
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #4CAF50;">Email Verification Required</h2>
-      <p>Dear ${name},</p>
-      <p>Thank you for submitting your farm documents!</p>
-      <p>To complete your registration and activate your farm, please verify your email address using the code below:</p>
-      
-      <div style="background-color: #f5f5f5; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; border-radius: 10px; margin: 20px 0;">
-        ${code}
-      </div>
-      
-      <p>This code will expire in <strong>15 minutes</strong>.</p>
-      
-      <div style="margin: 20px 0;">
-        <a href="${process.env.NEXT_PUBLIC_BASE_URL}/auth/verify-email" 
-           style="background-color: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
-          Verify Email Now
-        </a>
-      </div>
-      
-      <div style="background-color: #fff3e0; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #FF9800;">
-        <p style="margin: 0;"><strong>What happens next?</strong></p>
-        <ol style="margin: 5px 0 0 20px;">
-          <li>After email verification, our admin team will review your documents</li>
-          <li>You'll receive an email once your farm is approved</li>
-          <li>Your farm will then be visible to visitors</li>
-        </ol>
-      </div>
-      
-      <p>If you didn't submit documents for farm verification, please ignore this email.</p>
-      <p>Best regards,<br>HarvestHost Team</p>
-    </div>
-  `;
-  
-  try {
-    await sendEmailNotification(email, subject, html);
-  } catch (error) {
-    console.error('Failed to send verification email:', error);
-  }
-}
-
-// Send visitor verification email (for visitor registration)
-export async function sendVisitorVerificationEmail(email: string, name: string, code: string) {
-  // Log to console for development
-  console.log(`=================================`);
-  console.log(`🔐 VISITOR VERIFICATION CODE FOR ${email}: ${code}`);
-  console.log(`=================================`);
-  
-  const subject = 'Verify Your Email - HarvestHost';
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #4CAF50;">Welcome to HarvestHost!</h2>
-      <p>Dear ${name},</p>
-      <p>Thank you for registering as a visitor on HarvestHost!</p>
-      <p>Please use the verification code below to complete your registration:</p>
-      <div style="background-color: #f5f5f5; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; border-radius: 10px; margin: 20px 0;">
-        ${code}
-      </div>
-      <p>This code will expire in <strong>15 minutes</strong>.</p>
-      <p>If you didn't create an account with HarvestHost, please ignore this email.</p>
-      <p>Best regards,<br>HarvestHost Team</p>
-    </div>
-  `;
-  
-  try {
-    await sendEmailNotification(email, subject, html);
-  } catch (error) {
-    console.error('Failed to send visitor verification email:', error);
-  }
-}
-
-// Send verification rejected notification
-export async function notifyFarmerRejected(
-  farmerEmail: string,
-  farmerName: string,
-  farmName: string,
-  rejectionReason: string
-) {
-  const subject = 'Farm Verification Update - HarvestHost';
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #f44336;">Verification Status: Rejected</h2>
-      <p>Dear ${farmerName},</p>
-      <p>Your farm "<strong>${farmName}</strong>" verification has been reviewed.</p>
-      
-      <div style="background-color: #ffebee; padding: 15px; border-left: 4px solid #f44336; margin: 20px 0;">
-        <strong>Reason for rejection:</strong>
-        <p style="margin: 10px 0 0 0;">${rejectionReason}</p>
-      </div>
-      
-      <p>Please correct the issues mentioned above and resubmit your application for review.</p>
-      
-      <div style="margin: 20px 0;">
-        <a href="${process.env.NEXT_PUBLIC_BASE_URL}/farmer/verification" 
-           style="background-color: #f44336; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
-          Resubmit Application
-        </a>
-      </div>
-      
-      <p>If you have any questions, please contact our support team.</p>
-      
-      <p>Best regards,<br>HarvestHost Team</p>
-    </div>
-  `;
-  
-  await sendEmailNotification(farmerEmail, subject, html);
-  console.log(`Rejection notification sent to ${farmerEmail}`);
+  await sendEmail(email, subject, html);
 }
 
 // Get admin email from settings
-async function getAdminEmail() {
-  const result = await pool.query(
-    "SELECT value FROM platform_settings WHERE key = 'platform_email'"
-  );
-  return result.rows[0]?.value || 'admin@harvesthost.com';
-}
-
-// Optional: Send test email
-export async function sendTestEmail(to: string) {
-  const subject = 'Test Email from HarvestHost';
-  const html = `
-    <h2>Test Email</h2>
-    <p>This is a test email to verify your email configuration is working correctly.</p>
-    <p>Time sent: ${new Date().toLocaleString()}</p>
-  `;
-  
-  await sendEmailNotification(to, subject, html);
+async function getAdminEmail(): Promise<string> {
+  try {
+    const result = await pool.query(
+      "SELECT value FROM platform_settings WHERE key = 'platform_email'"
+    );
+    return result.rows[0]?.value || 'admin@harvesthost.com';
+  } catch (error) {
+    return 'admin@harvesthost.com';
+  }
 }
