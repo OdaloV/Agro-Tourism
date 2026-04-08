@@ -188,9 +188,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// ============================================
-// DELETE endpoint - Remove a photo
-// ============================================
+
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
