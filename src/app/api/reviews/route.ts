@@ -19,6 +19,54 @@ async function getUserFromToken(request: NextRequest) {
   }
 }
 
+// ✅ ADD THIS GET METHOD
+export async function GET(request: NextRequest) {
+  try {
+    const user = await getUserFromToken(request);
+    if (!user || user.role !== 'visitor') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const result = await pool.query(`
+      SELECT 
+        r.id,
+        r.farm_id,
+        r.rating,
+        r.title,
+        r.comment,
+        r.created_at,
+        r.farm_response,
+        fp.farm_name,
+        b.booking_date
+      FROM reviews r
+      JOIN farmer_profiles fp ON r.farm_id = fp.id
+      LEFT JOIN bookings b ON r.booking_id = b.id
+      WHERE r.visitor_id = $1
+      ORDER BY r.created_at DESC
+    `, [user.id]);
+    
+    // Transform to match frontend expectations
+    const reviews = result.rows.map(row => ({
+      id: row.id,
+      farm_id: row.farm_id,
+      farm_name: row.farm_name,
+      booking_date: row.booking_date,
+      rating: row.rating,
+      title: row.title,
+      comment: row.comment,
+      created_at: row.created_at,
+      farm_response: row.farm_response,
+      status: 'submitted'
+    }));
+    
+    return NextResponse.json({ reviews });
+    
+  } catch (error) {
+    console.error('Error fetching reviews:', error);
+    return NextResponse.json({ reviews: [] });
+  }
+}
+
 // POST - Create a review
 export async function POST(request: NextRequest) {
   try {
