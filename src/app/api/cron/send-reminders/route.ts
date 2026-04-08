@@ -2,7 +2,6 @@
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { sendEmail } from '@/lib/email';
-import { sendSMS } from '@/lib/sms';
 
 export async function GET(request: Request) {
   // Verify cron job secret
@@ -19,6 +18,7 @@ export async function GET(request: Request) {
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = tomorrow.toISOString().split('T')[0];
     
+    // FIXED: reminder_sent is BOOLEAN, not timestamp
     const bookings = await pool.query(`
       SELECT 
         b.id,
@@ -38,8 +38,10 @@ export async function GET(request: Request) {
       JOIN farmer_profiles fp ON b.farm_id = fp.id
       WHERE b.booking_date = $1 
         AND b.status = 'confirmed'
-        AND (b.reminder_sent IS NULL OR b.reminder_sent < NOW() - INTERVAL '1 day')
+        AND (b.reminder_sent IS NULL OR b.reminder_sent = false)
     `, [tomorrowStr]);
+    
+    console.log(`Found ${bookings.rows.length} bookings for tomorrow`);
     
     let remindersSent = 0;
     let errors = 0;
@@ -53,52 +55,34 @@ export async function GET(request: Request) {
               <h1 style="color: white; margin: 0;">Farm Visit Reminder</h1>
             </div>
             <div style="padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
-              <p style="font-size: 16px; color: #374151;">Dear ${booking.visitor_name},</p>
-              <p style="font-size: 16px; color: #374151;">This is a reminder that you have a farm experience booked for <strong>tomorrow</strong>!</p>
+              <p>Dear ${booking.visitor_name},</p>
+              <p>This is a reminder that you have a farm experience booked for <strong>tomorrow</strong>!</p>
               
               <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                <p style="margin: 5px 0;"><strong>🌾 Farm:</strong> ${booking.farm_name}</p>
-                <p style="margin: 5px 0;"><strong>📅 Date:</strong> ${new Date(booking.booking_date).toLocaleDateString()}</p>
-                <p style="margin: 5px 0;"><strong>🎯 Activity:</strong> ${booking.activity_name}</p>
-                <p style="margin: 5px 0;"><strong>👥 Guests:</strong> ${booking.participants}</p>
-                <p style="margin: 5px 0;"><strong>📍 Location:</strong> ${booking.farm_location || booking.city || booking.county}</p>
+                <p><strong>🌾 Farm:</strong> ${booking.farm_name}</p>
+                <p><strong>📅 Date:</strong> ${new Date(booking.booking_date).toLocaleDateString()}</p>
+                <p><strong>🎯 Activity:</strong> ${booking.activity_name}</p>
+                <p><strong>👥 Guests:</strong> ${booking.participants}</p>
               </div>
               
-              <p style="font-size: 14px; color: #6b7280;">Please arrive 15 minutes early. Bring comfortable shoes and weather-appropriate clothing.</p>
-              
-              <div style="margin-top: 20px; text-align: center;">
-                <a href="${process.env.NEXT_PUBLIC_APP_URL}/visitor/dashboard/bookings" style="background: #eab308; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px; display: inline-block;">
-                  View My Bookings
-                </a>
-              </div>
-              
-              <hr style="margin: 20px 0; border-color: #e5e7eb;">
-              <p style="font-size: 12px; color: #9ca3af; text-align: center;">
-                Need to cancel or reschedule? Please contact the farmer directly through your dashboard.
-              </p>
+              <p>Please arrive 15 minutes early.</p>
             </div>
           </div>
         `;
         
         await sendEmail(booking.visitor_email, `Reminder: Your farm visit at ${booking.farm_name} is tomorrow!`, emailHtml);
         
-        // Send SMS reminder if phone number exists
-        if (booking.visitor_phone) {
-          const smsMessage = `HarvestHost Reminder: Your farm visit at ${booking.farm_name} is tomorrow. Please arrive 15 minutes early. View details: ${process.env.NEXT_PUBLIC_APP_URL}/visitor/dashboard/bookings`;
-          await sendSMS(booking.visitor_phone, smsMessage);
-        }
-        
         // Mark reminder as sent
         await pool.query(`
-          UPDATE bookings SET reminder_sent = NOW() WHERE id = $1
+          UPDATE bookings SET reminder_sent = true WHERE id = $1
         `, [booking.id]);
         
         remindersSent++;
-        console.log(`Reminder sent for booking ${booking.id} to ${booking.visitor_email}`);
+        console.log(`✅ Reminder sent for booking ${booking.id} to ${booking.visitor_email}`);
         
       } catch (error) {
         errors++;
-        console.error(`Failed to send reminder for booking ${booking.id}:`, error);
+        console.error(`❌ Failed to send reminder for booking ${booking.id}:`, error);
       }
     }
     
