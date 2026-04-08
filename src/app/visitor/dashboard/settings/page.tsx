@@ -10,11 +10,8 @@ import {
   Mail,
   Phone,
   Bell,
-  Globe,
   Lock,
-  CreditCard,
   MapPin,
-  Languages,
   Moon,
   Sun,
   Save,
@@ -23,14 +20,9 @@ import {
   EyeOff,
   AlertCircle,
   CheckCircle,
-  Shield,
   Trash2,
-  LogOut,
   Camera,
-  X,
-  Upload,
 } from "lucide-react";
-import Image from "next/image";
 
 interface UserProfile {
   id: number;
@@ -38,7 +30,6 @@ interface UserProfile {
   email: string;
   phone: string;
   location: string;
-  language: string;
   theme: "light" | "dark" | "system";
   profilePhoto: string | null;
   notifications: {
@@ -68,7 +59,6 @@ export default function VisitorSettings() {
     email: "",
     phone: "",
     location: "",
-    language: "en",
     theme: "light",
     profilePhoto: null,
     notifications: {
@@ -90,8 +80,36 @@ export default function VisitorSettings() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
 
+  // Apply theme to document
+  const applyTheme = (theme: string) => {
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else if (theme === "light") {
+      document.documentElement.classList.remove("dark");
+    } else if (theme === "system") {
+      const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      if (isDark) {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    }
+  };
+
+  // Save theme to localStorage and apply
+  const saveTheme = (theme: string) => {
+    localStorage.setItem("visitor-theme", theme);
+    applyTheme(theme);
+  };
+
   useEffect(() => {
     setMounted(true);
+    
+    // Load saved theme
+    const savedTheme = localStorage.getItem("visitor-theme") as "light" | "dark" | "system" | null;
+    if (savedTheme) {
+      applyTheme(savedTheme);
+    }
   }, []);
 
   useEffect(() => {
@@ -107,8 +125,43 @@ export default function VisitorSettings() {
 
         const user = JSON.parse(userData);
         
-        // Try to load profile photo from localStorage or API
-        const savedPhoto = localStorage.getItem("visitor_profile_photo");
+        // Fetch profile photo from database
+        const photoResponse = await fetch('/api/user/visitorpfp');
+        let profilePhoto = null;
+        if (photoResponse.ok) {
+          const photoData = await photoResponse.json();
+          profilePhoto = photoData.visitorpfp;
+        }
+        
+        // Fetch notification preferences
+        let notifications = {
+          email: true,
+          sms: false,
+          push: true,
+          marketing: false,
+          bookingUpdates: true,
+          reminders: true,
+        };
+        
+        try {
+          const prefsResponse = await fetch('/api/user/notification-preferences');
+          if (prefsResponse.ok) {
+            const prefsData = await prefsResponse.json();
+            notifications = {
+              email: prefsData.email ?? true,
+              sms: prefsData.sms ?? false,
+              push: prefsData.push ?? true,
+              marketing: prefsData.marketing ?? false,
+              bookingUpdates: prefsData.bookingUpdates ?? true,
+              reminders: prefsData.reminders ?? true,
+            };
+          }
+        } catch (e) {
+          console.error("Error fetching notification preferences:", e);
+        }
+        
+        // Load saved theme
+        const savedTheme = localStorage.getItem("visitor-theme") as "light" | "dark" | "system" | null;
         
         setProfile({
           id: user.id || 1,
@@ -116,18 +169,15 @@ export default function VisitorSettings() {
           email: user.email || "visitor@example.com",
           phone: user.phone || "+254712345678",
           location: "Nairobi, Kenya",
-          language: "en",
-          theme: "light",
-          profilePhoto: savedPhoto || null,
-          notifications: {
-            email: true,
-            sms: false,
-            push: true,
-            marketing: false,
-            bookingUpdates: true,
-            reminders: true,
-          },
+          theme: savedTheme || "light",
+          profilePhoto: profilePhoto,
+          notifications: notifications,
         });
+        
+        if (profilePhoto) {
+          localStorage.setItem("visitor_profile_photo", profilePhoto);
+        }
+        
         setLoading(false);
       } catch (error) {
         console.error("Error fetching profile:", error);
@@ -138,152 +188,118 @@ export default function VisitorSettings() {
     fetchProfile();
   }, [router, mounted]);
 
- // Replace the handleProfilePhotoUpload function:
-const handleProfilePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+  const handleProfilePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  if (!file.type.startsWith("image/")) {
-    alert("Please select an image file (JPEG, PNG, etc.)");
-    return;
-  }
-
-  if (file.size > 5 * 1024 * 1024) {
-    alert("File size must be less than 5MB");
-    return;
-  }
-
-  setUploadingPhoto(true);
-
-  try {
-    // Convert to base64
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const base64String = reader.result as string;
-      
-      // Save to database
-      const response = await fetch('/api/user/visitorpfp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ visitorpfp: base64String })
-      });
-      
-      if (response.ok) {
-        setProfile({ ...profile, profilePhoto: base64String });
-        localStorage.setItem("visitor_profile_photo", base64String);
-        setShowSuccess(true);
-        setTimeout(() => setShowSuccess(false), 3000);
-      } else {
-        alert("Failed to save photo to database");
-      }
-    };
-    reader.readAsDataURL(file);
-  } catch (error) {
-    console.error("Error uploading photo:", error);
-    alert("Failed to upload photo. Please try again.");
-  } finally {
-    setUploadingPhoto(false);
-  }
-};
-
-// Replace the handleDeleteProfilePhoto function:
-const handleDeleteProfilePhoto = async () => {
-  if (confirm("Are you sure you want to remove your profile photo?")) {
-    try {
-      const response = await fetch('/api/user/visitorpfp', {
-        method: 'DELETE',
-      });
-      
-      if (response.ok) {
-        setProfile({ ...profile, profilePhoto: null });
-        localStorage.removeItem("visitor_profile_photo");
-        setShowSuccess(true);
-        setTimeout(() => setShowSuccess(false), 3000);
-      } else {
-        alert("Failed to remove photo");
-      }
-    } catch (error) {
-      console.error("Error removing photo:", error);
-      alert("Failed to remove photo");
+    if (!file.type.startsWith("image/")) {
+      alert("Please select an image file (JPEG, PNG, etc.)");
+      return;
     }
-  }
-};
 
-// Also update the useEffect to fetch from database:
-useEffect(() => {
-  if (!mounted) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert("File size must be less than 5MB");
+      return;
+    }
 
-  const fetchProfile = async () => {
+    setUploadingPhoto(true);
+
     try {
-      const userData = localStorage.getItem("userData");
-      if (!userData) {
-        router.push("/auth/login/visitor");
-        return;
-      }
-
-      const user = JSON.parse(userData);
-      
-      // Fetch profile photo from database
-      const photoResponse = await fetch('/api/user/visitorpfp');
-      let profilePhoto = null;
-      if (photoResponse.ok) {
-        const photoData = await photoResponse.json();
-        profilePhoto = photoData.visitorpfp;
-      }
-      
-      setProfile({
-        id: user.id || 1,
-        name: user.name || "John Visitor",
-        email: user.email || "visitor@example.com",
-        phone: user.phone || "+254712345678",
-        location: "Nairobi, Kenya",
-        language: "en",
-        theme: "light",
-        profilePhoto: profilePhoto,
-        notifications: {
-          email: true,
-          sms: false,
-          push: true,
-          marketing: false,
-          bookingUpdates: true,
-          reminders: true,
-        },
-      });
-      
-      // Also save to localStorage for quick access
-      if (profilePhoto) {
-        localStorage.setItem("visitor_profile_photo", profilePhoto);
-      }
-      
-      setLoading(false);
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64String = reader.result as string;
+        
+        const response = await fetch('/api/user/visitorpfp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ visitorpfp: base64String })
+        });
+        
+        if (response.ok) {
+          setProfile({ ...profile, profilePhoto: base64String });
+          localStorage.setItem("visitor_profile_photo", base64String);
+          setShowSuccess(true);
+          setTimeout(() => setShowSuccess(false), 3000);
+        } else {
+          alert("Failed to save photo to database");
+        }
+      };
+      reader.readAsDataURL(file);
     } catch (error) {
-      console.error("Error fetching profile:", error);
-      setLoading(false);
+      console.error("Error uploading photo:", error);
+      alert("Failed to upload photo. Please try again.");
+    } finally {
+      setUploadingPhoto(false);
     }
   };
 
-  fetchProfile();
-}, [router, mounted]);
-
+  const handleDeleteProfilePhoto = async () => {
+    if (confirm("Are you sure you want to remove your profile photo?")) {
+      try {
+        const response = await fetch('/api/user/visitorpfp', {
+          method: 'DELETE',
+        });
+        
+        if (response.ok) {
+          setProfile({ ...profile, profilePhoto: null });
+          localStorage.removeItem("visitor_profile_photo");
+          setShowSuccess(true);
+          setTimeout(() => setShowSuccess(false), 3000);
+        } else {
+          alert("Failed to remove photo");
+        }
+      } catch (error) {
+        console.error("Error removing photo:", error);
+        alert("Failed to remove photo");
+      }
+    }
+  };
 
   const handleSaveProfile = async () => {
     setSaving(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 3000);
-    setSaving(false);
     
-    // Update localStorage
-    const userData = localStorage.getItem("userData");
-    if (userData) {
-      const user = JSON.parse(userData);
-      user.name = profile.name;
-      user.email = profile.email;
-      user.phone = profile.phone;
-      user.profilePhoto = profile.profilePhoto;
-      localStorage.setItem("userData", JSON.stringify(user));
+    try {
+      // Save profile info
+      const userData = localStorage.getItem("userData");
+      if (userData) {
+        const user = JSON.parse(userData);
+        user.name = profile.name;
+        user.email = profile.email;
+        user.phone = profile.phone;
+        user.profilePhoto = profile.profilePhoto;
+        localStorage.setItem("userData", JSON.stringify(user));
+      }
+      
+      // Save notification preferences
+      await fetch('/api/user/notification-preferences', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: profile.notifications.email,
+          sms: profile.notifications.sms,
+          push: profile.notifications.push,
+          bookingUpdates: profile.notifications.bookingUpdates,
+          reminders: profile.notifications.reminders,
+          marketing: profile.notifications.marketing,
+        })
+      });
+      
+      // Save theme
+      saveTheme(profile.theme);
+      
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    } catch (error) {
+      console.error("Error saving settings:", error);
+      alert("Failed to save settings");
+    } finally {
+      setSaving(false);
     }
+  };
+
+  const handleThemeChange = (theme: "light" | "dark" | "system") => {
+    setProfile({ ...profile, theme });
+    saveTheme(theme);
   };
 
   const handleChangePassword = async () => {
@@ -300,21 +316,52 @@ useEffect(() => {
     }
     
     setSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setShowPasswordModal(false);
-    setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
-    setSaving(false);
-    alert("Password changed successfully!");
+    
+    try {
+      const response = await fetch('/api/user/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword,
+        })
+      });
+      
+      if (response.ok) {
+        setShowPasswordModal(false);
+        setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+        alert("Password changed successfully!");
+      } else {
+        const data = await response.json();
+        setPasswordError(data.error || "Failed to change password");
+      }
+    } catch (error) {
+      setPasswordError("Failed to change password");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDeleteAccount = async () => {
     setSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setShowDeleteModal(false);
-    setSaving(false);
-    alert("Account deleted. We're sad to see you go!");
-    localStorage.clear();
-    router.push("/auth");
+    try {
+      const response = await fetch('/api/user/account', {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        setShowDeleteModal(false);
+        alert("Account deleted. We're sad to see you go!");
+        localStorage.clear();
+        router.push("/auth");
+      } else {
+        alert("Failed to delete account");
+      }
+    } catch (error) {
+      alert("Failed to delete account");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const toggleNotification = (key: keyof UserProfile["notifications"]) => {
@@ -330,7 +377,7 @@ useEffect(() => {
   if (!mounted || loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
       </div>
     );
   }
@@ -386,7 +433,7 @@ useEffect(() => {
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingPhoto}
-                  className="p-2 bg-accent text-white rounded-full hover:bg-accent/90 transition shadow-lg"
+                  className="p-2 bg-emerald-600 text-white rounded-full hover:bg-emerald-700 transition shadow-lg"
                   title="Upload photo"
                 >
                   <Camera className="h-4 w-4" />
@@ -437,7 +484,7 @@ useEffect(() => {
                     type="text"
                     value={profile.name}
                     onChange={(e) => setProfile({...profile, name: e.target.value})}
-                    className="w-full pl-10 pr-4 py-2 border border-emerald-200 rounded-xl focus:outline-none focus:border-accent"
+                    className="w-full pl-10 pr-4 py-2 border border-emerald-200 rounded-xl focus:outline-none focus:border-emerald-500"
                   />
                 </div>
               </div>
@@ -449,7 +496,7 @@ useEffect(() => {
                     type="email"
                     value={profile.email}
                     onChange={(e) => setProfile({...profile, email: e.target.value})}
-                    className="w-full pl-10 pr-4 py-2 border border-emerald-200 rounded-xl focus:outline-none focus:border-accent"
+                    className="w-full pl-10 pr-4 py-2 border border-emerald-200 rounded-xl focus:outline-none focus:border-emerald-500"
                   />
                 </div>
               </div>
@@ -463,7 +510,7 @@ useEffect(() => {
                     type="tel"
                     value={profile.phone}
                     onChange={(e) => setProfile({...profile, phone: e.target.value})}
-                    className="w-full pl-10 pr-4 py-2 border border-emerald-200 rounded-xl focus:outline-none focus:border-accent"
+                    className="w-full pl-10 pr-4 py-2 border border-emerald-200 rounded-xl focus:outline-none focus:border-emerald-500"
                   />
                 </div>
               </div>
@@ -475,26 +522,12 @@ useEffect(() => {
                     type="text"
                     value={profile.location}
                     onChange={(e) => setProfile({...profile, location: e.target.value})}
-                    className="w-full pl-10 pr-4 py-2 border border-emerald-200 rounded-xl focus:outline-none focus:border-accent"
+                    className="w-full pl-10 pr-4 py-2 border border-emerald-200 rounded-xl focus:outline-none focus:border-emerald-500"
                   />
                 </div>
               </div>
             </div>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-emerald-800 mb-1">Language</label>
-                <div className="relative">
-                  <Languages className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-400" />
-                  <select
-                    value={profile.language}
-                    onChange={(e) => setProfile({...profile, language: e.target.value})}
-                    className="w-full pl-10 pr-4 py-2 border border-emerald-200 rounded-xl focus:outline-none focus:border-accent"
-                  >
-                    <option value="en">English</option>
-                    <option value="sw">Swahili</option>
-                  </select>
-                </div>
-              </div>
+            <div className="grid md:grid-cols-1 gap-4">
               <div>
                 <label className="block text-sm font-medium text-emerald-800 mb-1">Theme</label>
                 <div className="relative">
@@ -505,8 +538,8 @@ useEffect(() => {
                   )}
                   <select
                     value={profile.theme}
-                    onChange={(e) => setProfile({...profile, theme: e.target.value as any})}
-                    className="w-full pl-10 pr-4 py-2 border border-emerald-200 rounded-xl focus:outline-none focus:border-accent"
+                    onChange={(e) => handleThemeChange(e.target.value as any)}
+                    className="w-full pl-10 pr-4 py-2 border border-emerald-200 rounded-xl focus:outline-none focus:border-emerald-500"
                   >
                     <option value="light">Light</option>
                     <option value="dark">Dark</option>
@@ -518,7 +551,7 @@ useEffect(() => {
             <button
               onClick={handleSaveProfile}
               disabled={saving}
-              className="w-full flex items-center justify-center gap-2 py-3 bg-accent text-white rounded-xl font-medium hover:bg-accent/90 disabled:opacity-50 transition"
+              className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 disabled:opacity-50 transition"
             >
               {saving ? "Saving..." : <><Save className="h-5 w-5" /> Save Changes</>}
             </button>
@@ -636,7 +669,7 @@ useEffect(() => {
                     type={showCurrentPassword ? "text" : "password"}
                     value={passwordData.currentPassword}
                     onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})}
-                    className="w-full pl-10 pr-10 py-2 border border-emerald-200 rounded-xl focus:outline-none focus:border-accent"
+                    className="w-full pl-10 pr-10 py-2 border border-emerald-200 rounded-xl focus:outline-none focus:border-emerald-500"
                   />
                   <button
                     type="button"
@@ -655,7 +688,7 @@ useEffect(() => {
                     type={showNewPassword ? "text" : "password"}
                     value={passwordData.newPassword}
                     onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
-                    className="w-full pl-10 pr-10 py-2 border border-emerald-200 rounded-xl focus:outline-none focus:border-accent"
+                    className="w-full pl-10 pr-10 py-2 border border-emerald-200 rounded-xl focus:outline-none focus:border-emerald-500"
                   />
                   <button
                     type="button"
@@ -674,7 +707,7 @@ useEffect(() => {
                     type="password"
                     value={passwordData.confirmPassword}
                     onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
-                    className="w-full pl-10 pr-4 py-2 border border-emerald-200 rounded-xl focus:outline-none focus:border-accent"
+                    className="w-full pl-10 pr-4 py-2 border border-emerald-200 rounded-xl focus:outline-none focus:border-emerald-500"
                   />
                 </div>
               </div>
@@ -689,7 +722,7 @@ useEffect(() => {
               <button
                 onClick={handleChangePassword}
                 disabled={saving}
-                className="flex-1 px-4 py-2 bg-accent text-white rounded-xl hover:bg-accent/90 disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50"
               >
                 {saving ? "Changing..." : "Change Password"}
               </button>
@@ -771,7 +804,7 @@ function NotificationToggle({ icon: Icon, title, description, checked, onChange 
           onChange={onChange}
           className="sr-only peer"
         />
-        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent/20 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
+        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-500/20 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
       </label>
     </div>
   );
