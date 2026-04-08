@@ -19,7 +19,6 @@ async function getUserFromToken(request: NextRequest) {
   }
 }
 
-// ✅ ADD THIS GET METHOD
 export async function GET(request: NextRequest) {
   try {
     const user = await getUserFromToken(request);
