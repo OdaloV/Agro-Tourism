@@ -12,7 +12,6 @@ import {
   ThumbsUp,
   Flag,
   Clock,
-  CheckCircle,
   X,
 } from "lucide-react";
 
@@ -41,6 +40,7 @@ export default function VisitorReviews() {
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState("");
+  const [title, setTitle] = useState("");
 
   useEffect(() => {
     setMounted(true);
@@ -57,94 +57,113 @@ export default function VisitorReviews() {
           return;
         }
 
-        // Mock reviews data - replace with API call
-        const mockReviews: Review[] = [
-          {
-            id: 1,
-            farmId: 1,
-            farmName: "Green Acres Farm",
-            bookingDate: "2024-03-15",
-            rating: 5,
-            comment: "Amazing experience! The farm tour was educational and fun. The hosts were very welcoming.",
-            date: "2024-03-20",
-            status: "submitted",
-            farmResponse: "Thank you for visiting! Hope to see you again soon! 🌱",
-          },
-          {
-            id: 2,
-            farmId: 2,
-            farmName: "Sunrise Dairy",
-            bookingDate: "2024-03-10",
-            rating: 4,
-            comment: "Great milking experience. The cheese tasting was delicious!",
-            date: "2024-03-15",
-            status: "submitted",
-          },
-          {
-            id: 3,
-            farmId: 3,
-            farmName: "Highland Orchard",
-            bookingDate: "2024-03-25",
-            rating: 0,
-            comment: "",
-            date: "",
-            status: "pending",
-          },
-        ];
-
-        // If coming from bookings page with farmId, open modal
-        if (farmIdParam) {
-          const pendingReview = mockReviews.find(
-            (r) => r.farmId === parseInt(farmIdParam) && r.status === "pending"
-          );
-          if (pendingReview) {
-            setSelectedFarm(pendingReview);
-            setShowReviewModal(true);
-          }
+        const response = await fetch('/api/reviews');
+        
+        if (!response.ok) {
+          console.error("API error:", response.status);
+          setReviews([]);
+          setLoading(false);
+          return;
         }
-
-        setReviews(mockReviews);
+        
+        const data = await response.json();
+        
+        const realReviews: Review[] = (data.reviews || []).map((r: any) => ({
+          id: r.id,
+          farmId: r.farm_id,
+          farmName: r.farm_name,
+          bookingDate: r.booking_date || new Date().toISOString(),
+          rating: r.rating || 0,
+          comment: r.comment || "",
+          date: r.created_at || new Date().toISOString(),
+          status: r.comment ? "submitted" : "pending",
+          farmResponse: r.farm_response
+        }));
+        
+        setReviews(realReviews);
         setLoading(false);
       } catch (error) {
         console.error("Error fetching reviews:", error);
+        setReviews([]);
         setLoading(false);
       }
     };
 
     fetchReviews();
-  }, [router, mounted, farmIdParam]);
+  }, [router, mounted]);
 
-  const handleSubmitReview = () => {
+  const handleSubmitReview = async () => {
     if (rating === 0) {
       alert("Please select a rating");
       return;
     }
 
-    if (selectedFarm) {
-      const newReview: Review = {
-        ...selectedFarm,
-        rating,
-        comment,
-        date: new Date().toISOString(),
-        status: "submitted",
-      };
-      
-      setReviews([newReview, ...reviews.filter(r => r.id !== selectedFarm.id)]);
-      setShowReviewModal(false);
-      setRating(0);
-      setComment("");
-      setSelectedFarm(null);
-      alert("Thank you for your review!");
+    if (!comment.trim()) {
+      alert("Please write a review");
+      return;
+    }
+
+    if (comment.trim().length < 10) {
+      alert("Review must be at least 10 characters");
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          farmId: selectedFarm?.farmId,
+          rating,
+          title: title.trim() || `My experience at ${selectedFarm?.farmName}`,
+          comment: comment.trim(),
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Refresh reviews list
+        const refreshResponse = await fetch('/api/reviews');
+        const refreshData = await refreshResponse.json();
+        
+        if (refreshResponse.ok) {
+          const updatedReviews: Review[] = (refreshData.reviews || []).map((r: any) => ({
+            id: r.id,
+            farmId: r.farm_id,
+            farmName: r.farm_name,
+            bookingDate: r.booking_date || new Date().toISOString(),
+            rating: r.rating || 0,
+            comment: r.comment || "",
+            date: r.created_at || new Date().toISOString(),
+            status: "submitted",
+            farmResponse: r.farm_response
+          }));
+          setReviews(updatedReviews);
+        }
+        
+        setShowReviewModal(false);
+        setRating(0);
+        setComment("");
+        setTitle("");
+        setSelectedFarm(null);
+        alert("Thank you for your review!");
+      } else {
+        alert(data.error || "Failed to submit review");
+      }
+    } catch (error) {
+      console.error("Error submitting review:", error);
+      alert("Failed to submit review. Please try again.");
     }
   };
 
-  const pendingReviews = reviews.filter(r => r.status === "pending");
-  const submittedReviews = reviews.filter(r => r.status === "submitted");
+  const pendingReviews = reviews.filter(r => !r.comment || r.status === "pending");
+  const submittedReviews = reviews.filter(r => r.comment && r.status === "submitted");
 
   if (!mounted || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
       </div>
     );
   }
@@ -171,7 +190,7 @@ export default function VisitorReviews() {
                 <p className="text-sm text-emerald-600">Reviews Written</p>
                 <p className="text-2xl font-bold text-emerald-900">{submittedReviews.length}</p>
               </div>
-              <Star className="h-8 w-8 text-accent" />
+              <Star className="h-8 w-8 text-emerald-500" />
             </div>
           </div>
           <div className="bg-white rounded-2xl p-4 border border-emerald-100">
@@ -204,7 +223,7 @@ export default function VisitorReviews() {
                         setSelectedFarm(review);
                         setShowReviewModal(true);
                       }}
-                      className="px-4 py-2 bg-accent text-white rounded-xl text-sm hover:bg-accent/90"
+                      className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm hover:bg-emerald-700"
                     >
                       Write Review
                     </button>
@@ -225,18 +244,18 @@ export default function VisitorReviews() {
               ))}
             </div>
           </div>
-        ) : (
+        ) : pendingReviews.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-emerald-100">
             <MessageCircle className="h-16 w-16 text-emerald-300 mx-auto mb-4" />
             <p className="text-emerald-600 text-lg mb-2">No reviews yet</p>
             <p className="text-emerald-500 mb-6">Share your farm experiences with the community</p>
             <Link href="/farms">
-              <button className="px-6 py-3 bg-accent text-white rounded-xl">
+              <button className="px-6 py-3 bg-emerald-600 text-white rounded-xl">
                 Discover Farms
               </button>
             </Link>
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* Review Modal */}
@@ -259,6 +278,20 @@ export default function VisitorReviews() {
                 Visited on {new Date(selectedFarm.bookingDate).toLocaleDateString()}
               </p>
               
+              {/* Review Title */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-emerald-800 mb-2">
+                  Review Title (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g., Amazing experience!"
+                  className="w-full px-4 py-2 border border-emerald-200 rounded-xl focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+              
               {/* Rating Stars */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-emerald-800 mb-2">Your Rating</label>
@@ -274,7 +307,7 @@ export default function VisitorReviews() {
                       <Star
                         className={`h-8 w-8 ${
                           star <= (hoverRating || rating)
-                            ? "fill-accent text-accent"
+                            ? "fill-emerald-500 text-emerald-500"
                             : "text-gray-300"
                         }`}
                       />
@@ -292,14 +325,14 @@ export default function VisitorReviews() {
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   rows={4}
-                  className="w-full p-3 border border-emerald-200 rounded-xl focus:outline-none focus:border-accent text-emerald-900"
-                  placeholder="Tell us about your experience..."
+                  className="w-full p-3 border border-emerald-200 rounded-xl focus:outline-none focus:border-emerald-500 text-emerald-900"
+                  placeholder="Tell us about your experience... (minimum 10 characters)"
                 />
               </div>
 
               <button
                 onClick={handleSubmitReview}
-                className="w-full py-3 bg-accent text-white rounded-xl font-medium hover:bg-accent/90 transition"
+                className="w-full py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition"
               >
                 Submit Review
               </button>
@@ -330,7 +363,7 @@ function ReviewCard({ review }: { review: Review }) {
           {[...Array(5)].map((_, i) => (
             <Star
               key={i}
-              className={`h-4 w-4 ${i < review.rating ? "fill-accent text-accent" : "text-gray-300"}`}
+              className={`h-4 w-4 ${i < review.rating ? "fill-emerald-500 text-emerald-500" : "text-gray-300"}`}
             />
           ))}
         </div>
@@ -339,21 +372,21 @@ function ReviewCard({ review }: { review: Review }) {
       <p className="text-emerald-700 text-sm leading-relaxed">{review.comment}</p>
       
       {review.farmResponse && (
-        <div className="mt-4 p-3 bg-emerald-50 rounded-xl border-l-4 border-accent">
+        <div className="mt-4 p-3 bg-emerald-50 rounded-xl border-l-4 border-emerald-500">
           <div className="flex items-center gap-2 mb-1">
-            <ThumbsUp className="h-4 w-4 text-accent" />
-            <span className="text-xs font-medium text-accent">Farm Response</span>
+            <ThumbsUp className="h-4 w-4 text-emerald-500" />
+            <span className="text-xs font-medium text-emerald-500">Farm Response</span>
           </div>
           <p className="text-sm text-emerald-600">{review.farmResponse}</p>
         </div>
       )}
       
       <div className="mt-3 flex items-center gap-3">
-        <button className="text-xs text-emerald-500 hover:text-accent flex items-center gap-1">
+        <button className="text-xs text-emerald-500 hover:text-emerald-600 flex items-center gap-1">
           <Flag className="h-3 w-3" />
           Report
         </button>
-        <button className="text-xs text-emerald-500 hover:text-accent flex items-center gap-1">
+        <button className="text-xs text-emerald-500 hover:text-emerald-600 flex items-center gap-1">
           <ThumbsUp className="h-3 w-3" />
           Helpful
         </button>
