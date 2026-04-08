@@ -172,13 +172,13 @@ export async function POST(request: NextRequest) {
     const booking = bookingResult.rows[0];
     
     // Create payment record
-    await pool.query(
-      `INSERT INTO payments (
-        booking_id, amount, platform_fee, farmer_earnings, 
-        currency, status, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
-      [booking.id, pricing.totalAmount, platformFee, farmerEarning, activity.currency, 'pending']
-    );
+    // await pool.query(
+    //   `INSERT INTO payments (
+    //     booking_id, amount, platform_fee, farmer_earnings, 
+    //     currency, status, created_at
+    //   ) VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+    //   [booking.id, pricing.totalAmount, platformFee, farmerEarning, activity.currency, 'pending']
+    // );
     
     // Notify farmer
     await pool.query(
