@@ -41,19 +41,25 @@
 //     );
 //   }
 // }
+// src/lib/email.ts
+// src/app/api/test-email/route.ts
+// src/app/api/test-email/route.ts
 import { NextResponse } from 'next/server';
 import { sendEmail } from '@/lib/email';
 
 export async function GET() {
-  // Only allow in development
-  if (process.env.NODE_ENV !== 'development') {
-    return NextResponse.json({ error: 'Only available in development' }, { status: 403 });
-  }
-  
   const result = await sendEmail(
-    'odalojanevicky@gmail.com',  // Replace with your email
-    'Test Email from HarvestHost',
-    '<h1>Hello!</h1><p>This is a test email from HarvestHost.</p>'
+    'odalojanetvicky@gmail.com',  // Your email address
+    'HarvestHost Test Email',
+    `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; padding: 20px;">
+      <h1 style="color: #059669;">🎉 Email Working!</h1>
+      <p>This is a test email from HarvestHost.</p>
+      <p>Your email system is configured correctly!</p>
+      <hr>
+      <p style="color: #6b7280; font-size: 12px;">Sent from HarvestHost</p>
+    </div>
+    `
   );
   
   return NextResponse.json(result);
