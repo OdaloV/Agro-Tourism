@@ -63,9 +63,15 @@ export async function GET(request: NextRequest) {
     ) as max_price,
     (SELECT COUNT(*) FROM reviews WHERE farm_id = fp.id) as review_count,
     COALESCE(
-      (SELECT photo_url FROM farm_photos WHERE farmer_id = fp.id ORDER BY sort_order ASC NULLS LAST, created_at ASC LIMIT 1),
-      fp.profile_photo_url
-    ) as cover_photo,
+  (
+    SELECT 'data:' || photo_type || ';base64,' || encode(photo_data, 'base64')
+    FROM farmer_photos 
+    WHERE farmer_id = fp.id 
+    ORDER BY sort_order ASC 
+    LIMIT 1
+  ),
+  fp.profile_photo_url
+) as cover_photo,
     false as is_favorite
   FROM farmer_profiles fp
   WHERE fp.verification_status = 'approved'
