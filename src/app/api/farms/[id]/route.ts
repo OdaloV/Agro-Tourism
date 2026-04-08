@@ -89,11 +89,15 @@ export async function GET(
     
     // Get farm photos
     const photosResult = await pool.query(`
-      SELECT id, photo_url, sort_order, created_at
-      FROM farm_photos 
-      WHERE farmer_id = $1 
-      ORDER BY sort_order ASC NULLS LAST, created_at ASC
-    `, [farmId]);
+  SELECT 
+    id, 
+    'data:' || photo_type || ';base64,' || encode(photo_data, 'base64') as photo_url, 
+    sort_order, 
+    created_at
+  FROM farmer_photos 
+  WHERE farmer_id = $1 
+  ORDER BY sort_order ASC, created_at ASC
+`, [farmId]);
     
     // Get activities
     const activitiesResult = await pool.query(`
