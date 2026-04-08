@@ -16,6 +16,7 @@ import {
   DollarSign,
   Search,
   Filter,
+  Trash2,
 } from "lucide-react";
 
 interface Payment {
@@ -28,7 +29,6 @@ interface Payment {
   status: "completed" | "pending" | "refunded";
   paymentMethod: string;
   transactionId: string;
-  invoiceUrl: string;
   items: {
     name: string;
     quantity: number;
@@ -43,6 +43,8 @@ export default function VisitorPayments() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [filter, setFilter] = useState<"all" | "completed" | "pending" | "refunded">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -51,35 +53,89 @@ export default function VisitorPayments() {
   useEffect(() => {
     if (!mounted) return;
 
-   const fetchPayments = async () => {
-  try {
-    const userData = localStorage.getItem("userData");
-    if (!userData) {
-      router.push("/auth/login/visitor");
-      return;
-    }
+    const fetchPayments = async () => {
+      try {
+        const userData = localStorage.getItem("userData");
+        if (!userData) {
+          router.push("/auth/login/visitor");
+          return;
+        }
 
-    const response = await fetch("/api/payments/user");
-    const data = await response.json();
-    
-    if (response.ok) {
-      setPayments(data.payments || []);
-    } else {
-      console.error("Failed to fetch payments:", data.error);
-    }
-  } catch (error) {
-    console.error("Error fetching payments:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+        const response = await fetch("/api/payments/user");
+        const data = await response.json();
+        
+        if (response.ok) {
+          setPayments(data.payments || []);
+        } else {
+          console.error("Failed to fetch payments:", data.error);
+        }
+      } catch (error) {
+        console.error("Error fetching payments:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
     fetchPayments();
   }, [router, mounted]);
 
-  const handleDownloadInvoice = (invoiceUrl: string) => {
-    alert("Invoice downloaded!");
-    // In production, this would trigger actual download
+  const handleDeletePayment = async (paymentId: number, bookingId: number) => {
+    if (!confirm("Are you sure you want to delete this payment record? This action cannot be undone.")) {
+      return;
+    }
+
+    setDeletingId(paymentId);
+    try {
+      const response = await fetch(`/api/payments/${paymentId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        // Remove the payment from the list
+        setPayments(payments.filter(p => p.id !== paymentId));
+        alert("Payment record deleted successfully");
+      } else {
+        const data = await response.json();
+        alert(data.error || "Failed to delete payment");
+      }
+    } catch (error) {
+      console.error("Error deleting payment:", error);
+      alert("Failed to delete payment. Please try again.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleDownloadInvoice = async (bookingId: number) => {
+    console.log("Downloading invoice for bookingId:", bookingId);
+    setDownloadingId(bookingId);
+    try {
+      const response = await fetch(`/api/invoices/${bookingId}`);
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error("Error response:", errorData);
+        throw new Error('Failed to generate invoice');
+      }
+      
+      const html = await response.text();
+      
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `invoice-${bookingId}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+    } catch (error) {
+      console.error('Error downloading invoice:', error);
+      alert('Failed to download invoice. Please try again.');
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   const filteredPayments = payments.filter(payment => {
@@ -99,7 +155,7 @@ export default function VisitorPayments() {
   if (!mounted || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
       </div>
     );
   }
@@ -144,7 +200,7 @@ export default function VisitorPayments() {
                 <p className="text-sm text-emerald-600">Total Transactions</p>
                 <p className="text-2xl font-bold text-emerald-900">{payments.length}</p>
               </div>
-              <CreditCard className="h-8 w-8 text-accent" />
+              <CreditCard className="h-8 w-8 text-emerald-500" />
             </div>
           </div>
         </div>
@@ -158,7 +214,7 @@ export default function VisitorPayments() {
               placeholder="Search by farm name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white border border-emerald-200 rounded-xl text-sm text-emerald-900 focus:outline-none focus:border-accent"
+              className="w-full pl-10 pr-4 py-2 bg-white border border-emerald-200 rounded-xl text-sm text-emerald-900 focus:outline-none focus:border-emerald-500"
             />
           </div>
           <div className="flex gap-2">
@@ -192,7 +248,7 @@ export default function VisitorPayments() {
             <p className="text-emerald-600 text-lg mb-2">No payments found</p>
             <p className="text-emerald-500 mb-6">Your payment history will appear here</p>
             <Link href="/farms">
-              <button className="px-6 py-3 bg-accent text-white rounded-xl">
+              <button className="px-6 py-3 bg-emerald-600 text-white rounded-xl">
                 Book a Farm Experience
               </button>
             </Link>
@@ -204,6 +260,9 @@ export default function VisitorPayments() {
                 key={payment.id}
                 payment={payment}
                 onDownloadInvoice={handleDownloadInvoice}
+                onDeletePayment={handleDeletePayment}
+                isDownloading={downloadingId === payment.bookingId}
+                isDeleting={deletingId === payment.id}
               />
             ))}
           </div>
@@ -220,7 +279,7 @@ function FilterButton({ active, onClick, label }: { active: boolean; onClick: ()
       onClick={onClick}
       className={`px-4 py-2 rounded-xl text-sm transition-all ${
         active
-          ? "bg-accent text-white"
+          ? "bg-emerald-600 text-white"
           : "bg-white text-emerald-600 border border-emerald-200 hover:bg-emerald-50"
       }`}
     >
@@ -230,7 +289,13 @@ function FilterButton({ active, onClick, label }: { active: boolean; onClick: ()
 }
 
 // Payment Card Component
-function PaymentCard({ payment, onDownloadInvoice }: { payment: Payment; onDownloadInvoice: (url: string) => void }) {
+function PaymentCard({ payment, onDownloadInvoice, onDeletePayment, isDownloading, isDeleting }: { 
+  payment: Payment; 
+  onDownloadInvoice: (bookingId: number) => void; 
+  onDeletePayment: (paymentId: number, bookingId: number) => void;
+  isDownloading: boolean;
+  isDeleting: boolean;
+}) {
   const statusColors = {
     completed: "bg-green-100 text-green-600",
     pending: "bg-amber-100 text-amber-600",
@@ -278,15 +343,32 @@ function PaymentCard({ payment, onDownloadInvoice }: { payment: Payment; onDownl
           <div className="flex gap-2">
             {payment.status === "completed" && (
               <button
-                onClick={() => onDownloadInvoice(payment.invoiceUrl)}
-                className="flex items-center gap-1 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-sm hover:bg-emerald-100 transition"
+                onClick={() => onDownloadInvoice(payment.bookingId)}
+                disabled={isDownloading}
+                className="flex items-center gap-1 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-sm hover:bg-emerald-100 transition disabled:opacity-50"
               >
-                <Download className="h-4 w-4" />
-                Invoice
+                {isDownloading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-600"></div>
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                {isDownloading ? "Downloading..." : "Invoice"}
               </button>
             )}
+            <button
+              onClick={() => onDeletePayment(payment.id, payment.bookingId)}
+              disabled={isDeleting}
+              className="flex items-center gap-1 px-4 py-2 bg-red-50 text-red-600 rounded-xl text-sm hover:bg-red-100 transition disabled:opacity-50"
+            >
+              {isDeleting ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+              {isDeleting ? "Deleting..." : "Delete"}
+            </button>
             <Link href={`/farms/${payment.farmId}`}>
-              <button className="px-4 py-2 bg-accent text-white rounded-xl text-sm hover:bg-accent/90 transition">
+              <button className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm hover:bg-emerald-700 transition">
                 View Farm
               </button>
             </Link>
