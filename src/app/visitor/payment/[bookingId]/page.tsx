@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { CreditCard, Smartphone, Banknote, CheckCircle, AlertCircle } from "lucide-react";
+import { CreditCard, Smartphone, Banknote, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 
 export default function PaymentPage() {
   const params = useParams();
@@ -14,8 +14,21 @@ export default function PaymentPage() {
   const [loading, setLoading] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState<string>("mpesa");
   const [processing, setProcessing] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState<string>("");
 
   useEffect(() => {
+    // Load user phone number from localStorage
+    const userData = localStorage.getItem("userData");
+    if (userData) {
+      try {
+        const user = JSON.parse(userData);
+        if (user.phone) {
+          setPhoneNumber(user.phone);
+        }
+      } catch (e) {
+        console.error("Error parsing user data:", e);
+      }
+    }
     fetchBookingDetails();
   }, [bookingId]);
 
@@ -33,7 +46,12 @@ export default function PaymentPage() {
     }
   };
 
-  const handlePayment = async () => {
+  const handleMpesaPayment = async () => {
+    if (!phoneNumber || phoneNumber.trim() === "") {
+      alert("Please enter your M-Pesa phone number");
+      return;
+    }
+    
     setProcessing(true);
     try {
       const response = await fetch('/api/payments/initiate', {
@@ -41,45 +59,72 @@ export default function PaymentPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           bookingId: parseInt(bookingId),
-          paymentMethod,
-          amount: booking.total_amount,
-          currency: booking.currency
+          phoneNumber: phoneNumber,
+          paymentMethod: 'mpesa'
         })
       });
       
       const data = await response.json();
       
-      if (response.ok) {
-        if (paymentMethod === "mpesa") {
-          // Initiate STK Push
-          alert("STK Push sent to your phone. Please check your M-Pesa and enter PIN.");
-          // Poll for payment status
-          setTimeout(() => {
-            router.push("/visitor/dashboard/bookings");
-          }, 5000);
-        } else if (paymentMethod === "card") {
-          // Redirect to Stripe checkout
-          window.location.href = data.checkoutUrl;
-        } else {
-          // Cash on arrival
-          alert("Booking confirmed! Please pay at the farm.");
-          router.push("/visitor/dashboard/bookings");
-        }
+      if (data.success) {
+        alert('STK Push sent to your phone. Enter your PIN to complete payment.');
+        // Redirect to bookings page after successful payment
+        setTimeout(() => {
+          router.push('/visitor/dashboard/bookings');
+        }, 3000);
       } else {
-        alert(data.error || "Payment failed");
+        alert(data.error || 'Payment failed. Please try again.');
       }
     } catch (error) {
-      console.error("Error processing payment:", error);
-      alert("Payment processing failed");
+      console.error('Payment error:', error);
+      alert('Payment failed. Please try again.');
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const handleCashPayment = async () => {
+    setProcessing(true);
+    try {
+      const response = await fetch('/api/payments/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingId: parseInt(bookingId),
+          paymentMethod: 'cash'
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        alert("Booking confirmed! Please pay cash at the farm.");
+        router.push("/visitor/dashboard/bookings");
+      } else {
+        alert("Failed to confirm booking");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Something went wrong");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handlePayment = () => {
+    if (paymentMethod === "cash") {
+      handleCashPayment();
+    } else if (paymentMethod === "mpesa") {
+      handleMpesaPayment();
+    } else if (paymentMethod === "card") {
+      alert("Card payments coming soon. Please use M-Pesa or Cash.");
     }
   };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+        <Loader2 className="h-12 w-12 animate-spin text-emerald-600" />
       </div>
     );
   }
@@ -125,16 +170,10 @@ export default function PaymentPage() {
                   <span className="text-gray-600">Participants</span>
                   <span className="font-medium">{booking.participants} guests</span>
                 </div>
-                {booking.discount_percent > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span>Discount ({booking.discount_percent}%)</span>
-                    <span>- {booking.currency} {((booking.original_amount - booking.total_amount)).toLocaleString()}</span>
-                  </div>
-                )}
                 <div className="flex justify-between pt-2 border-t font-bold">
                   <span>Total Amount</span>
                   <span className="text-emerald-600 text-lg">
-                    {booking.currency} {booking.total_amount.toLocaleString()}
+                    {booking.currency || 'KES'} {parseFloat(booking.total_amount).toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -143,39 +182,43 @@ export default function PaymentPage() {
             {/* Payment Methods */}
             <div>
               <h3 className="font-semibold text-gray-900 mb-3">Select Payment Method</h3>
-              <div className="space-y-2">
-                <label className="flex items-center gap-3 p-3 border rounded-xl cursor-pointer hover:bg-gray-50">
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="mpesa"
-                    checked={paymentMethod === "mpesa"}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="text-emerald-600"
-                  />
-                  <Smartphone className="h-5 w-5 text-green-600" />
-                  <div>
-                    <p className="font-medium">M-Pesa</p>
-                    <p className="text-xs text-gray-500">Pay with M-Pesa STK Push</p>
-                  </div>
-                </label>
+              <div className="space-y-3">
+                {/* M-Pesa */}
+                <div className="border rounded-xl p-3">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="mpesa"
+                      checked={paymentMethod === "mpesa"}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      className="text-emerald-600"
+                    />
+                    <Smartphone className="h-5 w-5 text-green-600" />
+                    <div className="flex-1">
+                      <p className="font-medium">M-Pesa</p>
+                      <p className="text-xs text-gray-500">Pay using M-Pesa STK Push</p>
+                    </div>
+                  </label>
+                  
+                  {/* Phone Number Input - shows only when M-Pesa is selected */}
+                  {paymentMethod === "mpesa" && (
+                    <div className="mt-3 ml-8 pl-2">
+                      <input
+                        type="tel"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        placeholder="0712345678"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-emerald-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        You will receive an STK Push on this number
+                      </p>
+                    </div>
+                  )}
+                </div>
 
-                <label className="flex items-center gap-3 p-3 border rounded-xl cursor-pointer hover:bg-gray-50">
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="card"
-                    checked={paymentMethod === "card"}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="text-emerald-600"
-                  />
-                  <CreditCard className="h-5 w-5 text-blue-600" />
-                  <div>
-                    <p className="font-medium">Credit/Debit Card</p>
-                    <p className="text-xs text-gray-500">Visa, Mastercard, American Express</p>
-                  </div>
-                </label>
-
+                {/* Cash on Arrival */}
                 <label className="flex items-center gap-3 p-3 border rounded-xl cursor-pointer hover:bg-gray-50">
                   <input
                     type="radio"
@@ -191,6 +234,22 @@ export default function PaymentPage() {
                     <p className="text-xs text-gray-500">Pay at the farm</p>
                   </div>
                 </label>
+
+                {/* Card - Coming Soon */}
+                <label className="flex items-center gap-3 p-3 border rounded-xl bg-gray-50 opacity-60 cursor-not-allowed">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="card"
+                    disabled
+                    className="text-emerald-600"
+                  />
+                  <CreditCard className="h-5 w-5 text-blue-600" />
+                  <div>
+                    <p className="font-medium">Credit/Debit Card</p>
+                    <p className="text-xs text-gray-500">Coming soon</p>
+                  </div>
+                </label>
               </div>
             </div>
 
@@ -201,13 +260,13 @@ export default function PaymentPage() {
             >
               {processing ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <Loader2 className="h-5 w-5 animate-spin" />
                   Processing...
                 </>
               ) : (
                 <>
                   <CheckCircle className="h-5 w-5" />
-                  Pay {booking.currency} {booking.total_amount.toLocaleString()}
+                  Pay {booking.currency || 'KES'} {parseFloat(booking.total_amount).toLocaleString()}
                 </>
               )}
             </button>
