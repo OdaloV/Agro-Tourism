@@ -6,8 +6,8 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 export async function sendEmail(to: string, subject: string, html: string) {
   try {
     const { data, error } = await resend.emails.send({
-      from: 'HarvestHost <noreply@harvesthost.com>',
-      to,
+      from: 'onboarding@resend.dev',  // ✅ Test domain - no verification needed
+      to: 'odalojanetvicky@gmail.com',  // Your email address
       subject,
       html,
     });
