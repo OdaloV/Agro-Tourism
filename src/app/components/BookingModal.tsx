@@ -1,7 +1,7 @@
 // src/app/components/BookingModal.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Calendar, Users, Clock, MessageCircle } from "lucide-react";
 import PriceCalculator from "./PriceCalculator";
 
@@ -34,6 +34,31 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
   const [discountPercent, setDiscountPercent] = useState(0);
   const [loading, setLoading] = useState(false);
   const [requiresQuote, setRequiresQuote] = useState(false);
+  
+  // User info state for payment
+  const [userEmail, setUserEmail] = useState("");
+  const [userPhone, setUserPhone] = useState("");
+  const [userFirstName, setUserFirstName] = useState("");
+  const [userLastName, setUserLastName] = useState("");
+
+  // Load user data when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const userData = localStorage.getItem("userData");
+      if (userData) {
+        try {
+          const user = JSON.parse(userData);
+          setUserEmail(user.email || "");
+          setUserPhone(user.phone || "");
+          const nameParts = (user.name || "Guest User").split(" ");
+          setUserFirstName(nameParts[0]);
+          setUserLastName(nameParts.slice(1).join(" ") || "User");
+        } catch (e) {
+          console.error("Error parsing user data:", e);
+        }
+      }
+    }
+  }, [isOpen]);
 
   const handlePriceChange = (total: number, count: number, discount: number) => {
     setTotalAmount(total);
@@ -49,7 +74,8 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
 
     setLoading(true);
     try {
-      const response = await fetch('/api/bookings', {
+      // Step 1: Create the booking
+      const bookingResponse = await fetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -60,29 +86,53 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
           participants,
           groupName: participants >= 11 ? groupName : undefined,
           specialRequests,
-          contactPhone: "",
-          contactEmail: ""
+          contactPhone: userPhone,
+          contactEmail: userEmail
         })
       });
 
-      const data = await response.json();
+      const bookingData = await bookingResponse.json();
 
-      if (response.ok) {
-        if (data.requiresQuote) {
-          alert("Quote request sent! The farmer will respond within 24 hours.");
-          onClose();
-        } else {
-          onBookingComplete(data.booking);
-          // Redirect to payment
-          window.location.href = data.paymentUrl;
-        }
-      } else {
-        alert(data.error || "Booking failed");
+      if (!bookingResponse.ok) {
+        alert(bookingData.error || "Booking failed");
+        setLoading(false);
+        return;
       }
+
+      if (bookingData.requiresQuote) {
+        alert("Quote request sent! The farmer will respond within 24 hours.");
+        onClose();
+        setLoading(false);
+        return;
+      }
+
+      // Step 2: Initiate Pesapal payment
+      // Find this section and replace
+// const paymentResponse = await fetch('/api/payments/pesapal', {
+// Change to:
+const paymentResponse = await fetch('/api/payments/initiate', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    bookingId: booking.id,
+    phoneNumber: phoneNumber,
+    paymentMethod: 'mpesa'
+  })
+});
+
+      const paymentData = await paymentResponse.json();
+
+      if (paymentData.success && paymentData.redirectUrl) {
+        // Redirect to Pesapal payment page
+        window.location.href = paymentData.redirectUrl;
+      } else {
+        alert(paymentData.error || "Payment initiation failed");
+        setLoading(false);
+      }
+
     } catch (error) {
-      console.error("Error creating booking:", error);
-      alert("Booking failed. Please try again.");
-    } finally {
+      console.error("Error:", error);
+      alert("Something went wrong. Please try again.");
       setLoading(false);
     }
   };
