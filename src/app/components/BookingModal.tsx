@@ -2,8 +2,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Calendar, Users, Clock, MessageCircle } from "lucide-react";
+import { X, Calendar, Users, Clock, MessageCircle, Smartphone } from "lucide-react";
 import PriceCalculator from "./PriceCalculator";
+
 
 interface Activity {
   id: number;
@@ -34,6 +35,8 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
   const [discountPercent, setDiscountPercent] = useState(0);
   const [loading, setLoading] = useState(false);
   const [requiresQuote, setRequiresQuote] = useState(false);
+  const [booking, setBooking] = useState<any>(null); // ADDED: booking state
+  const [phoneNumber, setPhoneNumber] = useState(""); // ADDED: phone number for M-Pesa
   
   // User info state for payment
   const [userEmail, setUserEmail] = useState("");
@@ -50,6 +53,7 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
           const user = JSON.parse(userData);
           setUserEmail(user.email || "");
           setUserPhone(user.phone || "");
+          setPhoneNumber(user.phone || ""); // Set phone number from user data
           const nameParts = (user.name || "Guest User").split(" ");
           setUserFirstName(nameParts[0]);
           setUserLastName(nameParts.slice(1).join(" ") || "User");
@@ -106,25 +110,34 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
         return;
       }
 
-      // Step 2: Initiate Pesapal payment
-      // Find this section and replace
-// const paymentResponse = await fetch('/api/payments/pesapal', {
-// Change to:
-const paymentResponse = await fetch('/api/payments/initiate', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    bookingId: booking.id,
-    phoneNumber: phoneNumber,
-    paymentMethod: 'mpesa'
-  })
-});
+      // Store the booking data
+      setBooking(bookingData.booking);
+      
+      // Step 2: Initiate payment with M-Pesa
+      const paymentResponse = await fetch('/api/payments/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingId: bookingData.booking.id,
+          phoneNumber: phoneNumber || userPhone,
+          paymentMethod: 'mpesa'
+        })
+      });
 
       const paymentData = await paymentResponse.json();
 
-      if (paymentData.success && paymentData.redirectUrl) {
-        // Redirect to Pesapal payment page
-        window.location.href = paymentData.redirectUrl;
+      if (paymentData.success) {
+        if (paymentData.redirectUrl) {
+          // For Pesapal (if still used) - redirect
+          window.location.href = paymentData.redirectUrl;
+        } else {
+          // For M-Pesa Daraja - STK Push sent
+          alert('STK Push sent to your phone. Enter your PIN to complete payment.');
+          onBookingComplete(bookingData.booking);
+          onClose();
+          // Redirect to bookings page
+          window.location.href = '/visitor/dashboard/bookings';
+        }
       } else {
         alert(paymentData.error || "Payment initiation failed");
         setLoading(false);
@@ -165,6 +178,22 @@ const paymentResponse = await fetch('/api/payments/initiate', {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-emerald-500"
               required
             />
+          </div>
+
+          {/* M-Pesa Phone Number Input */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+              <Smartphone className="h-4 w-4" />
+              M-Pesa Phone Number
+            </label>
+            <input
+              type="tel"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              placeholder="0712345678"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-emerald-500"
+            />
+            <p className="text-xs text-gray-500 mt-1">You will receive an STK Push on this number</p>
           </div>
 
           <PriceCalculator
@@ -220,7 +249,7 @@ const paymentResponse = await fetch('/api/payments/initiate', {
           <p className="text-xs text-gray-400 text-center">
             {isLargeGroup 
               ? "Large groups require farmer approval. You'll receive a custom quote within 24 hours."
-              : "You'll be redirected to complete payment"}
+              : "You'll receive an STK Push on your phone to complete payment"}
           </p>
         </div>
       </div>
