@@ -140,3 +140,60 @@ export async function GET(
     );
   }
 }
+
+// DELETE - Delete a booking
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const user = await getUserFromToken(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const farmerId = await getFarmerId(user.id);
+    if (!farmerId) {
+      return NextResponse.json({ error: 'Farmer profile not found' }, { status: 404 });
+    }
+
+    const bookingId = parseInt(params.id);
+
+    // Verify booking belongs to this farmer
+    const verify = await pool.query(
+      'SELECT id FROM bookings WHERE id = $1 AND farm_id = $2',
+      [bookingId, farmerId]
+    );
+
+    if (verify.rows.length === 0) {
+      return NextResponse.json(
+        { error: 'Booking not found' },
+        { status: 404 }
+      );
+    }
+
+    // Delete the booking
+    await pool.query(
+      `DELETE FROM bookings WHERE id = $1`,
+      [bookingId]
+    );
+
+    // Also delete associated payment record if exists
+    await pool.query(
+      `DELETE FROM payments WHERE booking_id = $1`,
+      [bookingId]
+    );
+
+    return NextResponse.json({
+      success: true,
+      message: 'Booking deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Error deleting booking:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete booking' },
+      { status: 500 }
+    );
+  }
+}
