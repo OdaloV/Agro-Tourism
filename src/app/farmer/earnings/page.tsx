@@ -15,6 +15,8 @@ import {
   AlertCircle,
   Wallet,
   ArrowUpRight,
+  Users,
+  Trash2,
 } from "lucide-react";
 
 interface Earning {
@@ -51,6 +53,7 @@ export default function FarmerEarnings() {
   });
   const [filter, setFilter] = useState<"all" | "pending" | "completed">("all");
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchEarnings();
@@ -81,6 +84,35 @@ export default function FarmerEarnings() {
       console.error("Error fetching earnings:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteEarning = async (earningId: number, bookingId: number) => {
+    if (!confirm("Are you sure you want to delete this earning record? This action cannot be undone.")) {
+      return;
+    }
+
+    setDeletingId(earningId);
+    try {
+      const response = await fetch(`/api/farmer/earnings/${earningId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        // Remove from local state
+        setEarnings(earnings.filter(e => e.id !== earningId));
+        alert("Earning record deleted successfully");
+        // Refresh summary
+        await fetchEarnings();
+      } else {
+        const data = await response.json();
+        alert(data.error || "Failed to delete earning record");
+      }
+    } catch (error) {
+      console.error("Error deleting earning:", error);
+      alert("Failed to delete earning record");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -173,7 +205,7 @@ export default function FarmerEarnings() {
               <div>
                 <p className="text-sm text-emerald-600">Platform Fee (10%)</p>
                 <p className="text-2xl font-bold text-emerald-900">
-                  {formatCurrency(summary.totalEarnings * 0.111)} 
+                  {formatCurrency(summary.totalEarnings / 9)} 
                 </p>
               </div>
               <TrendingUp className="h-8 w-8 text-emerald-500" />
@@ -267,6 +299,7 @@ export default function FarmerEarnings() {
                     <th className="px-6 py-3 text-right text-sm font-semibold text-emerald-900">Platform Fee</th>
                     <th className="px-6 py-3 text-right text-sm font-semibold text-emerald-900">Your Earnings</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-emerald-900">Status</th>
+                    <th className="px-6 py-3 text-center text-sm font-semibold text-emerald-900">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-emerald-100">
@@ -303,6 +336,20 @@ export default function FarmerEarnings() {
                           )}
                           {earning.paymentStatus === 'completed' ? 'Paid' : 'Pending'}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <button
+                          onClick={() => handleDeleteEarning(earning.id, earning.bookingId)}
+                          disabled={deletingId === earning.id}
+                          className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
+                          title="Delete earning record"
+                        >
+                          {deletingId === earning.id ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500"></div>
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </button>
                       </td>
                     </tr>
                   ))}
