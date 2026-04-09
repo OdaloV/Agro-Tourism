@@ -34,6 +34,7 @@ interface Booking {
   guests_count: number;
   total_amount: number;
   status: string;
+  payment_status?: string;
   activity_name: string;
   visitor_name: string;
   visitor_email: string;
@@ -258,6 +259,27 @@ export default function FarmerSchedule() {
     }
   };
 
+  // Helper function for status colors
+  const getBookingStatusBadge = (status: string) => {
+    switch (status) {
+      case "confirmed": return { color: "bg-green-100 text-green-700", text: "Approved" };
+      case "pending": return { color: "bg-yellow-100 text-yellow-700", text: "Pending" };
+      case "completed": return { color: "bg-blue-100 text-blue-700", text: "Done" };
+      case "cancelled": return { color: "bg-red-100 text-red-700", text: "Cancelled" };
+      default: return { color: "bg-gray-100 text-gray-700", text: status };
+    }
+  };
+
+  const getPaymentStatusBadge = (paymentStatus?: string) => {
+  if (paymentStatus === "paid") {
+    return { color: "bg-green-100 text-green-700", text: "Paid ✅" };  
+  } else if (paymentStatus === "pending_cash") {
+    return { color: "bg-blue-100 text-blue-700", text: "Pay at Farm" };
+  } else {
+    return { color: "bg-yellow-100 text-yellow-700", text: "Payment Due" };
+  }
+};
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-emerald-100/30">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
@@ -414,55 +436,57 @@ export default function FarmerSchedule() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {getListData().map((booking) => (
-                      <div
-                        key={booking.id}
-                        className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:shadow-md transition flex items-center justify-between flex-wrap gap-4"
-                      >
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-semibold text-gray-900">{booking.visitor_name}</h3>
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${
-                              booking.status === "confirmed" ? "bg-green-100 text-green-700" :
-                              booking.status === "pending" ? "bg-yellow-100 text-yellow-700" :
-                              booking.status === "completed" ? "bg-blue-100 text-blue-700" :
-                              "bg-red-100 text-red-700"
-                            }`}>
-                              {booking.status}
-                            </span>
+                    {getListData().map((booking) => {
+                      const bookingStatus = getBookingStatusBadge(booking.status);
+                      const paymentStatus = getPaymentStatusBadge(booking.payment_status);
+                      return (
+                        <div
+                          key={booking.id}
+                          className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:shadow-md transition flex items-center justify-between flex-wrap gap-4"
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <h3 className="font-semibold text-gray-900">{booking.visitor_name}</h3>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${bookingStatus.color}`}>
+                                {bookingStatus.text}
+                              </span>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${paymentStatus.color}`}>
+                                {paymentStatus.text}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-600">{booking.activity_name}</p>
+                            <div className="flex gap-4 mt-2 text-xs text-gray-500">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {new Date(booking.booking_date).toLocaleDateString()}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Users className="h-3 w-3" />
+                                {booking.guests_count} guests
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <DollarSign className="h-3 w-3" />
+                                KES {booking.total_amount?.toLocaleString()}
+                              </span>
+                            </div>
                           </div>
-                          <p className="text-sm text-gray-600">{booking.activity_name}</p>
-                          <div className="flex gap-4 mt-2 text-xs text-gray-500">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {new Date(booking.booking_date).toLocaleDateString()}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Users className="h-3 w-3" />
-                              {booking.guests_count} guests
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <DollarSign className="h-3 w-3" />
-                              KES {booking.total_amount?.toLocaleString()}
-                            </span>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleBookingClick(booking)}
+                              className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 transition"
+                            >
+                              View Details
+                            </button>
+                            <button
+                              onClick={() => handleDeleteBooking(booking.id)}
+                              className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition"
+                            >
+                              Delete
+                            </button>
                           </div>
                         </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleBookingClick(booking)}
-                            className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 transition"
-                          >
-                            View Details
-                          </button>
-                          <button
-                            onClick={() => handleDeleteBooking(booking.id)}
-                            className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -544,55 +568,57 @@ export default function FarmerSchedule() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {bookings.map((booking) => (
-                    <div
-                      key={booking.id}
-                      className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:shadow-md transition flex items-center justify-between flex-wrap gap-4"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-gray-900">{booking.visitor_name}</h3>
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${
-                            booking.status === "confirmed" ? "bg-green-100 text-green-700" :
-                            booking.status === "pending" ? "bg-yellow-100 text-yellow-700" :
-                            booking.status === "completed" ? "bg-blue-100 text-blue-700" :
-                            "bg-red-100 text-red-700"
-                          }`}>
-                            {booking.status}
-                          </span>
+                  {bookings.map((booking) => {
+                    const bookingStatus = getBookingStatusBadge(booking.status);
+                    const paymentStatus = getPaymentStatusBadge(booking.payment_status);
+                    return (
+                      <div
+                        key={booking.id}
+                        className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:shadow-md transition flex items-center justify-between flex-wrap gap-4"
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <h3 className="font-semibold text-gray-900">{booking.visitor_name}</h3>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${bookingStatus.color}`}>
+                              {bookingStatus.text}
+                            </span>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${paymentStatus.color}`}>
+                              {paymentStatus.text}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600">{booking.activity_name}</p>
+                          <div className="flex gap-4 mt-2 text-xs text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {new Date(booking.booking_date).toLocaleDateString()}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Users className="h-3 w-3" />
+                              {booking.guests_count} guests
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <DollarSign className="h-3 w-3" />
+                              KES {booking.total_amount?.toLocaleString()}
+                            </span>
+                          </div>
                         </div>
-                        <p className="text-sm text-gray-600">{booking.activity_name}</p>
-                        <div className="flex gap-4 mt-2 text-xs text-gray-500">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            {new Date(booking.booking_date).toLocaleDateString()}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Users className="h-3 w-3" />
-                            {booking.guests_count} guests
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <DollarSign className="h-3 w-3" />
-                            KES {booking.total_amount?.toLocaleString()}
-                          </span>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleBookingClick(booking)}
+                            className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 transition"
+                          >
+                            View Details
+                          </button>
+                          <button
+                            onClick={() => handleDeleteBooking(booking.id)}
+                            className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition"
+                          >
+                            Delete
+                          </button>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleBookingClick(booking)}
-                          className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 transition"
-                        >
-                          View Details
-                        </button>
-                        <button
-                          onClick={() => handleDeleteBooking(booking.id)}
-                          className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
