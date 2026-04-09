@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import BookingCard from "./BookingCard";
+import  BookingCard  from "./BookingCard";
 import { Booking, BlockedDate } from "../types";
 
 interface CalendarGridProps {
