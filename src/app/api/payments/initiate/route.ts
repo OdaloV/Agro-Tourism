@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
     
-    // Get booking details
+    // Get booking details - FIXED: This should SELECT, not INSERT
     const bookingResult = await pool.query(`
       SELECT b.*, fp.farm_name, u.name as visitor_name, u.email as visitor_email
       FROM bookings b
@@ -63,9 +63,18 @@ export async function POST(request: NextRequest) {
       
       const paymentId = paymentResult.rows[0].id;
       
+      // Format phone number for M-Pesa
+      let formattedPhone = phoneNumber;
+      if (formattedPhone.startsWith('0')) {
+        formattedPhone = `254${formattedPhone.substring(1)}`;
+      }
+      if (formattedPhone.startsWith('+')) {
+        formattedPhone = formattedPhone.substring(1);
+      }
+      
       // Initiate STK Push
       const accountReference = `HARVEST${bookingId}`;
-      const stkResponse = await stkPush(phoneNumber, totalAmount, accountReference);
+      const stkResponse = await stkPush(formattedPhone, totalAmount, accountReference);
       
       if (stkResponse.ResponseCode === '0') {
         await pool.query(`
@@ -86,6 +95,7 @@ export async function POST(request: NextRequest) {
     }
     
     if (paymentMethod === 'cash') {
+      // Cash on arrival - update payment status only, booking status becomes confirmed
       await pool.query(`
         UPDATE bookings 
         SET payment_status = 'pending_cash', 
