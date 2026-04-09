@@ -7,8 +7,7 @@ export async function POST(request: NextRequest) {
     const callbackData = await request.json();
     console.log('M-Pesa callback received:', JSON.stringify(callbackData, null, 2));
     
-    // The actual M-Pesa callback structure may vary
-    // Let's handle different possible formats
+    
     
     let stkCallback;
     
@@ -60,7 +59,7 @@ export async function POST(request: NextRequest) {
         mpesaReceiptNumber = metadata.find((item: any) => item.Name === 'MpesaReceiptNumber')?.Value;
       }
       
-      console.log(`✅ Payment successful! Receipt: ${mpesaReceiptNumber}, Amount: ${amount}`);
+      console.log(`Payment successful! Receipt: ${mpesaReceiptNumber}, Amount: ${amount}`);
       
       // Update payment status
       await pool.query(`
@@ -81,9 +80,9 @@ export async function POST(request: NextRequest) {
         WHERE id = $1
       `, [payment.booking_id]);
       
-      console.log(`✅ Booking ${payment.booking_id} updated to confirmed`);
+      console.log(` Booking ${payment.booking_id} updated to confirmed`);
     } else {
-      console.log(`❌ Payment failed: ${ResultDesc}`);
+      console.log(` Payment failed: ${ResultDesc}`);
       await pool.query(`
         UPDATE payments SET status = 'failed' WHERE id = $1
       `, [payment.id]);
