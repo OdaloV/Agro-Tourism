@@ -19,9 +19,10 @@ async function getUserFromToken(request: NextRequest) {
   }
 }
 
+//  FIXED: Add Promise wrapper for params
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getUserFromToken(request);
@@ -29,7 +30,13 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const earningId = parseInt(params.id);
+    //  Await params
+    const { id } = await params;
+    const earningId = parseInt(id);
+    
+    if (isNaN(earningId)) {
+      return NextResponse.json({ error: 'Invalid earning ID' }, { status: 400 });
+    }
     
     // Get farmer profile ID
     const farmerResult = await pool.query(
@@ -43,12 +50,12 @@ export async function DELETE(
     
     const farmerId = farmerResult.rows[0].id;
     
-    // Verify this earning belongs to the farmer
+    // Verify this earning belongs to the farmer AND is completed
     const verifyResult = await pool.query(`
       SELECT p.id 
       FROM payments p
       JOIN bookings b ON p.booking_id = b.id
-      WHERE p.id = $1 AND b.farm_id = $2
+      WHERE p.id = $1 AND b.farm_id = $2 AND p.status = 'completed'
     `, [earningId, farmerId]);
     
     if (verifyResult.rows.length === 0) {
