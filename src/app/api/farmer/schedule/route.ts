@@ -1,4 +1,4 @@
-// src/app/api/farmer/schedule/route.ts
+// src/app/api/farmer/schedule/bookings/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { jwtVerify } from 'jose';
@@ -27,7 +27,7 @@ async function getFarmerId(userId: number) {
   return result.rows[0]?.id || null;
 }
 
-// GET - Fetch all bookings and blocked dates
+// GET - Get all bookings for the farmer
 export async function GET(request: NextRequest) {
   try {
     const user = await getUserFromToken(request);
@@ -40,90 +40,57 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Farmer profile not found' }, { status: 404 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const year = searchParams.get('year');
-    const month = searchParams.get('month');
-    const startDate = searchParams.get('startDate');
-    const endDate = searchParams.get('endDate');
+    // FIXED: Explicitly select all fields including payment_status
+    const result = await pool.query(
+      `SELECT 
+         b.id,
+         b.activity_id,
+         b.visitor_id,
+         b.farm_id,
+         b.booking_date,
+         b.participants,
+         b.status,
+         b.payment_status,  -- EXPLICITLY SELECT payment_status
+         b.total_amount,
+         b.special_requests,
+         b.created_at,
+         b.updated_at,
+         a.activity_name,
+         u.name as visitor_name,
+         u.email as visitor_email,
+         u.phone as visitor_phone
+       FROM bookings b
+       LEFT JOIN farmer_activities a ON b.activity_id = a.id
+       JOIN users u ON b.visitor_id = u.id
+       WHERE b.farm_id = $1
+       ORDER BY b.booking_date ASC`,
+      [farmerId]
+    );
 
-    // ✅ FIXED: Use correct column names from your bookings table
-    let bookingQuery = `
-      SELECT 
-        b.id,
-        b.booking_date,
-        b.start_time,
-        b.end_time,
-        b.participants as guests_count,
-        b.total_amount,
-        b.status,
-        b.activity_id,
-        b.activity_name,
-        u.name as visitor_name,
-        u.email as visitor_email,
-        u.phone as visitor_phone
-      FROM bookings b
-      JOIN users u ON b.visitor_id = u.id
-      WHERE b.farm_id = $1
-    `;
+    const bookings = result.rows;
 
-    const queryParams: any[] = [farmerId];
-    let paramIndex = 2;
-
-    // Filter by date range
-    if (startDate && endDate) {
-      bookingQuery += ` AND b.booking_date BETWEEN $${paramIndex} AND $${paramIndex + 1}`;
-      queryParams.push(startDate, endDate);
-      paramIndex += 2;
-    } else if (year && month) {
-      const startOfMonth = `${year}-${month}-01`;
-      const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
-      const endOfMonth = `${year}-${month}-${lastDay}`;
-      bookingQuery += ` AND b.booking_date BETWEEN $${paramIndex} AND $${paramIndex + 1}`;
-      queryParams.push(startOfMonth, endOfMonth);
-      paramIndex += 2;
-    }
-
-    bookingQuery += ` ORDER BY b.booking_date ASC, b.start_time ASC`;
-
-    const bookingsResult = await pool.query(bookingQuery, queryParams);
-
-    // Get blocked dates
-    const availabilityQuery = `
-      SELECT 
-        id,
-        start_date,
-        end_date,
-        reason
-      FROM farmer_availability
-      WHERE farmer_id = $1
-      ORDER BY start_date ASC
-    `;
-
-    const availabilityResult = await pool.query(availabilityQuery, [farmerId]);
-
-    // Calculate summary stats
-    const today = new Date().toISOString().split('T')[0];
-    
-    const todayBookings = bookingsResult.rows.filter(b => b.booking_date === today);
-    const upcomingBookings = bookingsResult.rows.filter(b => b.booking_date > today && b.status === 'pending');
-    const pendingCount = bookingsResult.rows.filter(b => b.status === 'pending').length;
+    // DEBUGGING: Log all bookings payment status
+    console.log('📊 All farmer bookings:');
+    bookings.forEach(booking => {
+      console.log(`Booking #${booking.id}:`, {
+        status: booking.status,
+        payment_status: booking.payment_status,
+        payment_type: typeof booking.payment_status,
+        is_paid: booking.payment_status === 'paid',
+        visitor: booking.visitor_name,
+        date: booking.booking_date
+      });
+    });
 
     return NextResponse.json({
       success: true,
-      bookings: bookingsResult.rows,
-      blocked_dates: availabilityResult.rows,
-      summary: {
-        today_count: todayBookings.length,
-        upcoming_count: upcomingBookings.length,
-        pending_count: pendingCount,
-        total_bookings: bookingsResult.rows.length
-      }
+      bookings: bookings
     });
 
   } catch (error) {
-    console.error('Error fetching schedule:', error);
+    console.error('Error fetching farmer bookings:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch schedule' },
+      { error: 'Failed to fetch bookings' },
       { status: 500 }
     );
   }
