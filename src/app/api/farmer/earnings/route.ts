@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     
     const farmerId = farmerResult.rows[0].id;
     
-    // Get all completed payments for this farmer's bookings
+    // ✅ FIXED: Only get COMPLETED payments
     const earningsResult = await pool.query(`
       SELECT 
         p.id,
@@ -54,11 +54,13 @@ export async function GET(request: NextRequest) {
         b.status as booking_status
       FROM payments p
       JOIN bookings b ON p.booking_id = b.id
-      WHERE b.farm_id = $1
+      WHERE b.farm_id = $1 
+        AND p.status = 'completed'  -- ✅ ONLY completed payments
+        AND b.status IN ('confirmed', 'completed', 'paid')  -- ✅ ONLY confirmed bookings
       ORDER BY b.booking_date DESC
     `, [farmerId]);
     
-    // Calculate summary
+    // Calculate summary (only completed payments)
     const earnings = earningsResult.rows.map(row => ({
       id: row.id,
       bookingId: row.booking_id,
@@ -74,8 +76,7 @@ export async function GET(request: NextRequest) {
     
     const summary = {
       totalEarnings: earnings.reduce((sum, e) => sum + e.farmerEarning, 0),
-      pendingEarnings: earnings.filter(e => e.paymentStatus !== 'completed').reduce((sum, e) => sum + e.farmerEarning, 0),
-      completedEarnings: earnings.filter(e => e.paymentStatus === 'completed').reduce((sum, e) => sum + e.farmerEarning, 0),
+      completedEarnings: earnings.reduce((sum, e) => sum + e.farmerEarning, 0),
       totalBookings: earnings.length,
       totalGuests: earnings.reduce((sum, e) => sum + e.guests, 0),
     };
