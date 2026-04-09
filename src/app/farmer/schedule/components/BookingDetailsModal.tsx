@@ -2,8 +2,22 @@
 "use client";
 
 import { useState } from "react";
-import { X, Calendar, Clock, Users, User, Mail, Phone, DollarSign } from "lucide-react";
-import { Booking } from "../types";
+import { X, Calendar, Clock, Users, User, Mail, Phone, DollarSign, CreditCard } from "lucide-react";
+
+interface Booking {
+  id: number;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  guests_count: number;
+  total_amount: number;
+  status: string;
+  payment_status?: string;
+  activity_name: string;
+  visitor_name: string;
+  visitor_email: string;
+  visitor_phone: string;
+}
 
 interface BookingDetailsModalProps {
   booking: Booking;
@@ -24,7 +38,7 @@ export default function BookingDetailsModal({
     setUpdating(false);
   };
 
-  const getStatusColor = (status: string) => {
+  const getBookingStatusColor = (status: string) => {
     switch (status) {
       case "confirmed": return "bg-green-100 text-green-700";
       case "pending": return "bg-yellow-100 text-yellow-700";
@@ -33,6 +47,33 @@ export default function BookingDetailsModal({
       default: return "bg-gray-100 text-gray-700";
     }
   };
+
+  const getBookingStatusText = (status: string) => {
+    switch (status) {
+      case "confirmed": return "Approved";
+      case "pending": return "Pending Approval";
+      case "completed": return "Visit Completed";
+      case "cancelled": return "Cancelled";
+      default: return status;
+    }
+  };
+
+ const getPaymentStatus = () => {
+  // PAID - visitor paid online
+  if (booking.payment_status === "paid") {
+    return { color: "bg-green-100 text-green-700", text: "Paid ✅", icon: <CheckCircle className="h-4 w-4" /> };
+  } 
+  // PENDING CASH - will pay at farm
+  else if (booking.payment_status === "pending_cash") {
+    return { color: "bg-blue-100 text-blue-700", text: "Pay at Farm", icon: <CreditCard className="h-4 w-4" /> };
+  }
+  // PENDING - no payment made yet
+  else {
+    return { color: "bg-yellow-100 text-yellow-700", text: "Payment Due", icon: <Clock className="h-4 w-4" /> };
+  }
+};
+
+  const paymentStatus = getPaymentStatus();
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -50,9 +91,15 @@ export default function BookingDetailsModal({
 
         {/* Content */}
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)] space-y-4">
-          {/* Status Badge */}
-          <div className={`inline-flex px-3 py-1 rounded-full text-sm ${getStatusColor(booking.status)}`}>
-            {booking.status.toUpperCase()}
+          {/* Status Badges Row */}
+          <div className="flex gap-2 flex-wrap">
+            <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm ${getBookingStatusColor(booking.status)}`}>
+              {getBookingStatusText(booking.status)}
+            </div>
+            <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm ${paymentStatus.color}`}>
+              {paymentStatus.icon}
+              {paymentStatus.text}
+            </div>
           </div>
 
           {/* Activity Name */}
@@ -65,23 +112,23 @@ export default function BookingDetailsModal({
           {/* Booking Info */}
           <div className="space-y-3">
             <div className="flex items-center gap-3 text-gray-600">
-              <Calendar className="h-5 w-5 text-accent" />
+              <Calendar className="h-5 w-5 text-emerald-600" />
               <span>{new Date(booking.booking_date).toLocaleDateString()}</span>
             </div>
             {booking.start_time && (
               <div className="flex items-center gap-3 text-gray-600">
-                <Clock className="h-5 w-5 text-accent" />
+                <Clock className="h-5 w-5 text-emerald-600" />
                 <span>
                   {booking.start_time.substring(0, 5)} - {booking.end_time?.substring(0, 5) || "Flexible"}
                 </span>
               </div>
             )}
             <div className="flex items-center gap-3 text-gray-600">
-              <Users className="h-5 w-5 text-accent" />
+              <Users className="h-5 w-5 text-emerald-600" />
               <span>{booking.guests_count} guests</span>
             </div>
             <div className="flex items-center gap-3 text-gray-600">
-              <DollarSign className="h-5 w-5 text-accent" />
+              <DollarSign className="h-5 w-5 text-emerald-600" />
               <span>KES {booking.total_amount?.toLocaleString() || 0}</span>
             </div>
           </div>
@@ -96,14 +143,14 @@ export default function BookingDetailsModal({
               </div>
               <div className="flex items-center gap-3 text-gray-600">
                 <Mail className="h-4 w-4 text-gray-400" />
-                <a href={`mailto:${booking.visitor_email}`} className="text-accent hover:underline">
+                <a href={`mailto:${booking.visitor_email}`} className="text-emerald-600 hover:underline">
                   {booking.visitor_email}
                 </a>
               </div>
               {booking.visitor_phone && (
                 <div className="flex items-center gap-3 text-gray-600">
                   <Phone className="h-4 w-4 text-gray-400" />
-                  <a href={`tel:${booking.visitor_phone}`} className="text-accent hover:underline">
+                  <a href={`tel:${booking.visitor_phone}`} className="text-emerald-600 hover:underline">
                     {booking.visitor_phone}
                   </a>
                 </div>
@@ -122,7 +169,7 @@ export default function BookingDetailsModal({
                     disabled={updating}
                     className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"
                   >
-                    Confirm Booking
+                    ✓ Approve Booking
                   </button>
                 )}
                 {booking.status === "confirmed" && (
@@ -131,7 +178,7 @@ export default function BookingDetailsModal({
                     disabled={updating}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
                   >
-                    Mark as Completed
+                    ✓ Mark as Completed
                   </button>
                 )}
                 <button
@@ -139,7 +186,7 @@ export default function BookingDetailsModal({
                   disabled={updating}
                   className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50"
                 >
-                  Cancel Booking
+                  ✗ Cancel Booking
                 </button>
               </div>
             </div>
@@ -149,3 +196,6 @@ export default function BookingDetailsModal({
     </div>
   );
 }
+
+// Missing imports
+import { CheckCircle, Clock as ClockIcon } from "lucide-react";
