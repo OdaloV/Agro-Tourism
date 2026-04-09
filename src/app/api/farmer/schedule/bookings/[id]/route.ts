@@ -30,9 +30,25 @@ async function getFarmerId(userId: number) {
 // PUT - Update booking status
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params to get the id (Next.js 15 requirement)
+    const { id } = await params;
+    
+    // FIXED: Better ID validation and parsing
+    const bookingId = parseInt(id);
+    
+    if (!id || isNaN(bookingId) || bookingId <= 0) {
+      console.error('Invalid booking ID received:', { id, bookingId });
+      return NextResponse.json({ 
+        error: 'Invalid booking ID',
+        debug: { received: id, parsed: bookingId }
+      }, { status: 400 });
+    }
+    
+    console.log('PUT request for booking ID:', bookingId);
+    
     const user = await getUserFromToken(request);
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -43,7 +59,6 @@ export async function PUT(
       return NextResponse.json({ error: 'Farmer profile not found' }, { status: 404 });
     }
 
-    const bookingId = parseInt(params.id);
     const body = await request.json();
     const { status } = body;
 
@@ -62,16 +77,17 @@ export async function PUT(
 
     if (verify.rows.length === 0) {
       return NextResponse.json(
-        { error: 'Booking not found' },
+        { error: 'Booking not found or does not belong to you' },
         { status: 404 }
       );
     }
 
+    // Update booking status
     await pool.query(
       `UPDATE bookings 
        SET status = $1, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $2`,
-      [status, bookingId]
+       WHERE id = $2 AND farm_id = $3`,
+      [status, bookingId, farmerId]
     );
 
     return NextResponse.json({
@@ -91,9 +107,25 @@ export async function PUT(
 // GET - Get single booking details
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params to get the id (Next.js 15 requirement)
+    const { id } = await params;
+    
+    // FIXED: Better ID validation and parsing
+    const bookingId = parseInt(id);
+    
+    if (!id || isNaN(bookingId) || bookingId <= 0) {
+      console.error('Invalid booking ID received:', { id, bookingId });
+      return NextResponse.json({ 
+        error: 'Invalid booking ID',
+        debug: { received: id, parsed: bookingId }
+      }, { status: 400 });
+    }
+    
+    console.log('GET request for booking ID:', bookingId);
+    
     const user = await getUserFromToken(request);
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -104,11 +136,21 @@ export async function GET(
       return NextResponse.json({ error: 'Farmer profile not found' }, { status: 404 });
     }
 
-    const bookingId = parseInt(params.id);
-
+    // FIXED: Explicitly select payment_status and add logging
     const result = await pool.query(
       `SELECT 
-         b.*,
+         b.id,
+         b.activity_id,
+         b.visitor_id,
+         b.farm_id,
+         b.booking_date,
+         b.participants,
+         b.status,
+         b.payment_status,  -- EXPLICITLY SELECT payment_status
+         b.total_amount,
+         b.special_requests,
+         b.created_at,
+         b.updated_at,
          a.activity_name,
          u.name as visitor_name,
          u.email as visitor_email,
@@ -127,9 +169,21 @@ export async function GET(
       );
     }
 
+    const booking = result.rows[0];
+    
+    // DEBUGGING: Log the payment_status value
+    console.log(`🔍 Booking ${bookingId} data:`, {
+      id: booking.id,
+      status: booking.status,
+      payment_status: booking.payment_status,
+      payment_status_type: typeof booking.payment_status,
+      payment_status_is_null: booking.payment_status === null,
+      visitor: booking.visitor_name
+    });
+
     return NextResponse.json({
       success: true,
-      booking: result.rows[0]
+      booking: booking
     });
 
   } catch (error) {
@@ -144,9 +198,25 @@ export async function GET(
 // DELETE - Delete a booking
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params to get the id (Next.js 15 requirement)
+    const { id } = await params;
+    
+    // FIXED: Better ID validation and parsing
+    const bookingId = parseInt(id);
+    
+    if (!id || isNaN(bookingId) || bookingId <= 0) {
+      console.error('Invalid booking ID received:', { id, bookingId });
+      return NextResponse.json({ 
+        error: 'Invalid booking ID',
+        debug: { received: id, parsed: bookingId }
+      }, { status: 400 });
+    }
+    
+    console.log('DELETE request for booking ID:', bookingId);
+    
     const user = await getUserFromToken(request);
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -157,28 +227,22 @@ export async function DELETE(
       return NextResponse.json({ error: 'Farmer profile not found' }, { status: 404 });
     }
 
-    const bookingId = parseInt(params.id);
-
-    // Verify booking belongs to this farmer
-    const verify = await pool.query(
-      'SELECT id FROM bookings WHERE id = $1 AND farm_id = $2',
+    // Verify and delete booking in one query (safer)
+    const deletedBooking = await pool.query(
+      `DELETE FROM bookings 
+       WHERE id = $1 AND farm_id = $2 
+       RETURNING id`,
       [bookingId, farmerId]
     );
 
-    if (verify.rows.length === 0) {
+    if (deletedBooking.rows.length === 0) {
       return NextResponse.json(
-        { error: 'Booking not found' },
+        { error: 'Booking not found or does not belong to you' },
         { status: 404 }
       );
     }
 
-    // Delete the booking
-    await pool.query(
-      `DELETE FROM bookings WHERE id = $1`,
-      [bookingId]
-    );
-
-    // Also delete associated payment record if exists
+    // Delete associated payment record if exists
     await pool.query(
       `DELETE FROM payments WHERE booking_id = $1`,
       [bookingId]
