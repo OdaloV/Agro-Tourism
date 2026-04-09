@@ -7,6 +7,7 @@ export interface Booking {
   guests_count: number;
   total_amount: number;
   status: string;
+  payment_status?: string; 
   activity_name: string;
   visitor_name: string;
   visitor_email: string;
