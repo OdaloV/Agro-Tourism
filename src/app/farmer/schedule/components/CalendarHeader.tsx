@@ -1,12 +1,12 @@
 // src/app/farmer/schedule/components/CalendarHeader.tsx
 "use client";
 
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, List } from "lucide-react";
+import { ChevronLeft, ChevronRight, Grid3x3, List } from "lucide-react";
 
 interface CalendarHeaderProps {
   currentDate: Date;
-  viewMode: "month" | "week" | "list";
-  onViewChange: (view: "month" | "week" | "list") => void;
+  viewMode: "month" | "list";
+  onViewChange: (view: "month" | "list") => void;
   onPrev: () => void;
   onNext: () => void;
   onToday: () => void;
@@ -40,7 +40,7 @@ export default function CalendarHeader({
       </div>
 
       <div className="flex items-center gap-2">
-        {/* View Toggle */}
+        {/* View Toggle - Removed "week" option */}
         <div className="flex bg-gray-100 rounded-lg p-1 mr-2">
           <button
             onClick={() => onViewChange("month")}
@@ -50,17 +50,7 @@ export default function CalendarHeader({
                 : "text-gray-500 hover:text-gray-700"
             }`}
           >
-            <CalendarIcon className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => onViewChange("week")}
-            className={`px-3 py-1.5 rounded-md text-sm transition ${
-              viewMode === "week"
-                ? "bg-white text-emerald-700 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Week
+            <Grid3x3 className="h-4 w-4" />
           </button>
           <button
             onClick={() => onViewChange("list")}
