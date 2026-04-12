@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar,
   Users,
@@ -14,8 +13,7 @@ import {
   RefreshCw,
   X,
   ChevronLeft,
-  ChevronRight,
-  MessageCircle,
+  Trash2,
 } from "lucide-react";
 
 interface Booking {
@@ -40,6 +38,7 @@ export default function VisitorBookings() {
   const [showSpecialRequestModal, setShowSpecialRequestModal] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [specialRequest, setSpecialRequest] = useState("");
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -56,12 +55,10 @@ export default function VisitorBookings() {
           return;
         }
 
-        // 🔥 FETCH REAL BOOKINGS FROM API
         const response = await fetch('/api/bookings');
         const data = await response.json();
         
         if (response.ok) {
-          // Transform API data to match Booking interface
           const realBookings: Booking[] = (data.bookings || []).map((b: any) => ({
             id: b.id,
             farmId: b.farm_id,
@@ -127,6 +124,38 @@ export default function VisitorBookings() {
     }
   };
 
+  const handleDelete = async (bookingId: number, status: string) => {
+    // Allow deletion of pending, cancelled, or past bookings
+    if (status === 'confirmed') {
+      alert('Cannot delete a confirmed booking. Please cancel instead.');
+      return;
+    }
+    
+    if (!confirm('Are you sure you want to delete this booking? This action cannot be undone.')) {
+      return;
+    }
+    
+    setDeletingId(bookingId);
+    try {
+      const response = await fetch(`/api/bookings/${bookingId}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        setBookings(bookings.filter(b => b.id !== bookingId));
+        alert('Booking deleted successfully');
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to delete booking');
+      }
+    } catch (error) {
+      console.error('Error deleting booking:', error);
+      alert('Failed to delete booking');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const handleReschedule = (bookingId: number) => {
     alert("Reschedule request sent. Farmer will confirm availability.");
   };
@@ -152,7 +181,7 @@ export default function VisitorBookings() {
   };
 
   const handleWriteReview = (booking: Booking) => {
-    router.push(`/visitor/dashboard/reviews?farmId=${booking.farmId}`);
+    router.push(`/visitor/dashboard/reviews?farmId=${booking.farmId}&bookingId=${booking.id}`);
   };
 
   if (!mounted || loading) {
@@ -216,12 +245,14 @@ export default function VisitorBookings() {
                   key={booking.id}
                   booking={booking}
                   onCancel={handleCancel}
+                  onDelete={handleDelete}
                   onReschedule={handleReschedule}
                   onSpecialRequest={(b) => {
                     setSelectedBooking(b);
                     setSpecialRequest(b.specialRequests || "");
                     setShowSpecialRequestModal(true);
                   }}
+                  isDeleting={deletingId === booking.id}
                 />
               ))
             )}
@@ -246,6 +277,8 @@ export default function VisitorBookings() {
                   booking={booking}
                   onRebook={handleRebook}
                   onWriteReview={handleWriteReview}
+                  onDelete={handleDelete}
+                  isDeleting={deletingId === booking.id}
                 />
               ))
             )}
@@ -265,7 +298,12 @@ export default function VisitorBookings() {
               />
             ) : (
               waitlistedBookings.map((booking) => (
-                <WaitlistCard key={booking.id} booking={booking} />
+                <WaitlistCard 
+                  key={booking.id} 
+                  booking={booking}
+                  onDelete={handleDelete}
+                  isDeleting={deletingId === booking.id}
+                />
               ))
             )}
           </div>
@@ -352,12 +390,14 @@ function TabButton({ active, onClick, label, count }: {
   );
 }
 
-// Booking Card Component
-function BookingCard({ booking, onCancel, onReschedule, onSpecialRequest }: { 
+// Booking Card Component (Upcoming Bookings)
+function BookingCard({ booking, onCancel, onDelete, onReschedule, onSpecialRequest, isDeleting }: { 
   booking: Booking; 
   onCancel: (id: number) => void; 
+  onDelete: (id: number, status: string) => void;
   onReschedule: (id: number) => void; 
   onSpecialRequest: (booking: Booking) => void;
+  isDeleting: boolean;
 }) {
   const statusColors: Record<string, string> = {
     confirmed: "bg-green-100 text-green-600",
@@ -420,6 +460,18 @@ function BookingCard({ booking, onCancel, onReschedule, onSpecialRequest }: {
               >
                 Cancel
               </button>
+              <button
+                onClick={() => onDelete(booking.id, booking.status)}
+                disabled={isDeleting}
+                className="px-3 py-1.5 text-sm bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+                title="Delete booking"
+              >
+                {isDeleting ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+              </button>
             </div>
           )}
         </div>
@@ -428,11 +480,13 @@ function BookingCard({ booking, onCancel, onReschedule, onSpecialRequest }: {
   );
 }
 
-// Past Booking Card Component
-function PastBookingCard({ booking, onRebook, onWriteReview }: { 
+// Past Booking Card Component (WITH DELETE BUTTON)
+function PastBookingCard({ booking, onRebook, onWriteReview, onDelete, isDeleting }: { 
   booking: Booking; 
   onRebook: (booking: Booking) => void; 
   onWriteReview: (booking: Booking) => void;
+  onDelete: (id: number, status: string) => void;
+  isDeleting: boolean;
 }) {
   if (booking.status === "cancelled") return null;
   
@@ -441,9 +495,14 @@ function PastBookingCard({ booking, onRebook, onWriteReview }: {
       <div className="p-5">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-emerald-900">
-              {booking.farmName}
-            </h3>
+            <div className="flex items-center gap-2 mb-2">
+              <h3 className="text-lg font-semibold text-emerald-900">
+                {booking.farmName}
+              </h3>
+              <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">
+                {booking.status}
+              </span>
+            </div>
             <p className="text-sm text-emerald-600">{booking.activity}</p>
             <div className="flex flex-wrap gap-4 mt-2 text-sm text-emerald-500">
               <span className="flex items-center gap-1">
@@ -453,6 +512,10 @@ function PastBookingCard({ booking, onRebook, onWriteReview }: {
               <span className="flex items-center gap-1">
                 <Users className="h-4 w-4" />
                 {booking.participants} guests
+              </span>
+              <span className="flex items-center gap-1">
+                <DollarSign className="h-4 w-4" />
+                KES {booking.totalPrice.toLocaleString()}
               </span>
             </div>
           </div>
@@ -469,6 +532,18 @@ function PastBookingCard({ booking, onRebook, onWriteReview }: {
             >
               Book Again
             </button>
+            <button
+              onClick={() => onDelete(booking.id, booking.status)}
+              disabled={isDeleting}
+              className="px-3 py-1.5 text-sm bg-gray-50 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50"
+              title="Delete past booking"
+            >
+              {isDeleting ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+            </button>
           </div>
         </div>
       </div>
@@ -476,8 +551,12 @@ function PastBookingCard({ booking, onRebook, onWriteReview }: {
   );
 }
 
-// Waitlist Card Component
-function WaitlistCard({ booking }: { booking: Booking }) {
+// Waitlist Card Component (WITH DELETE BUTTON)
+function WaitlistCard({ booking, onDelete, isDeleting }: { 
+  booking: Booking;
+  onDelete: (id: number, status: string) => void;
+  isDeleting: boolean;
+}) {
   return (
     <div className="bg-white rounded-2xl border border-amber-200 bg-amber-50/30 overflow-hidden">
       <div className="p-5">
@@ -507,11 +586,25 @@ function WaitlistCard({ booking }: { booking: Booking }) {
               Position #{booking.waitlistPosition} on waitlist
             </p>
           </div>
-          <Link href={`/farms/${booking.farmId}`}>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
-              View Farm
+          <div className="flex gap-2">
+            <Link href={`/farms/${booking.farmId}`}>
+              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+                View Farm
+              </button>
+            </Link>
+            <button
+              onClick={() => onDelete(booking.id, booking.status)}
+              disabled={isDeleting}
+              className="px-3 py-1.5 text-sm bg-gray-50 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50"
+              title="Delete waitlisted booking"
+            >
+              {isDeleting ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
             </button>
-          </Link>
+          </div>
         </div>
       </div>
     </div>
