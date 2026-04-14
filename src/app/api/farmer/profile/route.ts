@@ -1,6 +1,18 @@
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
-import { checkMaintenanceMode } from '@/lib/utils/checkMaintenance'; 
+import { checkMaintenanceMode } from '@/lib/utils/checkMaintenance';
+
+async function getPlatformCommissionRate(): Promise<number> {
+  try {
+    const result = await pool.query(
+      `SELECT value FROM platform_settings WHERE key = 'commission_rate'`
+    );
+    return parseFloat(result.rows[0]?.value) || 10;
+  } catch (error) {
+    console.error('Error fetching commission rate:', error);
+    return 10;
+  }
+}
 
 export async function GET(request: Request) {
   try {
@@ -64,25 +76,49 @@ export async function GET(request: Request) {
 
     if (!farmerId) {
       return NextResponse.json({
-        ...farmer,
+        id: farmer.id,
+        name: farmer.name,
+        email: farmer.email,
+        phone: farmer.phone,
+        farmName: farmer.farmName,
+        farmLocation: farmer.farmLocation,
+        farmSize: farmer.farmSize,
+        yearEstablished: farmer.yearEstablished,
+        farmDescription: farmer.farmDescription,
+        farmType: farmer.farmType,
+        activities: farmer.activities || [],
+        facilities: farmer.facilities || [],
+        accommodation: farmer.accommodation || false,
+        maxGuests: farmer.maxGuests,
+        farmPhotos: parseInt(farmer.farmPhotos) || 0,
+        videoLink: farmer.videoLink,
+        documents: farmer.documents,
+        verificationStatus: farmer.verificationStatus || 'pending',
+        submittedAt: farmer.submittedAt || new Date().toISOString(),
         stats: {
           profileViews: farmer.profile_views || 0,
           bookings: 0,
           rating: 0,
           reviews: 0,
-          totalEarnings: 0
+          totalEarnings: 0,
+          totalRevenue: 0,
+          platformFee: 0,
+          commissionRate: 10
         },
         recentEarnings: []
       });
     }
 
-    // Get real stats from database
+    const commissionRate = await getPlatformCommissionRate();
+    const farmerPercentage = 100 - commissionRate;
+
     const statsResult = await pool.query(`
       SELECT 
         COUNT(DISTINCT b.id) as total_bookings,
         COALESCE(AVG(r.rating), 0) as avg_rating,
         COUNT(DISTINCT r.id) as total_reviews,
-        COALESCE(SUM(CASE WHEN b.status IN ('confirmed', 'completed', 'paid') THEN b.total_amount ELSE 0 END), 0) as total_earnings
+        COALESCE(SUM(b.total_amount), 0) as total_revenue_all,
+        COALESCE(SUM(CASE WHEN b.status IN ('confirmed', 'completed', 'paid') THEN b.total_amount ELSE 0 END), 0) as paid_revenue
       FROM farmer_profiles fp
       LEFT JOIN bookings b ON b.farm_id = fp.id
       LEFT JOIN reviews r ON r.farm_id = fp.id
@@ -94,10 +130,21 @@ export async function GET(request: Request) {
       total_bookings: 0, 
       avg_rating: 0, 
       total_reviews: 0, 
-      total_earnings: 0 
+      total_revenue_all: 0,
+      paid_revenue: 0
     };
 
-    // Get recent earnings (last 5 paid bookings)
+    const totalEarningsResult = await pool.query(`
+      SELECT COALESCE(SUM(b.total_amount * $1 / 100), 0) as total_earnings
+      FROM bookings b
+      WHERE b.farm_id = $2 AND b.status IN ('confirmed', 'completed', 'paid')
+    `, [farmerPercentage, farmerId]);
+
+    const totalEarningsSum = parseFloat(totalEarningsResult.rows[0].total_earnings) || 0;
+    const paidRevenue = parseFloat(stats.paid_revenue) || 0;
+    const platformFee = (paidRevenue * commissionRate) / 100;
+    const totalRevenue = parseFloat(stats.total_revenue_all) || 0;
+
     const earningsResult = await pool.query(`
       SELECT 
         b.id,
@@ -105,14 +152,14 @@ export async function GET(request: Request) {
         b.booking_date,
         b.participants as guests,
         b.total_amount as amount,
-        (b.total_amount * 0.10) as platform_fee,
-        (b.total_amount * 0.90) as farmer_earning
+        (b.total_amount * $1 / 100) as platform_fee,
+        (b.total_amount * $2 / 100) as farmer_earning
       FROM bookings b
       JOIN farmer_activities a ON b.activity_id = a.id
-      WHERE b.farm_id = $1 AND b.status IN ('confirmed', 'completed', 'paid')
+      WHERE b.farm_id = $3 AND b.status IN ('confirmed', 'completed', 'paid')
       ORDER BY b.booking_date DESC
       LIMIT 5
-    `, [farmerId]);
+    `, [commissionRate, farmerPercentage, farmerId]);
 
     return NextResponse.json({
       id: farmer.id,
@@ -144,7 +191,10 @@ export async function GET(request: Request) {
         bookings: parseInt(stats.total_bookings) || 0,
         rating: parseFloat(stats.avg_rating) || 0,
         reviews: parseInt(stats.total_reviews) || 0,
-        totalEarnings: parseFloat(stats.total_earnings) * 0.9 || 0 // 90% after platform fee
+        totalEarnings: totalEarningsSum,
+        totalRevenue: totalRevenue,
+        platformFee: platformFee,
+        commissionRate: commissionRate
       },
       recentEarnings: earningsResult.rows.map(row => ({
         id: row.id,
