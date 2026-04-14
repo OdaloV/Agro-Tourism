@@ -2,8 +2,47 @@ import { NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import pool from '@/lib/db';
-import { checkMaintenanceMode } from '@/lib/utils/checkMaintenance';
 import { sendVerificationEmail } from '@/lib/services/notificationService';
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User ID required' },
+        { status: 400 }
+      );
+    }
+    
+    const result = await pool.query(
+      `SELECT verification_status, verification_submitted_at, verified_at
+       FROM farmer_profiles 
+       WHERE user_id = $1`,
+      [userId]
+    );
+    
+    if (result.rows.length === 0) {
+      return NextResponse.json({ 
+        status: 'not_found'
+      });
+    }
+    
+    return NextResponse.json({
+      status: result.rows[0].verification_status || 'not_submitted',
+      submittedAt: result.rows[0].verification_submitted_at,
+      verifiedAt: result.rows[0].verified_at
+    });
+    
+  } catch (error) {
+    console.error('Error checking verification:', error);
+    return NextResponse.json(
+      { error: 'Failed to check verification status' },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -15,11 +54,40 @@ export async function POST(request: Request) {
     console.log("User ID:", userId);
     
     if (!userId) {
-      console.log("No user ID");
       return NextResponse.json(
         { error: 'User ID required' },
         { status: 400 }
       );
+    }
+    
+    // Check if farmer is already verified
+    const existingStatusResult = await pool.query(
+      'SELECT verification_status FROM farmer_profiles WHERE user_id = $1',
+      [userId]
+    );
+    
+    if (existingStatusResult.rows.length > 0) {
+      const currentStatus = existingStatusResult.rows[0].verification_status;
+      
+      if (currentStatus === 'approved') {
+        return NextResponse.json(
+          { 
+            error: 'Your farm is already verified. No further action needed.',
+            status: 'already_verified'
+          },
+          { status: 400 }
+        );
+      }
+      
+      if (currentStatus === 'pending') {
+        return NextResponse.json(
+          { 
+            error: 'Your verification is already in progress. Please wait for review.',
+            status: 'already_pending'
+          },
+          { status: 400 }
+        );
+      }
     }
     
     // Get farmer profile id and user details
@@ -27,8 +95,6 @@ export async function POST(request: Request) {
       'SELECT fp.id, u.email, u.name FROM farmer_profiles fp JOIN users u ON fp.user_id = u.id WHERE fp.user_id = $1',
       [userId]
     );
-    
-    console.log("Farmer result:", farmerResult.rows);
     
     if (farmerResult.rows.length === 0) {
       return NextResponse.json(
@@ -41,17 +107,14 @@ export async function POST(request: Request) {
     const userEmail = farmerResult.rows[0].email;
     const userName = farmerResult.rows[0].name;
     
-    // Create uploads directory if it doesn't exist
+    // Create uploads directory
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'documents');
     await mkdir(uploadDir, { recursive: true });
-    
-    console.log("Upload directory:", uploadDir);
     
     const documents: { id: string; file: File; type?: string }[] = [];
     
     // Process uploaded files
     for (const [key, value] of formData.entries()) {
-      console.log("Processing:", key, value instanceof File ? `File: ${value.name}` : value);
       if (value instanceof File && value.size > 0) {
         documents.push({ id: key, file: value });
       } else if (typeof value === 'string' && key.endsWith('_type')) {
@@ -63,39 +126,47 @@ export async function POST(request: Request) {
       }
     }
     
-    console.log("Documents to save:", documents.length);
+    // Check for required documents
+    const requiredDocs = ['national_id', 'selfie_photo', 'ownership_proof'];
+    const uploadedDocIds = documents.map(d => d.id);
+    const missingDocs = requiredDocs.filter(doc => !uploadedDocIds.includes(doc));
+    
+    if (missingDocs.length > 0) {
+      return NextResponse.json(
+        { error: `Missing required documents: ${missingDocs.join(', ')}` },
+        { status: 400 }
+      );
+    }
     
     // Save each document
     for (const doc of documents) {
       const fileExt = doc.file.name.split('.').pop() || 'pdf';
-      const filePath = path.join(uploadDir, `${farmerId}_${doc.id}_${Date.now()}.${fileExt}`);
+      const fileName = `${farmerId}_${doc.id}_${Date.now()}.${fileExt}`;
+      const filePath = path.join(uploadDir, fileName);
       const bytes = await doc.file.arrayBuffer();
       const buffer = Buffer.from(bytes);
       await writeFile(filePath, buffer);
       
-      const fileUrl = `/uploads/documents/${path.basename(filePath)}`;
+      const fileUrl = `/uploads/documents/${fileName}`;
+      const documentTypeValue = doc.type || doc.id;
       
       await pool.query(
-        `INSERT INTO farmer_documents (farmer_id, document_type, document_url, status)
-         VALUES ($1, $2, $3, 'pending')
+        `INSERT INTO farmer_documents (farmer_id, document_type, document_url, status, uploaded_at)
+         VALUES ($1, $2, $3, 'pending', CURRENT_TIMESTAMP)
          ON CONFLICT (farmer_id, document_type) 
          DO UPDATE SET document_url = $3, status = 'pending', uploaded_at = CURRENT_TIMESTAMP`,
-        [farmerId, doc.id, fileUrl]
+        [farmerId, documentTypeValue, fileUrl]
       );
     }
     
-    console.log("Documents saved successfully");
-  
-    // Get auto-approve setting from database
+    // Get auto-approve setting
     const settingsResult = await pool.query(
       "SELECT value FROM platform_settings WHERE key = 'auto_approve'"
     );
     const autoApprove = settingsResult.rows[0]?.value === 'true';
-    
-    // Determine new verification status
     const newStatus = autoApprove ? 'approved' : 'pending';
     
-    // Update farmer profile verification status
+    // Update farmer profile
     await pool.query(
       `UPDATE farmer_profiles 
        SET verification_status = $1, 
@@ -105,18 +176,13 @@ export async function POST(request: Request) {
       [newStatus, userId]
     );
     
-    console.log(`Verification status updated to: ${newStatus} (autoApprove: ${autoApprove})`);
-    
-    // ✅ Generate verification code and send email (only if not auto-approved)
     let verificationCode = null;
     let sendVerificationEmailFlag = false;
     
     if (!autoApprove) {
-      // Generate 6-digit verification code
       verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-      const codeExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+      const codeExpires = new Date(Date.now() + 15 * 60 * 1000);
       
-      // Save verification code to user
       await pool.query(
         `UPDATE users 
          SET verification_code = $1, 
@@ -125,19 +191,15 @@ export async function POST(request: Request) {
         [verificationCode, codeExpires, userId]
       );
       
-      // Send verification email
       await sendVerificationEmail(userEmail, userName, verificationCode);
       sendVerificationEmailFlag = true;
-      
-      console.log(`Verification email sent to ${userEmail} with code: ${verificationCode}`);
     }
     
     return NextResponse.json({
       success: true,
-      message: 'Documents submitted successfully',
+      message: autoApprove ? 'Your farm has been automatically approved!' : 'Documents submitted successfully. Our team will review your application.',
       verificationStatus: newStatus,
-      sendVerificationEmail: sendVerificationEmailFlag,
-      requiresEmailVerification: !autoApprove
+      sendVerificationEmail: sendVerificationEmailFlag
     });
     
   } catch (error: any) {
