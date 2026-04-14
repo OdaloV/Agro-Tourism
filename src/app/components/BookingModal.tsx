@@ -1,10 +1,8 @@
-// src/app/components/BookingModal.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import { X, Calendar, Users, Clock, MessageCircle, Smartphone } from "lucide-react";
 import PriceCalculator from "./PriceCalculator";
-
 
 interface Activity {
   id: number;
@@ -25,6 +23,25 @@ interface BookingModalProps {
   onBookingComplete: (booking: any) => void;
 }
 
+interface GroupSettings {
+  max_guests_per_booking: number;
+  daily_capacity: number;
+  discount_tiers: Array<{
+    min_guests: number;
+    discount_percent: number;
+  }>;
+  advance_notice_days: {
+    tier1: number;
+    tier2: number;
+    tier3: number;
+  };
+  requirements: {
+    require_deposit: boolean;
+    require_waiver: boolean;
+    require_coordinator: boolean;
+  };
+}
+
 export default function BookingModal({ isOpen, onClose, activity, farmId, farmName, onBookingComplete }: BookingModalProps) {
   const [bookingDate, setBookingDate] = useState("");
   const [timeSlot, setTimeSlot] = useState("");
@@ -35,8 +52,14 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
   const [discountPercent, setDiscountPercent] = useState(0);
   const [loading, setLoading] = useState(false);
   const [requiresQuote, setRequiresQuote] = useState(false);
-  const [booking, setBooking] = useState<any>(null); // ADDED: booking state
-  const [phoneNumber, setPhoneNumber] = useState(""); // ADDED: phone number for M-Pesa
+  const [booking, setBooking] = useState<any>(null);
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [waiverAccepted, setWaiverAccepted] = useState(false);
+  
+  // Group settings state
+  const [groupSettings, setGroupSettings] = useState<GroupSettings | null>(null);
+  const [showGroupWarning, setShowGroupWarning] = useState(false);
+  const [advanceNoticeDays, setAdvanceNoticeDays] = useState(0);
   
   // User info state for payment
   const [userEmail, setUserEmail] = useState("");
@@ -53,7 +76,7 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
           const user = JSON.parse(userData);
           setUserEmail(user.email || "");
           setUserPhone(user.phone || "");
-          setPhoneNumber(user.phone || ""); // Set phone number from user data
+          setPhoneNumber(user.phone || "");
           const nameParts = (user.name || "Guest User").split(" ");
           setUserFirstName(nameParts[0]);
           setUserLastName(nameParts.slice(1).join(" ") || "User");
@@ -64,15 +87,86 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
     }
   }, [isOpen]);
 
+  // Fetch group settings when modal opens
+  useEffect(() => {
+    if (isOpen && farmId) {
+      fetchGroupSettings();
+    }
+  }, [isOpen, farmId]);
+
+  const fetchGroupSettings = async () => {
+    try {
+      const response = await fetch(`/api/farms/${farmId}/group-settings`);
+      if (response.ok) {
+        const data = await response.json();
+        setGroupSettings(data);
+      }
+    } catch (error) {
+      console.error('Error fetching group settings:', error);
+    }
+  };
+
+  // Calculate discount based on participants
+  const getDiscountPercentFromTiers = (guestCount: number) => {
+    if (!groupSettings?.discount_tiers) return 0;
+    let highestDiscount = 0;
+    for (const tier of groupSettings.discount_tiers) {
+      if (guestCount >= tier.min_guests && tier.discount_percent > highestDiscount) {
+        highestDiscount = tier.discount_percent;
+      }
+    }
+    return highestDiscount;
+  };
+
+  // Get advance notice required
+  const getAdvanceNoticeRequired = (guestCount: number) => {
+    if (!groupSettings?.advance_notice_days) return 0;
+    if (guestCount >= 50) return groupSettings.advance_notice_days.tier3;
+    if (guestCount >= 21) return groupSettings.advance_notice_days.tier2;
+    if (guestCount >= 11) return groupSettings.advance_notice_days.tier1;
+    return 0;
+  };
+
+  // Check advance notice
+  useEffect(() => {
+    const required = getAdvanceNoticeRequired(participants);
+    setAdvanceNoticeDays(required);
+    
+    if (bookingDate && required > 0) {
+      const selectedDate = new Date(bookingDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const daysDifference = Math.ceil((selectedDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
+      setShowGroupWarning(daysDifference < required);
+    } else {
+      setShowGroupWarning(false);
+    }
+  }, [participants, bookingDate]);
+
   const handlePriceChange = (total: number, count: number, discount: number) => {
     setTotalAmount(total);
     setParticipants(count);
     setDiscountPercent(discount);
   };
 
+  // Get dynamic discount from group settings
+  const dynamicDiscount = getDiscountPercentFromTiers(participants);
+
   const handleSubmit = async () => {
     if (!bookingDate) {
       alert("Please select a date");
+      return;
+    }
+
+    // Check advance notice warning
+    if (showGroupWarning) {
+      alert(`Groups of this size require ${advanceNoticeDays} days advance notice. Please select a later date.`);
+      return;
+    }
+
+    // Check waiver if required
+    if (participants >= 50 && groupSettings?.requirements.require_waiver && !waiverAccepted) {
+      alert("Please accept the waiver requirement to continue.");
       return;
     }
 
@@ -91,7 +185,9 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
           groupName: participants >= 11 ? groupName : undefined,
           specialRequests,
           contactPhone: userPhone,
-          contactEmail: userEmail
+          contactEmail: userEmail,
+          discountPercent: dynamicDiscount,
+          waiverAccepted: participants >= 50 ? waiverAccepted : undefined
         })
       });
 
@@ -110,7 +206,6 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
         return;
       }
 
-      // Store the booking data
       setBooking(bookingData.booking);
       
       // Step 2: Initiate payment with M-Pesa
@@ -128,14 +223,11 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
 
       if (paymentData.success) {
         if (paymentData.redirectUrl) {
-          // For Pesapal (if still used) - redirect
           window.location.href = paymentData.redirectUrl;
         } else {
-          // For M-Pesa Daraja - STK Push sent
           alert('STK Push sent to your phone. Enter your PIN to complete payment.');
           onBookingComplete(bookingData.booking);
           onClose();
-          // Redirect to bookings page
           window.location.href = '/visitor/dashboard/bookings';
         }
       } else {
@@ -180,6 +272,14 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
             />
           </div>
 
+          {/* Advance Notice Warning */}
+          {showGroupWarning && (
+            <div className="p-3 bg-amber-100 rounded-lg text-sm text-amber-800">
+              ⚠️ Groups of this size require {advanceNoticeDays} days advance notice.
+              Please select a later date.
+            </div>
+          )}
+
           {/* M-Pesa Phone Number Input */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
@@ -200,7 +300,17 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
             pricePerPerson={activity.price}
             currency={activity.currency}
             onPriceChange={handlePriceChange}
+            discountPercent={dynamicDiscount}
           />
+
+          {/* Show discount info if applicable */}
+          {dynamicDiscount > 0 && (
+            <div className="p-2 bg-green-50 rounded-lg text-center">
+              <p className="text-sm text-green-700">
+                🎉 {dynamicDiscount}% group discount applied!
+              </p>
+            </div>
+          )}
 
           {participants >= 11 && participants <= 50 && (
             <div>
@@ -214,6 +324,36 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
                 placeholder="e.g., ABC School, Company Name"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-emerald-500"
               />
+            </div>
+          )}
+
+          {/* Large Group Requirements */}
+          {participants >= 50 && groupSettings?.requirements.require_deposit && (
+            <div className="p-3 bg-emerald-50 rounded-lg">
+              <p className="text-sm text-emerald-800">💰 A 50% deposit is required for groups of 50+ guests.</p>
+            </div>
+          )}
+
+          {participants >= 50 && groupSettings?.requirements.require_waiver && (
+            <div className="p-3 bg-emerald-50 rounded-lg">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={waiverAccepted}
+                  onChange={(e) => setWaiverAccepted(e.target.checked)}
+                  className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                />
+                <span className="text-sm text-emerald-700">I agree to sign a waiver for this group visit</span>
+              </label>
+            </div>
+          )}
+
+          {participants >= 50 && groupSettings?.requirements.require_coordinator && (
+            <div className="p-3 bg-emerald-50 rounded-lg">
+              <p className="text-sm text-emerald-800">
+                📋 As the person making this booking, you will be the group coordinator.
+                The farmer will contact you using the information from your profile.
+              </p>
             </div>
           )}
 
@@ -240,7 +380,7 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
 
           <button
             onClick={handleSubmit}
-            disabled={loading || (isLargeGroup && !requiresQuote)}
+            disabled={loading || (isLargeGroup && !requiresQuote) || showGroupWarning || (participants >= 50 && groupSettings?.requirements.require_waiver && !waiverAccepted)}
             className="w-full py-3 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition disabled:opacity-50"
           >
             {loading ? "Processing..." : isLargeGroup ? "Request Quote" : "Proceed to Payment"}
