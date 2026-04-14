@@ -1,4 +1,3 @@
-// src/app/farmer/settings/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -23,7 +22,6 @@ import PaymentSettingsTab from "./components/PaymentSettingsTab";
 import BusinessHoursTab from "./components/BusinessHoursTab";
 import SecurityTab from "./components/SecurityTab";
 
-
 interface SettingsData {
   user: {
     id: number;
@@ -44,12 +42,12 @@ interface SettingsData {
   };
   facilities: string[];
   settings: {
-    notification_email_bookings: boolean;
-    notification_email_messages: boolean;
-    notification_email_reviews: boolean;
-    notification_email_promotions: boolean;
-    notification_sms: boolean;
-    notification_booking_reminders: boolean;
+    email_new_bookings: boolean;
+    email_new_messages: boolean;
+    email_new_reviews: boolean;
+    email_promotions: boolean;
+    sms_alerts: boolean;
+    reminder_upcoming_booking: boolean;
     marketing_emails: boolean;
   };
   payment: {
@@ -128,7 +126,7 @@ export default function FarmerSettings() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
       </div>
     );
   }
@@ -138,7 +136,7 @@ export default function FarmerSettings() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-500">Failed to load settings</p>
-          <button onClick={fetchSettings} className="mt-4 px-4 py-2 bg-accent text-white rounded-lg">
+          <button onClick={fetchSettings} className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-lg">
             Retry
           </button>
         </div>
@@ -152,20 +150,18 @@ export default function FarmerSettings() {
         
         {/* Header */}
         <div className="mb-6">
-  <Link href="/farmer/dashboard" className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 mb-4">
-    <ArrowLeft className="h-5 w-5" />
-    Back to Dashboard
-  </Link>
-  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-    <div>
-      <h1 className="text-3xl font-heading font-bold text-emerald-900">Settings</h1>
-      <p className="text-emerald-600 mt-1">Manage your account and farm preferences</p>
-    </div>
-    <div className="flex items-center gap-3">
-    
-    </div>
-  </div>
-</div>  {/* ← Make sure this closes the mb-6 div */}
+          <Link href="/farmer/dashboard" className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 mb-4">
+            <ArrowLeft className="h-5 w-5" />
+            Back to Dashboard
+          </Link>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-heading font-bold text-emerald-900">Settings</h1>
+              <p className="text-emerald-600 mt-1">Manage your account and farm preferences</p>
+            </div>
+          </div>
+        </div>
+
         {/* Tabs */}
         <div className="flex flex-wrap gap-2 border-b border-emerald-200 mb-6">
           {tabs.map((tab) => {
@@ -176,7 +172,7 @@ export default function FarmerSettings() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-t-lg transition ${
                   activeTab === tab.id
-                    ? "bg-white text-accent border-t border-l border-r border-emerald-200 -mb-px"
+                    ? "bg-white text-emerald-600 border-t border-l border-r border-emerald-200 -mb-px"
                     : "text-gray-500 hover:text-emerald-600"
                 }`}
               >

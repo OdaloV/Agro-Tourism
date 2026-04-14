@@ -1,17 +1,20 @@
-// src/app/farmer/settings/components/NotificationSettingsTab.tsx
 "use client";
 
 import { useState } from "react";
-import { Bell, Mail, Phone, Calendar, Star, Megaphone, Save } from "lucide-react";
+import { Bell, Mail, Smartphone, Calendar, Megaphone, Save, Star, MessageCircle, ShoppingBag } from "lucide-react";
 
 interface NotificationSettingsTabProps {
   settings: {
-    notification_email_bookings: boolean;
-    notification_email_messages: boolean;
-    notification_email_reviews: boolean;
-    notification_email_promotions: boolean;
-    notification_sms: boolean;
-    notification_booking_reminders: boolean;
+    // Email Notifications
+    email_new_bookings: boolean;
+    email_new_messages: boolean;
+    email_new_reviews: boolean;
+    email_promotions: boolean;
+    // SMS Notifications
+    sms_alerts: boolean;
+    // Booking Reminders
+    reminder_upcoming_booking: boolean;
+    // Marketing
     marketing_emails: boolean;
   };
   onSave: (data: any) => void;
@@ -20,12 +23,16 @@ interface NotificationSettingsTabProps {
 
 export default function NotificationSettingsTab({ settings, onSave, saving }: NotificationSettingsTabProps) {
   const [formData, setFormData] = useState({
-    email_bookings: settings.notification_email_bookings ?? true,
-    email_messages: settings.notification_email_messages ?? true,
-    email_reviews: settings.notification_email_reviews ?? true,
-    email_promotions: settings.notification_email_promotions ?? false,
-    sms: settings.notification_sms ?? false,
-    booking_reminders: settings.notification_booking_reminders ?? true,
+    // Email Notifications
+    email_new_bookings: settings.email_new_bookings ?? true,
+    email_new_messages: settings.email_new_messages ?? true,
+    email_new_reviews: settings.email_new_reviews ?? true,
+    email_promotions: settings.email_promotions ?? false,
+    // SMS Notifications
+    sms_alerts: settings.sms_alerts ?? false,
+    // Booking Reminders
+    reminder_upcoming_booking: settings.reminder_upcoming_booking ?? true,
+    // Marketing
     marketing_emails: settings.marketing_emails ?? false,
   });
 
@@ -34,142 +41,167 @@ export default function NotificationSettingsTab({ settings, onSave, saving }: No
     onSave(formData);
   };
 
+  const toggleSetting = (key: keyof typeof formData) => {
+    setFormData(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold text-emerald-900 mb-4">Notification Preferences</h2>
-        <p className="text-sm text-gray-500 mb-6">Choose how you want to receive updates</p>
+      <div className="flex items-center gap-3 mb-4">
+        <Bell className="h-6 w-6 text-emerald-600" />
+        <div>
+          <h2 className="text-xl font-semibold text-emerald-900">Notification Preferences</h2>
+          <p className="text-sm text-emerald-500">Choose how you want to receive updates</p>
+        </div>
       </div>
 
       {/* Email Notifications */}
-      <div className="border border-gray-200 rounded-lg p-4">
+      <div className="bg-emerald-50 rounded-xl p-5 border border-emerald-100">
         <div className="flex items-center gap-2 mb-4">
-          <Mail className="h-5 w-5 text-accent" />
-          <h3 className="font-medium text-emerald-900">Email Notifications</h3>
+          <Mail className="h-5 w-5 text-emerald-600" />
+          <h3 className="font-semibold text-emerald-900">Email Notifications</h3>
         </div>
-        <div className="space-y-3">
-          <label className="flex items-center justify-between cursor-pointer">
-            <div>
-              <span className="text-gray-700">New Bookings</span>
-              <p className="text-xs text-gray-400">Receive email when someone books your farm</p>
-            </div>
-            <input
-              type="checkbox"
-              checked={formData.email_bookings}
-              onChange={(e) => setFormData({ ...formData, email_bookings: e.target.checked })}
-              className="rounded border-gray-300 text-accent focus:ring-accent"
-            />
-          </label>
-          
-          <label className="flex items-center justify-between cursor-pointer">
-            <div>
-              <span className="text-gray-700">New Messages</span>
-              <p className="text-xs text-gray-400">Receive email when visitors message you</p>
-            </div>
-            <input
-              type="checkbox"
-              checked={formData.email_messages}
-              onChange={(e) => setFormData({ ...formData, email_messages: e.target.checked })}
-              className="rounded border-gray-300 text-accent focus:ring-accent"
-            />
-          </label>
-          
-          <label className="flex items-center justify-between cursor-pointer">
-            <div>
-              <span className="text-gray-700">New Reviews</span>
-              <p className="text-xs text-gray-400">Receive email when visitors leave reviews</p>
-            </div>
-            <input
-              type="checkbox"
-              checked={formData.email_reviews}
-              onChange={(e) => setFormData({ ...formData, email_reviews: e.target.checked })}
-              className="rounded border-gray-300 text-accent focus:ring-accent"
-            />
-          </label>
-          
-          <label className="flex items-center justify-between cursor-pointer">
-            <div>
-              <span className="text-gray-700">Promotions & Updates</span>
-              <p className="text-xs text-gray-400">Receive platform news and feature updates</p>
-            </div>
-            <input
-              type="checkbox"
-              checked={formData.email_promotions}
-              onChange={(e) => setFormData({ ...formData, email_promotions: e.target.checked })}
-              className="rounded border-gray-300 text-accent focus:ring-accent"
-            />
-          </label>
+        <div className="space-y-4">
+          <NotificationItem
+            title="New Bookings"
+            description="Receive email when someone books your farm"
+            icon={ShoppingBag}
+            enabled={formData.email_new_bookings}
+            onToggle={() => toggleSetting("email_new_bookings")}
+          />
+          <NotificationItem
+            title="New Messages"
+            description="Receive email when visitors message you"
+            icon={MessageCircle}
+            enabled={formData.email_new_messages}
+            onToggle={() => toggleSetting("email_new_messages")}
+          />
+          <NotificationItem
+            title="New Reviews"
+            description="Receive email when visitors leave reviews"
+            icon={Star}
+            enabled={formData.email_new_reviews}
+            onToggle={() => toggleSetting("email_new_reviews")}
+          />
+          <NotificationItem
+            title="Promotions & Updates"
+            description="Receive platform news and feature updates"
+            icon={Megaphone}
+            enabled={formData.email_promotions}
+            onToggle={() => toggleSetting("email_promotions")}
+          />
         </div>
       </div>
 
       {/* SMS Notifications */}
-      <div className="border border-gray-200 rounded-lg p-4">
+      <div className="bg-emerald-50 rounded-xl p-5 border border-emerald-100">
         <div className="flex items-center gap-2 mb-4">
-          <Phone className="h-5 w-5 text-accent" />
-          <h3 className="font-medium text-emerald-900">SMS Notifications</h3>
+          <Smartphone className="h-5 w-5 text-emerald-600" />
+          <h3 className="font-semibold text-emerald-900">SMS Notifications</h3>
         </div>
-        <label className="flex items-center justify-between cursor-pointer">
-          <div>
-            <span className="text-gray-700">SMS Alerts</span>
-            <p className="text-xs text-gray-400">Receive text messages for important updates</p>
-          </div>
-          <input
-            type="checkbox"
-            checked={formData.sms}
-            onChange={(e) => setFormData({ ...formData, sms: e.target.checked })}
-            className="rounded border-gray-300 text-accent focus:ring-accent"
+        <div className="space-y-4">
+          <NotificationItem
+            title="SMS Alerts"
+            description="Receive text messages for important updates"
+            icon={Smartphone}
+            enabled={formData.sms_alerts}
+            onToggle={() => toggleSetting("sms_alerts")}
           />
-        </label>
+        </div>
       </div>
 
       {/* Booking Reminders */}
-      <div className="border border-gray-200 rounded-lg p-4">
+      <div className="bg-emerald-50 rounded-xl p-5 border border-emerald-100">
         <div className="flex items-center gap-2 mb-4">
-          <Calendar className="h-5 w-5 text-accent" />
-          <h3 className="font-medium text-emerald-900">Booking Reminders</h3>
+          <Calendar className="h-5 w-5 text-emerald-600" />
+          <h3 className="font-semibold text-emerald-900">Booking Reminders</h3>
         </div>
-        <label className="flex items-center justify-between cursor-pointer">
-          <div>
-            <span className="text-gray-700">Upcoming Booking Reminders</span>
-            <p className="text-xs text-gray-400">Get reminded 1 day before a booking</p>
-          </div>
-          <input
-            type="checkbox"
-            checked={formData.booking_reminders}
-            onChange={(e) => setFormData({ ...formData, booking_reminders: e.target.checked })}
-            className="rounded border-gray-300 text-accent focus:ring-accent"
+        <div className="space-y-4">
+          <NotificationItem
+            title="Upcoming Booking Reminders"
+            description="Get reminded 1 day before a booking"
+            icon={Calendar}
+            enabled={formData.reminder_upcoming_booking}
+            onToggle={() => toggleSetting("reminder_upcoming_booking")}
           />
-        </label>
+        </div>
       </div>
 
-      {/* Marketing Emails */}
-      <div className="border border-gray-200 rounded-lg p-4">
+      {/* Marketing Communications */}
+      <div className="bg-emerald-50 rounded-xl p-5 border border-emerald-100">
         <div className="flex items-center gap-2 mb-4">
-          <Megaphone className="h-5 w-5 text-accent" />
-          <h3 className="font-medium text-emerald-900">Marketing Communications</h3>
+          <Megaphone className="h-5 w-5 text-emerald-600" />
+          <h3 className="font-semibold text-emerald-900">Marketing Communications</h3>
         </div>
-        <label className="flex items-center justify-between cursor-pointer">
-          <div>
-            <span className="text-gray-700">Marketing Emails</span>
-            <p className="text-xs text-gray-400">Receive tips, insights, and special offers</p>
-          </div>
-          <input
-            type="checkbox"
-            checked={formData.marketing_emails}
-            onChange={(e) => setFormData({ ...formData, marketing_emails: e.target.checked })}
-            className="rounded border-gray-300 text-accent focus:ring-accent"
+        <div className="space-y-4">
+          <NotificationItem
+            title="Marketing Emails"
+            description="Receive tips, insights, and special offers"
+            icon={Megaphone}
+            enabled={formData.marketing_emails}
+            onToggle={() => toggleSetting("marketing_emails")}
           />
-        </label>
+        </div>
       </div>
 
-      <button
-        type="submit"
-        disabled={saving}
-        className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition disabled:opacity-50"
-      >
-        <Save className="h-4 w-4" />
-        {saving ? "Saving..." : "Save Preferences"}
-      </button>
+      {/* Save Button */}
+      <div className="flex justify-end pt-4">
+        <button
+          type="submit"
+          disabled={saving}
+          className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition disabled:opacity-50 font-medium"
+        >
+          {saving ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4" />
+              Save Preferences
+            </>
+          )}
+        </button>
+      </div>
     </form>
+  );
+}
+
+// Notification Item Component
+function NotificationItem({ 
+  title, 
+  description, 
+  icon: Icon, 
+  enabled, 
+  onToggle 
+}: { 
+  title: string; 
+  description: string; 
+  icon: any; 
+  enabled: boolean; 
+  onToggle: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between py-2">
+      <div className="flex items-start gap-3">
+        <div className="p-1.5 bg-white rounded-lg">
+          <Icon className="h-4 w-4 text-emerald-500" />
+        </div>
+        <div>
+          <p className="font-medium text-emerald-900">{title}</p>
+          <p className="text-sm text-emerald-500">{description}</p>
+        </div>
+      </div>
+      <label className="relative inline-flex items-center cursor-pointer">
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={onToggle}
+          className="sr-only peer"
+        />
+        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+      </label>
+    </div>
   );
 }
