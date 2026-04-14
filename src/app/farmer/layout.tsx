@@ -1,4 +1,3 @@
-// src/app/farmer/layout.tsx
 "use client";
 
 import Link from "next/link";
@@ -12,6 +11,7 @@ import {
   Tractor,
   Settings,
   LogOut,
+  Star, // Add Star icon for Reviews
 } from "lucide-react";
 import { useAuth } from "@/lib/context/AuthContext";
 import { useEffect, useState } from "react";
@@ -46,6 +46,11 @@ const navigationItems = [
     href: "/farmer/messages",
     label: "Messages",
     icon: MessageCircle,
+  },
+  {
+    href: "/farmer/reviews",  // Add Reviews section
+    label: "Reviews",
+    icon: Star,
   },
   {
     href: "/farmer/settings",
