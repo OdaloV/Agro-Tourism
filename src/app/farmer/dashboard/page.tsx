@@ -1,4 +1,3 @@
-// src/app/farmer/dashboard/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -163,7 +162,6 @@ export default function FarmerDashboard() {
         
         const data = await response.json();
         
-        // Fetch photos separately
         try {
           const photosResponse = await fetch(`/api/farmer/photos`);
           if (photosResponse.ok) {
@@ -178,7 +176,6 @@ export default function FarmerDashboard() {
           data.farmPhotos = 0;
         }
         
-        // Fetch profile photo
         try {
           const photoResponse = await fetch(`/api/farmer/profile/photo`);
           if (photoResponse.ok) {
@@ -189,7 +186,6 @@ export default function FarmerDashboard() {
           console.error("Error fetching profile photo:", photoError);
         }
         
-        // Fetch unread messages count
         try {
           const messagesResponse = await fetch(`/api/farmer/messages/unread-count`);
           if (messagesResponse.ok) {
@@ -202,7 +198,6 @@ export default function FarmerDashboard() {
         
         setFarmer(data);
         
-        // Fetch earnings data
         const earningsResponse = await fetch(`/api/farmer/earnings?farmerId=${data.id}`);
         if (earningsResponse.ok) {
           const earningsData = await earningsResponse.json();
@@ -265,7 +260,7 @@ export default function FarmerDashboard() {
   if (!mounted || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
       </div>
     );
   }
@@ -278,7 +273,7 @@ export default function FarmerDashboard() {
           <h2 className="text-xl font-semibold text-emerald-900">No data found</h2>
           <p className="text-emerald-600 mt-2">Please complete your profile</p>
           <Link href="/auth/register/farmer">
-            <button className="mt-4 px-6 py-2 bg-accent text-white rounded-xl">
+            <button className="mt-4 px-6 py-2 bg-emerald-600 text-white rounded-xl">
               Complete Profile
             </button>
           </Link>
@@ -295,14 +290,11 @@ export default function FarmerDashboard() {
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-100/30">
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         
-        {/* Header - Mobile responsive with profile photo */}
+        {/* Header */}
         <div className="mb-8">
-          {/* Mobile: Profile and welcome on top, buttons below */}
           <div className="flex flex-col gap-4">
-            {/* Welcome section with profile photo */}
             <div className="flex items-center gap-4">
-              {/* Profile Photo */}
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-accent flex items-center justify-center text-white text-lg font-bold overflow-hidden flex-shrink-0">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white text-lg font-bold overflow-hidden flex-shrink-0">
                 {profilePhoto ? (
                   <img src={profilePhoto} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
@@ -313,14 +305,12 @@ export default function FarmerDashboard() {
                 <h1 className="text-2xl md:text-3xl font-heading font-bold text-emerald-900">
                   Welcome back, {farmer.name?.split(" ")[0] || "Farmer"}!
                 </h1>
-                <p className="text-emerald-600 mt-1 text-sm md:txt-base">Manage your farm and track bookings</p>
+                <p className="text-emerald-600 mt-1 text-sm md:text-base">Manage your farm and track bookings</p>
               </div>
             </div>
             
-            {/* Action Buttons - Below on mobile, right on desktop */}
             <div className="flex flex-wrap items-center justify-end gap-3">
               <ThemeToggle />
-              {/* Show different button based on veerification status */}
               {isPending ? (
                 <button
                   onClick={() => {
@@ -337,7 +327,7 @@ export default function FarmerDashboard() {
               ) : (
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-600 rounded-xl transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl transition-colors"
                 >
                   <LogOut className="h-5 w-5" />
                   <span className="text-sm">Logout</span>
@@ -346,125 +336,101 @@ export default function FarmerDashboard() {
             </div>
           </div>
           
-          {/* Verification Status Badge */}
+          {/* Verification Status Badges - Fixed contrast */}
           <div className="mt-4">
             {isPending && (
-              <>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-amber-50 rounded-xl border border-amber-200">
-                  <div className="flex items-center gap-3">
-                    <Clock className="h-6 w-6 text-amber-600 animate-pulse" />
-                    <div>
-                      <p className="text-amber-800 font-medium">Awaiting Verification</p>
-                      <p className="text-xs text-amber-600">Documents submitted on {farmer.submittedAt}</p>
-                    </div>
-                  </div>
-                  <div className="text-left sm:text-right">
-                    <p className="text-xs text-amber-600 mb-1">Verification email sent to:</p>
-                    <p className="text-sm text-amber-700 font-mono">{farmer.email}</p>
-                    <button 
-                      onClick={async () => {
-                        try {
-                          const response = await fetch('/api/auth/resend-verification', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ email: farmer.email })
-                          });
-                          if (response.ok) {
-                            alert("Verification email resent! Check your inbox.");
-                          } else {
-                            alert("Failed to resend. Please try again.");
-                          }
-                        } catch (error) {
-                          console.error("Error resending verification:", error);
-                          alert("Failed to resend verification email.");
-                        }
-                      }}
-                      className="text-xs text-accent hover:underline mt-1"
-                    >
-                      Resend verification email
-                    </button>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-amber-100 rounded-xl border border-amber-300">
+                <div className="flex items-center gap-3">
+                  <Clock className="h-6 w-6 text-amber-700" />
+                  <div>
+                    <p className="text-amber-800 font-semibold">Awaiting Verification</p>
+                    <p className="text-xs text-amber-700">Documents submitted on {farmer.submittedAt}</p>
                   </div>
                 </div>
-                
-                {/* Reminder Card for Pending Farmers */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-200"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <AlertCircle className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-blue-800">Important Note</h4>
-                      <p className="text-sm text-blue-700 mt-1">
-                        Your account is currently pending verification. You will receive an email notification 
-                        once your farm has been approved. After receiving the approval email, you can click the 
-                        <strong> "Login to Dashboard"</strong> button above to access your full dashboard.
-                      </p>
-                      <div className="mt-2 flex items-center gap-2 text-xs text-blue-600">
-                        <CheckCircle className="h-3 w-3" />
-                        <span>Check your email for verification status updates</span>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              </>
+                <div className="text-left sm:text-right">
+                  <p className="text-xs text-amber-700 mb-1">Verification email sent to:</p>
+                  <p className="text-sm text-amber-800 font-mono font-medium">{farmer.email}</p>
+                  <button 
+                    onClick={async () => {
+                      try {
+                        const response = await fetch('/api/auth/resend-verification', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ email: farmer.email })
+                        });
+                        if (response.ok) {
+                          alert("Verification email resent! Check your inbox.");
+                        } else {
+                          alert("Failed to resend. Please try again.");
+                        }
+                      } catch (error) {
+                        console.error("Error resending verification:", error);
+                        alert("Failed to resend verification email.");
+                      }
+                    }}
+                    className="text-xs text-emerald-700 hover:text-emerald-800 font-medium underline mt-1"
+                  >
+                    Resend verification email
+                  </button>
+                </div>
+              </div>
             )}
             
             {isApproved && (
-              <div className="flex items-center gap-2 px-4 py-2 bg-green-100 rounded-xl border border-green-200 w-fit">
-                <CheckCircle className="h-5 w-5 text-green-600" />
+              <div className="flex items-center gap-3 px-4 py-3 bg-green-600 rounded-xl border border-green-700 shadow-sm">
+                <CheckCircle className="h-5 w-5 text-white" />
                 <div>
-                  <p className="text-green-800 font-medium">Verified Farm</p>
-                  <p className="text-xs text-green-600">Your farm is live!</p>
+                  <p className="text-white font-semibold">Verified Farm</p>
+                  <p className="text-xs text-green-100">Your farm is live and visible to visitors!</p>
                 </div>
               </div>
             )}
             
             {isRejected && (
-              <div className="flex items-center gap-2 px-4 py-2 bg-red-100 rounded-xl border border-red-200 w-fit">
-                <AlertCircle className="h-5 w-5 text-red-600" />
+              <div className="flex items-center gap-3 px-4 py-3 bg-red-600 rounded-xl border border-red-700 shadow-sm">
+                <AlertCircle className="h-5 w-5 text-white" />
                 <div>
-                  <p className="text-red-800 font-medium">Verification Needed</p>
-                  <p className="text-xs text-red-600">Please check your documents</p>
+                  <p className="text-white font-semibold">Verification Needed</p>
+                  <p className="text-xs text-red-100">Please check your documents and resubmit</p>
                 </div>
               </div>
             )}
           </div>
         </div>
 
-        {/* Stats Grid - Only for approved farmers */}
+        {/* Stats Grid */}
         {isApproved && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <StatCard
               icon={Eye}
               label="Profile Views"
               value={farmer.stats.profileViews}
-              suffix="views"
-              color="emerald"
+              suffix=" views"
+              bgColor="bg-emerald-500"
+              iconColor="text-white"
             />
             <StatCard
               icon={Calendar}
               label="Total Bookings"
               value={farmer.stats.bookings}
-              suffix="bookings"
-              color="accent"
+              suffix=" bookings"
+              bgColor="bg-blue-500"
+              iconColor="text-white"
             />
             <StatCard
               icon={Star}
               label="Rating"
-              value={farmer.stats.rating}
-              suffix={farmer.stats.rating === 0 ? "No reviews" : "⭐"}
-              color="amber"
+              value={farmer.stats.rating === 0 ? "No reviews" : farmer.stats.rating.toFixed(1)}
+              suffix={farmer.stats.rating > 0 ? " ★" : ""}
+              bgColor="bg-amber-500"
+              iconColor="text-white"
             />
             <StatCard
               icon={DollarSign}
               label="Total Earnings"
-              value={totalEarnings}
-              prefix="KES "
-              color="blue"
+              value={`KES ${totalEarnings.toLocaleString()}`}
+              bgColor="bg-green-500"
+              iconColor="text-white"
             />
           </div>
         )}
@@ -502,30 +468,28 @@ export default function FarmerDashboard() {
               </div>
               
               <div className="p-6 space-y-4">
-                {/* Farm Stats */}
                 <div className="flex flex-wrap gap-4">
                   {farmer.farmSize && (
                     <div className="flex items-center gap-2">
-                      <Ruler className="h-4 w-4 text-emerald-500" />
-                      <span className="text-sm text-emerald-700">{farmer.farmSize} acres</span>
+                      <Ruler className="h-4 w-4 text-emerald-600" />
+                      <span className="text-sm text-emerald-700 font-medium">{farmer.farmSize} acres</span>
                     </div>
                   )}
                   {farmer.yearEstablished && (
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-emerald-500" />
-                      <span className="text-sm text-emerald-700">Est. {farmer.yearEstablished}</span>
+                      <Calendar className="h-4 w-4 text-emerald-600" />
+                      <span className="text-sm text-emerald-700 font-medium">Est. {farmer.yearEstablished}</span>
                     </div>
                   )}
                   <div className="flex items-center gap-2">
-                    <Home className="h-4 w-4 text-emerald-500" />
-                    <span className="text-sm text-emerald-700">{farmer.accommodation ? "Has Accommodation" : "No Accommodation"}</span>
+                    <Home className="h-4 w-4 text-emerald-600" />
+                    <span className="text-sm text-emerald-700 font-medium">{farmer.accommodation ? "Has Accommodation" : "No Accommodation"}</span>
                   </div>
                 </div>
                 
-                {/* Farm Description */}
                 {farmer.farmDescription && (
                   <div>
-                    <h3 className="font-medium text-emerald-800 mb-2">About the Farm</h3>
+                    <h3 className="font-semibold text-emerald-800 mb-2">About the Farm</h3>
                     <p className="text-emerald-700 text-sm leading-relaxed">
                       {showFullDescription 
                         ? farmer.farmDescription 
@@ -533,7 +497,7 @@ export default function FarmerDashboard() {
                       {farmer.farmDescription.length > 150 && (
                         <button
                           onClick={() => setShowFullDescription(!showFullDescription)}
-                          className="text-accent hover:underline ml-1 text-sm"
+                          className="text-emerald-600 hover:text-emerald-700 font-medium underline ml-1 text-sm"
                         >
                           {showFullDescription ? "Show less" : "Read more"}
                         </button>
@@ -542,16 +506,15 @@ export default function FarmerDashboard() {
                   </div>
                 )}
                 
-                {/* Facilities */}
                 {farmer.facilities && farmer.facilities.length > 0 && (
                   <div>
-                    <h3 className="font-medium text-emerald-800 mb-2 flex items-center gap-2">
-                      <Building className="h-4 w-4" />
+                    <h3 className="font-semibold text-emerald-800 mb-2 flex items-center gap-2">
+                      <Building className="h-4 w-4 text-emerald-600" />
                       Facilities
                     </h3>
                     <div className="flex flex-wrap gap-2">
                       {farmer.facilities.map((facility, index) => (
-                        <span key={index} className="px-3 py-1 bg-amber-100 text-amber-700 text-sm rounded-full">
+                        <span key={index} className="px-3 py-1.5 bg-emerald-600 text-white text-sm font-medium rounded-full">
                           {facility}
                         </span>
                       ))}
@@ -561,7 +524,7 @@ export default function FarmerDashboard() {
               </div>
             </motion.div>
             
-            {/* Media Gallery - Only show for approved farmers */}
+            {/* Media Gallery */}
             {isApproved ? (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -578,7 +541,7 @@ export default function FarmerDashboard() {
                 className="bg-white rounded-2xl shadow-sm border border-emerald-100 p-6"
               >
                 <h2 className="text-lg font-heading font-semibold text-emerald-900 mb-4 flex items-center gap-2">
-                  <Camera className="h-5 w-5 text-accent" />
+                  <Camera className="h-5 w-5 text-emerald-600" />
                   Media Gallery
                 </h2>
                 <div className="text-center py-8">
@@ -590,94 +553,88 @@ export default function FarmerDashboard() {
             )}
           </div>
           
-          {/* Right Column - Status & Documents */}
+          {/* Right Column */}
           <div className="space-y-6">
             
-            {/* Verification Status Card */}
+            {/* Verification Status Card - Fixed contrast with solid colors */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className={`rounded-2xl p-6 border ${
-                isPending 
-                  ? "bg-amber-50 border-amber-200" 
-                  : isApproved 
-                    ? "bg-green-50 border-green-200" 
-                    : "bg-red-50 border-red-200"
-              }`}
             >
-              <div className="flex items-center gap-3 mb-4">
-                <div className={`p-2 rounded-xl ${
-                  isPending ? "bg-amber-100" : isApproved ? "bg-green-100" : "bg-red-100"
-                }`}>
-                  {isPending ? (
-                    <Clock className="h-6 w-6 text-amber-600" />
-                  ) : isApproved ? (
-                    <CheckCircle className="h-6 w-6 text-green-600" />
-                  ) : (
-                    <AlertCircle className="h-6 w-6 text-red-600" />
-                  )}
-                </div>
-                <div>
-                  <h3 className="font-heading font-bold text-emerald-900">
-                    {isPending ? "Verification in Progress" : isApproved ? "Farm Verified!" : "Action Required"}
-                  </h3>
-                  <p className="text-sm text-emerald-600">
-                    {isPending 
-                      ? "Our team is reviewing your documents" 
-                      : isApproved 
-                        ? "Your farm is now visible to visitors" 
-                        : "Please check the issues below"}
-                  </p>
-                </div>
-              </div>
-              
               {isPending && (
-                <div className="mt-4 space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-emerald-600">Review time</span>
-                    <span className="text-emerald-800 font-medium">2-3 business days</span>
+                <div className="rounded-2xl p-6 border border-amber-600 bg-amber-500 shadow-sm">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 rounded-xl bg-amber-600">
+                      <Clock className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-heading font-bold text-white">Verification in Progress</h3>
+                      <p className="text-sm text-amber-100">Our team is reviewing your documents</p>
+                    </div>
                   </div>
-                  <div className="w-full bg-amber-200 rounded-full h-2">
-                    <div className="bg-amber-500 h-2 rounded-full w-1/3 animate-pulse" />
+                  <div className="mt-4 space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-amber-100">Review time</span>
+                      <span className="text-white font-semibold">2-3 business days</span>
+                    </div>
+                    <div className="w-full bg-amber-400 rounded-full h-2">
+                      <div className="bg-amber-700 h-2 rounded-full w-1/3" />
+                    </div>
+                    <Link href="/farmer/verification">
+                      <button className="mt-2 w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-medium transition-colors">
+                        Continue Verification
+                      </button>
+                    </Link>
                   </div>
-                  <p className="text-xs text-emerald-500 mt-2">
-                    You'll receive an email once verification is complete
-                  </p>
-                  <Link href="/farmer/verification">
-                    <button className="mt-2 w-full py-2 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-xl text-sm font-medium transition-colors">
-                      Continue Verification
-                    </button>
-                  </Link>
                 </div>
               )}
               
               {isApproved && (
-                <div className="mt-4">
-                  <div className="bg-green-100 rounded-xl p-3 mb-3">
-                    <p className="text-green-700 text-sm">✅ Your farm is now live and visible to visitors!</p>
+                <div className="rounded-2xl p-6 border border-green-700 bg-green-600 shadow-sm">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 rounded-xl bg-green-700">
+                      <CheckCircle className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-heading font-bold text-white">Farm Verified!</h3>
+                      <p className="text-sm text-green-100">Your farm is now visible to visitors</p>
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <div className="bg-green-700 rounded-xl p-3">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-5 w-5 text-green-200" />
+                        <p className="text-green-100 font-medium">Your farm is now live and visible to visitors!</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
               
               {isRejected && (
-                <div className="mt-4 p-3 bg-red-100 rounded-xl">
-                  <p className="text-sm text-red-700 font-medium mb-2">Issues to fix:</p>
-                  <ul className="text-xs text-red-600 space-y-1">
-                    {!farmer.documents.businessLicense && <li>• Business License missing</li>}
-                    {!farmer.documents.nationalId && <li>• National ID missing</li>}
-                    {!farmer.documents.insurance && <li>• Insurance Certificate missing</li>}
-                  </ul>
-                  <Link href="/farmer/verification">
-                    <button className="mt-3 w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-medium transition-colors">
-                      Re-submit Documents
-                    </button>
-                  </Link>
+                <div className="rounded-2xl p-6 border border-red-700 bg-red-600 shadow-sm">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 rounded-xl bg-red-700">
+                      <AlertCircle className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-heading font-bold text-white">Action Required</h3>
+                      <p className="text-sm text-red-100">Please check the issues below</p>
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <Link href="/farmer/verification">
+                      <button className="mt-3 w-full py-2 bg-red-700 hover:bg-red-800 text-white rounded-xl text-sm font-medium transition-colors">
+                        Re-submit Documents
+                      </button>
+                    </Link>
+                  </div>
                 </div>
               )}
             </motion.div>
 
-            {/* Earnings Section - Only for approved farmers */}
+            {/* Earnings Section */}
             {isApproved && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -688,7 +645,7 @@ export default function FarmerDashboard() {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-heading font-semibold text-emerald-900">Recent Earnings</h3>
                   <Link href="/farmer/earnings">
-                    <button className="text-sm text-accent hover:underline">View All</button>
+                    <button className="text-sm text-emerald-600 hover:text-emerald-700 font-medium">View All</button>
                   </Link>
                 </div>
                 
@@ -703,14 +660,14 @@ export default function FarmerDashboard() {
                       <div key={earning.id} className="flex justify-between items-center p-3 bg-emerald-50 rounded-xl">
                         <div>
                           <p className="font-medium text-emerald-900">{earning.activityName}</p>
-                          <p className="text-xs text-emerald-500">
+                          <p className="text-xs text-emerald-600">
                             {new Date(earning.bookingDate).toLocaleDateString()} • {earning.guests} guests
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-xs text-gray-500 line-through">KES {earning.amount}</p>
-                          <p className="text-xs text-red-500">-KES {earning.platformFee} (10%)</p>
-                          <p className="font-bold text-green-600">KES {earning.farmerEarning}</p>
+                          <p className="text-xs text-gray-500 line-through">KES {earning.amount.toLocaleString()}</p>
+                          <p className="text-xs text-red-600">-KES {earning.platformFee.toLocaleString()} (10%)</p>
+                          <p className="font-bold text-green-700">KES {earning.farmerEarning.toLocaleString()}</p>
                         </div>
                       </div>
                     ))
@@ -719,58 +676,10 @@ export default function FarmerDashboard() {
                 
                 <div className="mt-4 pt-4 border-t border-emerald-100">
                   <div className="flex justify-between items-center">
-                    <span className="text-emerald-700">Total Earnings</span>
+                    <span className="text-emerald-700 font-medium">Total Earnings</span>
                     <span className="text-2xl font-bold text-emerald-900">KES {totalEarnings.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between items-center mt-2 text-sm text-emerald-500">
-                    <span>Total Bookings: {farmer.stats.bookings}</span>
-                    <span>Platform Fee: KES {totalPlatformFee.toLocaleString()}</span>
-                  </div>
                 </div>
-              </motion.div>
-            )}
-            
-            {/* Documents Status Card - Only show if pending or rejected */}
-            {(isPending || isRejected) && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="bg-white rounded-2xl shadow-sm border border-emerald-100 p-6"
-              >
-                <h3 className="font-heading font-semibold text-emerald-900 mb-4 flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-accent" />
-                  Documents Status
-                </h3>
-                <div className="space-y-3">
-                  {[
-                    { key: "businessLicense", label: "Business License", status: farmer.documents.businessLicense },
-                    { key: "nationalId", label: "National ID / Passport", status: farmer.documents.nationalId },
-                    { key: "insurance", label: "Insurance Certificate", status: farmer.documents.insurance },
-                    { key: "certifications", label: "Certifications", status: farmer.documents.certifications, optional: true },
-                  ].map((doc) => (
-                    <div key={doc.key} className="flex items-center justify-between py-2 border-b border-emerald-100 last:border-0">
-                      <span className="text-sm text-emerald-700">{doc.label}</span>
-                      {doc.status ? (
-                        <span className="flex items-center gap-1 text-green-600 text-sm">
-                          <CheckCircle className="h-4 w-4" />
-                          Uploaded
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-amber-600 text-sm">
-                          <AlertCircle className="h-4 w-4" />
-                          {doc.optional ? "Optional" : "Pending"}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <Link href="/farmer/verification">
-                  <button className="mt-4 w-full py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-1">
-                    {isPending ? "Continue Verification" : "Upload Documents"}
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </Link>
               </motion.div>
             )}
             
@@ -785,28 +694,22 @@ export default function FarmerDashboard() {
               <div className="space-y-2">
                 <Link href="/farmer/activities">
                   <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
-                    <span className="text-emerald-700">📋 View All Activities</span>
+                    <span className="text-emerald-700 font-medium">📋 View All Activities</span>
                     <ChevronRight className="h-4 w-4 text-emerald-500" />
                   </button>
                 </Link>
                 <Link href="/farmer/activities/new">
                   <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
-                    <span className="text-emerald-700">➕ Add New Activity</span>
-                    <ChevronRight className="h-4 w-4 text-emerald-500" />
-                  </button>
-                </Link>
-                <Link href="/farmer/calendar">
-                  <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
-                    <span className="text-emerald-700">📅 Manage Calendar</span>
+                    <span className="text-emerald-700 font-medium">➕ Add New Activity</span>
                     <ChevronRight className="h-4 w-4 text-emerald-500" />
                   </button>
                 </Link>
                 <Link href="/farmer/messages">
                   <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
-                    <span className="text-emerald-700 flex items-center gap-2">
+                    <span className="text-emerald-700 font-medium flex items-center gap-2">
                       💬 Messages
                       {unreadMessages > 0 && (
-                        <span className="bg-accent text-white text-xs px-2 py-0.5 rounded-full">
+                        <span className="bg-emerald-600 text-white text-xs px-2 py-0.5 rounded-full">
                           {unreadMessages}
                         </span>
                       )}
@@ -816,13 +719,13 @@ export default function FarmerDashboard() {
                 </Link>
                 <Link href="/farmer/profile/edit">
                   <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
-                    <span className="text-emerald-700">✏️ Edit Farm Profile</span>
+                    <span className="text-emerald-700 font-medium">✏️ Edit Farm Profile</span>
                     <ChevronRight className="h-4 w-4 text-emerald-500" />
                   </button>
                 </Link>
                 <Link href="/farmer/analytics">
                   <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
-                    <span className="text-emerald-700 flex items-center gap-2">
+                    <span className="text-emerald-700 font-medium flex items-center gap-2">
                       <BarChart3 className="h-5 w-5" />
                       Analytics & Insights
                     </span>
@@ -831,25 +734,16 @@ export default function FarmerDashboard() {
                 </Link>
                 <Link href="/farmer/schedule">
                   <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
-                    <span className="text-emerald-700 flex items-center gap-2">
+                    <span className="text-emerald-700 font-medium flex items-center gap-2">
                       <Calendar className="h-5 w-5" />
                       Schedule & Bookings
                     </span>
                     <ChevronRight className="h-4 w-4 text-emerald-500" />
                   </button>
                 </Link>
-                <Link href="/farmer/group-bookings">
-  <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
-    <span className="text-emerald-700 flex items-center gap-2">
-      <Users className="h-5 w-5" />
-      Group Bookings
-    </span>
-    <ChevronRight className="h-4 w-4 text-emerald-500" />
-  </button>
-</Link>
                 <Link href="/farmer/settings">
                   <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
-                    <span className="text-emerald-700 flex items-center gap-2">
+                    <span className="text-emerald-700 font-medium flex items-center gap-2">
                       <Settings className="h-5 w-5" />
                       Settings
                     </span>
@@ -866,28 +760,21 @@ export default function FarmerDashboard() {
 }
 
 // Stat Card Component
-function StatCard({ icon: Icon, label, value, suffix, prefix, color }: { 
+function StatCard({ icon: Icon, label, value, suffix, bgColor, iconColor }: { 
   icon: any;
   label: string;
-  value: number | string;
+  value: string | number;
   suffix?: string;
-  prefix?: string;
-  color: 'emerald' | 'accent' | 'amber' | 'blue';
+  bgColor: string;
+  iconColor: string;
 }) {
-  const colors = {
-    emerald: "bg-emerald-100 text-emerald-600",
-    accent: "bg-accent/10 text-accent",
-    amber: "bg-amber-100 text-amber-600",
-    blue: "bg-blue-100 text-blue-600",
-  };
-
   return (
     <div className="bg-white rounded-2xl p-5 shadow-sm border border-emerald-100">
-      <div className={`inline-flex p-2 rounded-xl ${colors[color]}`}>
-        <Icon className="h-5 w-5" />
+      <div className={`inline-flex p-2 rounded-xl ${bgColor}`}>
+        <Icon className={`h-5 w-5 ${iconColor}`} />
       </div>
       <p className="text-2xl font-bold text-emerald-900 mt-3">
-        {prefix}{value}{suffix}
+        {value}{suffix}
       </p>
       <p className="text-sm text-emerald-600 mt-0.5">{label}</p>
     </div>
