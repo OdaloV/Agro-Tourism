@@ -92,22 +92,22 @@ export default function FarmerVerificationPage() {
     }
   }, [router]);
 
-  const checkVerificationStatus = async (id: string) => {
-    try {
-      const response = await fetch(`/api/farmer/verification/status?userId=${id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setVerificationStatus(data.status);
-      } else {
-        setVerificationStatus('not_submitted');
-      }
-    } catch (error) {
-      console.error("Error checking verification status:", error);
+ const checkVerificationStatus = async (id: string) => {
+  try {
+    const response = await fetch(`/api/farmer/verification?userId=${id}`);
+    if (response.ok) {
+      const data = await response.json();
+      setVerificationStatus(data.status);
+    } else {
       setVerificationStatus('not_submitted');
-    } finally {
-      setLoadingStatus(false);
     }
-  };
+  } catch (error) {
+    console.error("Error checking verification status:", error);
+    setVerificationStatus('not_submitted');
+  } finally {
+    setLoadingStatus(false);
+  }
+};
 
   const currentStepData = verificationSteps.find((s) => s.id === currentStep);
   const currentDocs = stepDocuments[currentStep] || [];

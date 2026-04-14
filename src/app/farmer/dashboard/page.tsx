@@ -684,74 +684,84 @@ export default function FarmerDashboard() {
             )}
             
             {/* Quick Actions */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="bg-white rounded-2xl shadow-sm border border-emerald-100 p-6"
-            >
-              <h3 className="font-heading font-semibold text-emerald-900 mb-4">Quick Actions</h3>
-              <div className="space-y-2">
-                <Link href="/farmer/activities">
-                  <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
-                    <span className="text-emerald-700 font-medium">📋 View All Activities</span>
-                    <ChevronRight className="h-4 w-4 text-emerald-500" />
-                  </button>
-                </Link>
-                <Link href="/farmer/activities/new">
-                  <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
-                    <span className="text-emerald-700 font-medium">➕ Add New Activity</span>
-                    <ChevronRight className="h-4 w-4 text-emerald-500" />
-                  </button>
-                </Link>
-                <Link href="/farmer/messages">
-                  <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
-                    <span className="text-emerald-700 font-medium flex items-center gap-2">
-                      💬 Messages
-                      {unreadMessages > 0 && (
-                        <span className="bg-emerald-600 text-white text-xs px-2 py-0.5 rounded-full">
-                          {unreadMessages}
-                        </span>
-                      )}
-                    </span>
-                    <ChevronRight className="h-4 w-4 text-emerald-500" />
-                  </button>
-                </Link>
-                <Link href="/farmer/profile/edit">
-                  <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
-                    <span className="text-emerald-700 font-medium">✏️ Edit Farm Profile</span>
-                    <ChevronRight className="h-4 w-4 text-emerald-500" />
-                  </button>
-                </Link>
-                <Link href="/farmer/analytics">
-                  <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
-                    <span className="text-emerald-700 font-medium flex items-center gap-2">
-                      <BarChart3 className="h-5 w-5" />
-                      Analytics & Insights
-                    </span>
-                    <ChevronRight className="h-4 w-4 text-emerald-500" />
-                  </button>
-                </Link>
-                <Link href="/farmer/schedule">
-                  <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
-                    <span className="text-emerald-700 font-medium flex items-center gap-2">
-                      <Calendar className="h-5 w-5" />
-                      Schedule & Bookings
-                    </span>
-                    <ChevronRight className="h-4 w-4 text-emerald-500" />
-                  </button>
-                </Link>
-                <Link href="/farmer/settings">
-                  <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
-                    <span className="text-emerald-700 font-medium flex items-center gap-2">
-                      <Settings className="h-5 w-5" />
-                      Settings
-                    </span>
-                    <ChevronRight className="h-4 w-4 text-emerald-500" />
-                  </button>
-                </Link>
-              </div>
-            </motion.div>
+           {/* Quick Actions */}
+<motion.div
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ delay: 0.4 }}
+  className="bg-white rounded-2xl shadow-sm border border-emerald-100 p-6"
+>
+  <h3 className="font-heading font-semibold text-emerald-900 mb-4">Quick Actions</h3>
+  <div className="space-y-2">
+    <Link href="/farmer/activities">
+      <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
+        <span className="text-emerald-700 font-medium">📋 View All Activities</span>
+        <ChevronRight className="h-4 w-4 text-emerald-500" />
+      </button>
+    </Link>
+    <Link href="/farmer/activities/new">
+      <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
+        <span className="text-emerald-700 font-medium">➕ Add New Activity</span>
+        <ChevronRight className="h-4 w-4 text-emerald-500" />
+      </button>
+    </Link>
+    <Link href="/farmer/messages">
+      <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
+        <span className="text-emerald-700 font-medium flex items-center gap-2">
+          💬 Messages
+          {unreadMessages > 0 && (
+            <span className="bg-emerald-600 text-white text-xs px-2 py-0.5 rounded-full">
+              {unreadMessages}
+            </span>
+          )}
+        </span>
+        <ChevronRight className="h-4 w-4 text-emerald-500" />
+      </button>
+    </Link>
+    <Link href="/farmer/reviews">
+      <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
+        <span className="text-emerald-700 font-medium flex items-center gap-2">
+          <Star className="h-5 w-5" />
+          Reviews & Ratings
+        </span>
+        <ChevronRight className="h-4 w-4 text-emerald-500" />
+      </button>
+    </Link>
+    <Link href="/farmer/profile/edit">
+      <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
+        <span className="text-emerald-700 font-medium">✏️ Edit Farm Profile</span>
+        <ChevronRight className="h-4 w-4 text-emerald-500" />
+      </button>
+    </Link>
+    <Link href="/farmer/analytics">
+      <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
+        <span className="text-emerald-700 font-medium flex items-center gap-2">
+          <BarChart3 className="h-5 w-5" />
+          Analytics & Insights
+        </span>
+        <ChevronRight className="h-4 w-4 text-emerald-500" />
+      </button>
+    </Link>
+    <Link href="/farmer/schedule">
+      <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
+        <span className="text-emerald-700 font-medium flex items-center gap-2">
+          <Calendar className="h-5 w-5" />
+          Schedule & Bookings
+        </span>
+        <ChevronRight className="h-4 w-4 text-emerald-500" />
+      </button>
+    </Link>
+    <Link href="/farmer/settings">
+      <button className="w-full flex items-center justify-between p-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors">
+        <span className="text-emerald-700 font-medium flex items-center gap-2">
+          <Settings className="h-5 w-5" />
+          Settings
+        </span>
+        <ChevronRight className="h-4 w-4 text-emerald-500" />
+      </button>
+    </Link>
+  </div>
+</motion.div>
           </div>
         </div>
       </div>
