@@ -83,7 +83,7 @@ export default function AdminLogin() {
                 Admin Email
               </label>
               <div className="relative group">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40 group-focus-within:text-accent" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40 group-focus-within:text-accent transition-colors" />
                 <input
                   type="email"
                   required
@@ -91,8 +91,8 @@ export default function AdminLogin() {
                   onChange={(e) =>
                     setFormData({ ...formData, email: e.target.value })
                   }
-                  className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
-                  placeholder="harvesthost@gmail.com"
+                  className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+                  placeholder="admin@harvesthost.com"
                 />
               </div>
             </div>
@@ -102,7 +102,7 @@ export default function AdminLogin() {
                 Password
               </label>
               <div className="relative group">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40 group-focus-within:text-accent" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40 group-focus-within:text-accent transition-colors" />
                 <input
                   type={showPassword ? "text" : "password"}
                   required
@@ -110,13 +110,13 @@ export default function AdminLogin() {
                   onChange={(e) =>
                     setFormData({ ...formData, password: e.target.value })
                   }
-                  className="w-full pl-10 pr-12 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+                  className="w-full pl-10 pr-12 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
                   placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/60"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/60 transition"
                 >
                   {showPassword ? (
                     <EyeOff className="h-5 w-5" />
@@ -141,7 +141,7 @@ export default function AdminLogin() {
               </label>
               <Link
                 href="/auth/forgot-password"
-                className="text-sm text-accent hover:underline"
+                className="text-sm text-accent hover:underline transition"
               >
                 Forgot password?
               </Link>
@@ -167,6 +167,7 @@ export default function AdminLogin() {
               )}
             </motion.button>
           </form>
+
         </AuthCard>
       </div>
     </div>
