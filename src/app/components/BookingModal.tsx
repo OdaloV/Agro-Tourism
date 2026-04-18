@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Calendar, Users, Clock, MessageCircle, Smartphone } from "lucide-react";
+import { X, Calendar, Users, Clock, MessageCircle, Smartphone, CalendarCheck } from "lucide-react";
 import PriceCalculator from "./PriceCalculator";
 
 interface Activity {
@@ -55,6 +55,7 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
   const [booking, setBooking] = useState<any>(null);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [waiverAccepted, setWaiverAccepted] = useState(false);
+  const [addToCalendar, setAddToCalendar] = useState(true);
   
   // Group settings state
   const [groupSettings, setGroupSettings] = useState<GroupSettings | null>(null);
@@ -187,7 +188,11 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
           contactPhone: userPhone,
           contactEmail: userEmail,
           discountPercent: dynamicDiscount,
-          waiverAccepted: participants >= 50 ? waiverAccepted : undefined
+          waiverAccepted: participants >= 50 ? waiverAccepted : undefined,
+          addToCalendar,
+          durationMinutes: activity.duration_minutes,
+          activityName: activity.name,
+          farmName,
         })
       });
 
@@ -311,6 +316,21 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
               </p>
             </div>
           )}
+
+          {/* Add to Google Calendar Option */}
+          <div className="flex items-center gap-2 p-2 bg-emerald-50 rounded-lg">
+            <input
+              type="checkbox"
+              id="addToCalendar"
+              checked={addToCalendar}
+              onChange={(e) => setAddToCalendar(e.target.checked)}
+              className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+            />
+            <label htmlFor="addToCalendar" className="flex items-center gap-2 text-sm text-emerald-700 cursor-pointer">
+              <CalendarCheck className="h-4 w-4" />
+              Add to Google Calendar
+            </label>
+          </div>
 
           {participants >= 11 && participants <= 50 && (
             <div>

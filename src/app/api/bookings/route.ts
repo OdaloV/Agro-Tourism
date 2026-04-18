@@ -1,7 +1,7 @@
-// src/app/api/bookings/route.ts (Enhanced for groups)
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { jwtVerify } from 'jose';
+import { createCalendarEvent } from '@/lib/google-calendar';
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'your-secret-key-change-in-production'
@@ -65,7 +65,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { 
       farmId, activityId, bookingDate, timeSlot, participants, 
-      specialRequests, groupName, contactPhone, contactEmail 
+      specialRequests, groupName, contactPhone, contactEmail,
+      discountPercent: customDiscount, addToCalendar, durationMinutes, activityName, farmName
     } = body;
     
     if (!farmId || !bookingDate || !participants || !activityId) {
@@ -93,8 +94,20 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
     
-    // Calculate pricing
-    const pricing = calculatePricing(pricePerPerson, participants);
+    // Calculate pricing (use custom discount if provided, otherwise calculate)
+    let pricing;
+    if (customDiscount && customDiscount > 0) {
+      const discountAmount = (pricePerPerson * participants) * (customDiscount / 100);
+      pricing = {
+        discountPercent: customDiscount,
+        discountAmount,
+        totalAmount: (pricePerPerson * participants) - discountAmount,
+        category: 'custom_discount',
+        requiresQuote: false
+      };
+    } else {
+      pricing = calculatePricing(pricePerPerson, participants);
+    }
     
     // For large groups (50+), create a quote request instead of instant booking
     if (pricing.requiresQuote) {
@@ -149,6 +162,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Selected date is not available' }, { status: 400 });
     }
     
+    // Get visitor name for calendar event
+    const visitorResult = await pool.query(
+      'SELECT name FROM users WHERE id = $1',
+      [user.id]
+    );
+    const visitorName = visitorResult.rows[0]?.name || 'Guest';
+    
     // Create booking
     const bookingResult = await pool.query(
       `INSERT INTO bookings (
@@ -171,14 +191,52 @@ export async function POST(request: NextRequest) {
     
     const booking = bookingResult.rows[0];
     
-    // Create payment record
-    // await pool.query(
-    //   `INSERT INTO payments (
-    //     booking_id, amount, platform_fee, farmer_earnings, 
-    //     currency, status, created_at
-    //   ) VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
-    //   [booking.id, pricing.totalAmount, platformFee, farmerEarning, activity.currency, 'pending']
-    // );
+    // Create Google Calendar event if requested
+    let googleEventId = null;
+    if (addToCalendar) {
+      try {
+        // Get farm details for calendar event
+        const farmResult = await pool.query(
+          'SELECT farm_name, farm_location, farmer_email FROM farmer_profiles WHERE id = $1',
+          [farmId]
+        );
+        const farmData = farmResult.rows[0];
+        
+        const eventData = {
+          booking_reference: booking.booking_reference,
+          participants: participants,
+          special_requests: specialRequests || 'None',
+          visitor_name: visitorName,
+          visitor_phone: contactPhone || user.email,
+          visitor_email: contactEmail || user.email,
+          total_amount: pricing.totalAmount,
+          booking_date: bookingDate,
+        };
+        
+        const farmCalendarData = {
+          farm_name: farmData.farm_name,
+          farm_location: farmData.farm_location,
+          farmer_email: farmData.farmer_email,
+        };
+        
+        const activityData = {
+          name: activityName || activity.activity_name,
+          duration_minutes: durationMinutes || 60,
+        };
+        
+        const calendarEvent = await createCalendarEvent(eventData, farmCalendarData, activityData);
+        googleEventId = calendarEvent.id;
+        
+        // Save Google event ID to booking
+        await pool.query(
+          'UPDATE bookings SET google_event_id = $1 WHERE id = $2',
+          [googleEventId, booking.id]
+        );
+      } catch (calendarError) {
+        console.error('Error creating Google Calendar event:', calendarError);
+        // Don't fail the booking if calendar creation fails
+      }
+    }
     
     // Notify farmer
     await pool.query(
@@ -204,7 +262,8 @@ export async function POST(request: NextRequest) {
         discountAmount: pricing.discountAmount,
         originalAmount: pricing.totalAmount + pricing.discountAmount,
         participants,
-        category: pricing.category
+        category: pricing.category,
+        googleEventId: googleEventId,
       },
       paymentUrl: `/visitor/payment/${booking.id}`
     });
@@ -240,7 +299,8 @@ export async function GET(request: NextRequest) {
         fp.latitude,
         fp.longitude,
         a.activity_name,
-        a.duration_minutes
+        a.duration_minutes,
+        b.google_event_id
       FROM bookings b
       JOIN farmer_profiles fp ON b.farm_id = fp.id
       JOIN farmer_activities a ON b.activity_id = a.id
