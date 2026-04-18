@@ -14,7 +14,9 @@ import {
   X,
   ChevronLeft,
   Trash2,
+  CalendarCheck,
 } from "lucide-react";
+import AddToCalendar from "@/app/components/AddToCalendar";
 
 interface Booking {
   id: number;
@@ -27,6 +29,7 @@ interface Booking {
   totalPrice: number;
   specialRequests?: string;
   waitlistPosition?: number;
+  googleEventId?: string;
 }
 
 export default function VisitorBookings() {
@@ -69,7 +72,8 @@ export default function VisitorBookings() {
             status: b.status,
             totalPrice: parseFloat(b.total_amount),
             specialRequests: b.special_requests,
-            waitlistPosition: b.waitlist_position
+            waitlistPosition: b.waitlist_position,
+            googleEventId: b.google_event_id,
           }));
           
           setBookings(realBookings);
@@ -125,7 +129,6 @@ export default function VisitorBookings() {
   };
 
   const handleDelete = async (bookingId: number, status: string) => {
-    // Allow deletion of pending, cancelled, or past bookings
     if (status === 'confirmed') {
       alert('Cannot delete a confirmed booking. Please cancel instead.');
       return;
@@ -472,6 +475,17 @@ function BookingCard({ booking, onCancel, onDelete, onReschedule, onSpecialReque
                   <Trash2 className="h-4 w-4" />
                 )}
               </button>
+              {/* Add to Calendar button for confirmed bookings */}
+              {booking.status === "confirmed" && (
+                <AddToCalendar
+                  bookingId={booking.id}
+                  bookingDate={booking.date}
+                  farmName={booking.farmName}
+                  activityName={booking.activity}
+                  variant="icon"
+                  className="px-3 py-1.5"
+                />
+              )}
             </div>
           )}
         </div>
@@ -480,7 +494,7 @@ function BookingCard({ booking, onCancel, onDelete, onReschedule, onSpecialReque
   );
 }
 
-// Past Booking Card Component (WITH DELETE BUTTON)
+// Past Booking Card Component
 function PastBookingCard({ booking, onRebook, onWriteReview, onDelete, isDeleting }: { 
   booking: Booking; 
   onRebook: (booking: Booking) => void; 
@@ -551,7 +565,7 @@ function PastBookingCard({ booking, onRebook, onWriteReview, onDelete, isDeletin
   );
 }
 
-// Waitlist Card Component (WITH DELETE BUTTON)
+// Waitlist Card Component
 function WaitlistCard({ booking, onDelete, isDeleting }: { 
   booking: Booking;
   onDelete: (id: number, status: string) => void;

@@ -1,7 +1,7 @@
-// src/app/api/cron/send-reminders/route.ts
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
-import { sendEmail } from '@/lib/email';
+import { sendBookingReminderEmail } from '@/lib/email';
+import { getCalendarClient, createCalendarEvent } from '@/lib/google-calendar';
 
 export async function GET(request: Request) {
   // Verify cron job secret
@@ -14,17 +14,24 @@ export async function GET(request: Request) {
   try {
     console.log('Running reminder cron job...');
     
+    // Check for bookings in 24 hours (tomorrow)
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = tomorrow.toISOString().split('T')[0];
     
-    // FIXED: reminder_sent is BOOLEAN, not timestamp
-    const bookings = await pool.query(`
+    // Check for bookings in 1 hour
+    const oneHourLater = new Date();
+    oneHourLater.setHours(oneHourLater.getHours() + 1);
+    
+    // Get bookings for tomorrow (24h reminder)
+    const bookings24h = await pool.query(`
       SELECT 
         b.id,
         b.booking_date,
+        b.booking_reference,
         b.activity_name,
         b.participants,
+        b.google_event_id,
         u.id as visitor_id,
         u.name as visitor_name,
         u.email as visitor_email,
@@ -32,65 +39,195 @@ export async function GET(request: Request) {
         fp.farm_name,
         fp.farm_location,
         fp.city,
-        fp.county
+        fp.county,
+        fp.farmer_email
       FROM bookings b
       JOIN users u ON b.visitor_id = u.id
       JOIN farmer_profiles fp ON b.farm_id = fp.id
-      WHERE b.booking_date = $1 
+      WHERE b.booking_date::date = $1 
         AND b.status = 'confirmed'
-        AND (b.reminder_sent IS NULL OR b.reminder_sent = false)
+        AND (b.reminder_24h_sent IS NULL OR b.reminder_24h_sent = false)
     `, [tomorrowStr]);
     
-    console.log(`Found ${bookings.rows.length} bookings for tomorrow`);
+    // Get bookings for next hour (1h reminder)
+    const bookings1h = await pool.query(`
+      SELECT 
+        b.id,
+        b.booking_date,
+        b.booking_reference,
+        b.activity_name,
+        b.participants,
+        b.google_event_id,
+        u.id as visitor_id,
+        u.name as visitor_name,
+        u.email as visitor_email,
+        u.phone as visitor_phone,
+        fp.farm_name,
+        fp.farm_location,
+        fp.city,
+        fp.county,
+        fp.farmer_email
+      FROM bookings b
+      JOIN users u ON b.visitor_id = u.id
+      JOIN farmer_profiles fp ON b.farm_id = fp.id
+      WHERE b.booking_date BETWEEN NOW() AND $1
+        AND b.status = 'confirmed'
+        AND (b.reminder_1h_sent IS NULL OR b.reminder_1h_sent = false)
+    `, [oneHourLater.toISOString()]);
     
-    let remindersSent = 0;
+    console.log(`Found ${bookings24h.rows.length} bookings for 24h reminder`);
+    console.log(`Found ${bookings1h.rows.length} bookings for 1h reminder`);
+    
+    let remindersSent24h = 0;
+    let remindersSent1h = 0;
+    let calendarEventsCreated = 0;
     let errors = 0;
     
-    for (const booking of bookings.rows) {
+    // Process 24-hour reminders
+    for (const booking of bookings24h.rows) {
       try {
-        // Send email reminder
-        const emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background: linear-gradient(135deg, #065f46, #047857); padding: 20px; text-align: center; border-radius: 12px 12px 0 0;">
-              <h1 style="color: white; margin: 0;">Farm Visit Reminder</h1>
-            </div>
-            <div style="padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
-              <p>Dear ${booking.visitor_name},</p>
-              <p>This is a reminder that you have a farm experience booked for <strong>tomorrow</strong>!</p>
-              
-              <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                <p><strong>🌾 Farm:</strong> ${booking.farm_name}</p>
-                <p><strong>📅 Date:</strong> ${new Date(booking.booking_date).toLocaleDateString()}</p>
-                <p><strong>🎯 Activity:</strong> ${booking.activity_name}</p>
-                <p><strong>👥 Guests:</strong> ${booking.participants}</p>
-              </div>
-              
-              <p>Please arrive 15 minutes early.</p>
-            </div>
-          </div>
-        `;
+        // Generate Google Calendar link if not already exists
+        let calendarLink = null;
+        if (!booking.google_event_id) {
+          try {
+            const farmData = {
+              farm_name: booking.farm_name,
+              farm_location: booking.farm_location,
+              farmer_email: booking.farmer_email,
+            };
+            const activityData = {
+              name: booking.activity_name,
+              duration_minutes: 60,
+            };
+            const eventData = {
+              booking_reference: booking.booking_reference,
+              participants: booking.participants,
+              special_requests: 'None',
+              visitor_name: booking.visitor_name,
+              visitor_phone: booking.visitor_phone,
+              visitor_email: booking.visitor_email,
+              total_amount: 0,
+              booking_date: booking.booking_date,
+            };
+            
+            const event = await createCalendarEvent(eventData, farmData, activityData);
+            calendarLink = event.htmlLink;
+            
+            // Save Google event ID
+            await pool.query(
+              'UPDATE bookings SET google_event_id = $1 WHERE id = $2',
+              [event.id, booking.id]
+            );
+            calendarEventsCreated++;
+          } catch (calendarError) {
+            console.error(`Failed to create calendar event for booking ${booking.id}:`, calendarError);
+          }
+        } else {
+          calendarLink = `https://calendar.google.com/calendar/r?eventid=${booking.google_event_id}`;
+        }
         
-        await sendEmail(booking.visitor_email, `Reminder: Your farm visit at ${booking.farm_name} is tomorrow!`, emailHtml);
+        // Send email reminder with calendar link
+        await sendBookingReminderEmail({
+          to: booking.visitor_email,
+          farmerEmail: booking.farmer_email,
+          bookingReference: booking.booking_reference,
+          farmName: booking.farm_name,
+          activityName: booking.activity_name,
+          bookingDate: booking.booking_date,
+          reminderTime: '24 hours',
+          calendarLink: calendarLink || undefined,
+        });
         
-        // Mark reminder as sent
+        // Mark 24h reminder as sent
         await pool.query(`
-          UPDATE bookings SET reminder_sent = true WHERE id = $1
+          UPDATE bookings SET reminder_24h_sent = true WHERE id = $1
         `, [booking.id]);
         
-        remindersSent++;
-        console.log(`✅ Reminder sent for booking ${booking.id} to ${booking.visitor_email}`);
+        remindersSent24h++;
+        console.log(`✅ 24h reminder sent for booking ${booking.id} to ${booking.visitor_email}`);
         
       } catch (error) {
         errors++;
-        console.error(`❌ Failed to send reminder for booking ${booking.id}:`, error);
+        console.error(`❌ Failed to send 24h reminder for booking ${booking.id}:`, error);
+      }
+    }
+    
+    // Process 1-hour reminders
+    for (const booking of bookings1h.rows) {
+      try {
+        // Generate Google Calendar link if not already exists
+        let calendarLink = null;
+        if (!booking.google_event_id) {
+          try {
+            const farmData = {
+              farm_name: booking.farm_name,
+              farm_location: booking.farm_location,
+              farmer_email: booking.farmer_email,
+            };
+            const activityData = {
+              name: booking.activity_name,
+              duration_minutes: 60,
+            };
+            const eventData = {
+              booking_reference: booking.booking_reference,
+              participants: booking.participants,
+              special_requests: 'None',
+              visitor_name: booking.visitor_name,
+              visitor_phone: booking.visitor_phone,
+              visitor_email: booking.visitor_email,
+              total_amount: 0,
+              booking_date: booking.booking_date,
+            };
+            
+            const event = await createCalendarEvent(eventData, farmData, activityData);
+            calendarLink = event.htmlLink;
+            
+            await pool.query(
+              'UPDATE bookings SET google_event_id = $1 WHERE id = $2',
+              [event.id, booking.id]
+            );
+            calendarEventsCreated++;
+          } catch (calendarError) {
+            console.error(`Failed to create calendar event for booking ${booking.id}:`, calendarError);
+          }
+        } else {
+          calendarLink = `https://calendar.google.com/calendar/r?eventid=${booking.google_event_id}`;
+        }
+        
+        // Send email reminder with calendar link
+        await sendBookingReminderEmail({
+          to: booking.visitor_email,
+          farmerEmail: booking.farmer_email,
+          bookingReference: booking.booking_reference,
+          farmName: booking.farm_name,
+          activityName: booking.activity_name,
+          bookingDate: booking.booking_date,
+          reminderTime: '1 hour',
+          calendarLink: calendarLink || undefined,
+        });
+        
+        // Mark 1h reminder as sent
+        await pool.query(`
+          UPDATE bookings SET reminder_1h_sent = true WHERE id = $1
+        `, [booking.id]);
+        
+        remindersSent1h++;
+        console.log(`✅ 1h reminder sent for booking ${booking.id} to ${booking.visitor_email}`);
+        
+      } catch (error) {
+        errors++;
+        console.error(`❌ Failed to send 1h reminder for booking ${booking.id}:`, error);
       }
     }
     
     return NextResponse.json({ 
       success: true, 
-      remindersSent,
+      reminders24h: remindersSent24h,
+      reminders1h: remindersSent1h,
+      calendarEventsCreated,
       errors,
-      totalBookings: bookings.rows.length
+      totalBookings24h: bookings24h.rows.length,
+      totalBookings1h: bookings1h.rows.length,
     });
     
   } catch (error) {
