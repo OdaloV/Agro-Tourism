@@ -1,22 +1,28 @@
-// src/app/farmer/schedule/components/AvailabilityModal.tsx
 "use client";
 
 import { useState } from "react";
-import { X, Calendar } from "lucide-react";
+import { X, Calendar, CalendarCheck } from "lucide-react";
 
 interface AvailabilityModalProps {
   onClose: () => void;
   onBlockDates: (startDate: string, endDate: string, reason: string) => void;
+  onSyncGoogleCalendar?: () => void;
+  googleCalendarConnected?: boolean;
+  isSyncing?: boolean;
 }
 
 export default function AvailabilityModal({
   onClose,
   onBlockDates,
+  onSyncGoogleCalendar,
+  googleCalendarConnected = false,
+  isSyncing = false,
 }: AvailabilityModalProps) {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [syncToGoogle, setSyncToGoogle] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,6 +39,12 @@ export default function AvailabilityModal({
 
     setSubmitting(true);
     await onBlockDates(startDate, endDate, reason);
+    
+    // If sync to Google Calendar is enabled and available
+    if (syncToGoogle && googleCalendarConnected && onSyncGoogleCalendar) {
+      await onSyncGoogleCalendar();
+    }
+    
     setSubmitting(false);
   };
 
@@ -58,7 +70,7 @@ export default function AvailabilityModal({
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-emerald-500"
               required
             />
           </div>
@@ -71,7 +83,7 @@ export default function AvailabilityModal({
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-emerald-500"
               required
             />
           </div>
@@ -85,15 +97,50 @@ export default function AvailabilityModal({
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="e.g., Farm maintenance, Vacation"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-accent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-emerald-500"
             />
           </div>
+
+          {/* Google Calendar Sync Option */}
+          {googleCalendarConnected && (
+            <div className="flex items-center gap-2 pt-2">
+              <input
+                type="checkbox"
+                id="syncToGoogle"
+                checked={syncToGoogle}
+                onChange={(e) => setSyncToGoogle(e.target.checked)}
+                className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+              />
+              <label htmlFor="syncToGoogle" className="text-sm text-gray-700">
+                Also block these dates in Google Calendar
+              </label>
+            </div>
+          )}
+
+          {/* Google Calendar Status */}
+          {googleCalendarConnected && (
+            <div className="flex items-center gap-2 p-2 bg-emerald-50 rounded-lg">
+              <CalendarCheck className="h-4 w-4 text-emerald-600" />
+              <span className="text-xs text-emerald-700">
+                Google Calendar is connected. Bookings will sync automatically.
+              </span>
+            </div>
+          )}
+
+          {!googleCalendarConnected && (
+            <div className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg">
+              <Calendar className="h-4 w-4 text-amber-600" />
+              <span className="text-xs text-amber-700">
+                Connect Google Calendar in Settings to auto-sync your availability.
+              </span>
+            </div>
+          )}
 
           <div className="flex gap-3 pt-4">
             <button
               type="submit"
               disabled={submitting}
-              className="flex-1 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition disabled:opacity-50"
+              className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition disabled:opacity-50"
             >
               {submitting ? "Blocking..." : "Block Dates"}
             </button>

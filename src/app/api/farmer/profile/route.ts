@@ -44,6 +44,11 @@ export async function GET(request: Request) {
          fp.verification_status as "verificationStatus",
          fp.submitted_at as "submittedAt",
          fp.profile_views,
+         fp.google_calendar_connected,
+         fp.google_calendar_id,
+         fp.google_access_token,
+         fp.google_refresh_token,
+         fp.google_token_expires,
          COALESCE(array_agg(DISTINCT a.activity_name) FILTER (WHERE a.activity_name IS NOT NULL), '{}') as activities,
          COALESCE(array_agg(DISTINCT f.facility_name) FILTER (WHERE f.facility_name IS NOT NULL), '{}') as facilities,
          COUNT(DISTINCT m.id) as "farmPhotos",
@@ -60,7 +65,7 @@ export async function GET(request: Request) {
        LEFT JOIN farmer_facilities f ON fp.id = f.farmer_id
        LEFT JOIN farmer_media m ON fp.id = m.farmer_id AND m.media_type = 'photo'
        WHERE u.id = $1
-       GROUP BY u.id, fp.id, fp.profile_views`,
+       GROUP BY u.id, fp.id, fp.profile_views, fp.google_calendar_connected, fp.google_calendar_id, fp.google_access_token, fp.google_refresh_token, fp.google_token_expires`,
       [userId]
     );
 
@@ -95,6 +100,10 @@ export async function GET(request: Request) {
         documents: farmer.documents,
         verificationStatus: farmer.verificationStatus || 'pending',
         submittedAt: farmer.submittedAt || new Date().toISOString(),
+        googleCalendar: {
+          connected: farmer.google_calendar_connected || false,
+          calendarId: farmer.google_calendar_id || null,
+        },
         stats: {
           profileViews: farmer.profile_views || 0,
           bookings: 0,
@@ -186,6 +195,13 @@ export async function GET(request: Request) {
       },
       verificationStatus: farmer.verificationStatus || 'pending',
       submittedAt: farmer.submittedAt || new Date().toISOString(),
+      googleCalendar: {
+        connected: farmer.google_calendar_connected || false,
+        calendarId: farmer.google_calendar_id || null,
+        accessToken: farmer.google_access_token || null,
+        refreshToken: farmer.google_refresh_token || null,
+        tokenExpires: farmer.google_token_expires || null,
+      },
       stats: {
         profileViews: farmer.profile_views || 0,
         bookings: parseInt(stats.total_bookings) || 0,
@@ -242,6 +258,12 @@ export async function PUT(request: Request) {
       accommodation: 'accommodation',
       maxGuests: 'max_guests',
       videoLink: 'video_link',
+      // Google Calendar fields
+      googleCalendarConnected: 'google_calendar_connected',
+      googleCalendarId: 'google_calendar_id',
+      googleAccessToken: 'google_access_token',
+      googleRefreshToken: 'google_refresh_token',
+      googleTokenExpires: 'google_token_expires',
     };
 
     for (const [key, value] of Object.entries(updateData)) {

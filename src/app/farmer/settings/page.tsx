@@ -14,6 +14,9 @@ import {
   Shield,
   Save,
   RefreshCw,
+  Calendar,
+  CheckCircle,
+  Loader2,
 } from "lucide-react";
 import ProfileSettingsTab from "./components/ProfileSettingsTab";
 import FarmSettingsTab from "./components/FarmSettingsTab";
@@ -65,11 +68,16 @@ interface SettingsData {
     close_time: string;
   }>;
   two_factor_enabled: boolean;
+  googleCalendar?: {
+    connected: boolean;
+    calendarId: string | null;
+  };
 }
 
 const tabs = [
   { id: "profile", label: "Profile", icon: User },
   { id: "farm", label: "Farm Profile", icon: Building },
+  { id: "calendar", label: "Calendar", icon: Calendar },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "payment", label: "Payment", icon: CreditCard },
   { id: "hours", label: "Business Hours", icon: Clock },
@@ -82,6 +90,7 @@ export default function FarmerSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<SettingsData | null>(null);
+  const [calendarConnecting, setCalendarConnecting] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -120,6 +129,74 @@ export default function FarmerSettings() {
       alert("Failed to save settings");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleConnectGoogleCalendar = async () => {
+    setCalendarConnecting(true);
+    try {
+      const userData = localStorage.getItem("userData");
+      if (!userData) {
+        router.push("/auth/login/farmer");
+        return;
+      }
+      const user = JSON.parse(userData);
+
+      // Initiate Google OAuth flow
+      const response = await fetch('/api/calendar/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.authUrl) {
+        // Redirect to Google OAuth consent screen
+        window.location.href = data.authUrl;
+      } else {
+        alert(data.error || "Failed to connect Google Calendar");
+      }
+    } catch (error) {
+      console.error("Error connecting Google Calendar:", error);
+      alert("Failed to connect Google Calendar");
+    } finally {
+      setCalendarConnecting(false);
+    }
+  };
+
+  const handleDisconnectGoogleCalendar = async () => {
+    if (!confirm("Are you sure you want to disconnect Google Calendar? Your bookings will no longer sync.")) {
+      return;
+    }
+
+    setCalendarConnecting(true);
+    try {
+      const userData = localStorage.getItem("userData");
+      if (!userData) {
+        router.push("/auth/login/farmer");
+        return;
+      }
+      const user = JSON.parse(userData);
+
+      const response = await fetch('/api/calendar/disconnect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+
+      if (response.ok) {
+        await fetchSettings();
+        alert("Google Calendar disconnected successfully");
+      } else {
+        const data = await response.json();
+        alert(data.error || "Failed to disconnect Google Calendar");
+      }
+    } catch (error) {
+      console.error("Error disconnecting Google Calendar:", error);
+      alert("Failed to disconnect Google Calendar");
+    } finally {
+      setCalendarConnecting(false);
     }
   };
 
@@ -200,6 +277,82 @@ export default function FarmerSettings() {
               onSave={(data) => handleSave("farm", data)}
               saving={saving}
             />
+          )}
+          
+          {activeTab === "calendar" && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-semibold text-emerald-900 mb-4">Google Calendar Integration</h2>
+                <p className="text-emerald-600 mb-6">
+                  Connect your Google Calendar to automatically sync bookings and receive reminders.
+                </p>
+              </div>
+
+              <div className="bg-emerald-50 rounded-xl p-6 border border-emerald-100">
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div>
+                    <h3 className="font-semibold text-emerald-900 mb-1">Calendar Sync</h3>
+                    <p className="text-sm text-emerald-600">
+                      {settings.googleCalendar?.connected 
+                        ? "Your Google Calendar is connected. Bookings will be automatically added."
+                        : "Connect your Google Calendar to sync bookings and get reminders."}
+                    </p>
+                    {settings.googleCalendar?.connected && settings.googleCalendar.calendarId && (
+                      <p className="text-xs text-emerald-500 mt-2">
+                        Connected calendar: {settings.googleCalendar.calendarId}
+                      </p>
+                    )}
+                  </div>
+                  
+                  {settings.googleCalendar?.connected ? (
+                    <button
+                      onClick={handleDisconnectGoogleCalendar}
+                      disabled={calendarConnecting}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition disabled:opacity-50"
+                    >
+                      {calendarConnecting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Calendar className="h-4 w-4" />
+                          Disconnect
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleConnectGoogleCalendar}
+                      disabled={calendarConnecting}
+                      className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition disabled:opacity-50"
+                    >
+                      {calendarConnecting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Calendar className="h-4 w-4" />
+                          Connect Google Calendar
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {settings.googleCalendar?.connected && (
+                <div className="bg-green-50 rounded-xl p-4 border border-green-200">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-green-800 font-medium">Calendar Connected</p>
+                      <p className="text-xs text-green-600 mt-1">
+                        When visitors book your farm, events will be automatically added to your Google Calendar.
+                        You will also receive email reminders for upcoming bookings.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
           
           {activeTab === "notifications" && (
