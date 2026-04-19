@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, DollarSign, Calendar, TrendingUp, Users, Coffee } from "lucide-react";
+import { Skeleton, StatCardSkeleton, ChartSkeleton, ActivitySkeleton } from "@/components/ui/Skeleton";
 
 interface AnalyticsData {
   summary: {
@@ -59,10 +60,62 @@ export default function FarmerAnalytics() {
     return `KES ${amount.toLocaleString()}`;
   };
 
+  // Loading skeleton
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-100/30 py-8">
+        <div className="container mx-auto px-4 max-w-6xl">
+          {/* Header Skeleton */}
+          <div className="mb-6">
+            <Skeleton className="h-5 w-32 mb-4" />
+            <div className="flex justify-between items-center flex-wrap gap-4">
+              <div>
+                <Skeleton className="h-8 w-64 mb-2" />
+                <Skeleton className="h-5 w-80" />
+              </div>
+              <div className="flex gap-2">
+                <Skeleton className="h-10 w-28 rounded-lg" />
+                <Skeleton className="h-10 w-28 rounded-lg" />
+                <Skeleton className="h-10 w-28 rounded-lg" />
+              </div>
+            </div>
+          </div>
+
+          {/* Stats Cards Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <StatCardSkeleton key={i} />
+            ))}
+          </div>
+
+          {/* Monthly Breakdown Skeleton */}
+          <div className="bg-white rounded-2xl border border-emerald-100 p-6 mb-6">
+            <Skeleton className="h-6 w-48 mb-4" />
+            <div className="space-y-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <ChartSkeleton key={i} />
+              ))}
+            </div>
+          </div>
+
+          {/* Top Activities Skeleton */}
+          <div className="bg-white rounded-2xl border border-emerald-100 p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Skeleton className="h-5 w-5 rounded-full" />
+              <Skeleton className="h-6 w-48" />
+            </div>
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <ActivitySkeleton key={i} />
+              ))}
+            </div>
+          </div>
+
+          {/* Explanation Skeleton */}
+          <div className="mt-6">
+            <Skeleton className="h-20 w-full rounded-xl" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -132,7 +185,7 @@ export default function FarmerAnalytics() {
           </div>
         </div>
 
-        {/* Main Stats Cards - Grey backgrounds with deeper green text */}
+        {/* Main Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard
             title="Total Bookings"
@@ -226,8 +279,8 @@ export default function FarmerAnalytics() {
         </div>
 
         {/* Simple Explanation */}
-        <div className="mt-6 p-4 bg-emerald-700 rounded-xl border border-emerald-200">
-          <p className="text-sm text-emerald-900">
+        <div className="mt-6 p-4 bg-emerald-100 rounded-xl border border-emerald-200">
+          <p className="text-sm text-emerald-800">
             💡 <strong>How it works:</strong> You earn a percentage of each booking. HarvestHost keeps a platform fee to cover payment processing and platform costs.
           </p>
         </div>
@@ -236,7 +289,7 @@ export default function FarmerAnalytics() {
   );
 }
 
-// Stat Card Component with grey background and deeper green text
+// Stat Card Component
 function StatCard({ title, value, icon: Icon, bgColor, iconColor, textColor }: { 
   title: string; 
   value: string | number; 

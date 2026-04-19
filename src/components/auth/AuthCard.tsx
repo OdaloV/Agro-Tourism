@@ -5,9 +5,9 @@ import { motion } from "framer-motion";
 interface AuthCardProps {
   children: React.ReactNode;
   title: string;
-  subtitle: string;
+  subtitle?: string;  
   icon: React.ReactNode;
-  role: "visitor" | "farmer" | "admin";
+  role?: "visitor" | "farmer" | "admin";  
 }
 
 export function AuthCard({
@@ -21,7 +21,11 @@ export function AuthCard({
     visitor: "from-emerald-500/20 via-emerald-600/10 to-transparent",
     farmer: "from-amber-500/20 via-amber-600/10 to-transparent",
     admin: "from-purple-500/20 via-purple-600/10 to-transparent",
+    default: "from-emerald-500/20 via-emerald-600/10 to-transparent", 
   };
+
+  // Use role-specific gradient or default
+  const gradientClass = role ? gradients[role] : gradients.default;
 
   return (
     <motion.div
@@ -33,7 +37,7 @@ export function AuthCard({
       {/* Background blur layers */}
       <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/40 via-emerald-800/30 to-amber-900/40 backdrop-blur-2xl rounded-3xl" />
       <div
-        className={`absolute inset-0 bg-gradient-to-br ${gradients[role]} rounded-3xl`}
+        className={`absolute inset-0 bg-gradient-to-br ${gradientClass} rounded-3xl`}
       />
 
       {/* Content */}
@@ -56,14 +60,16 @@ export function AuthCard({
           >
             {title}
           </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="text-white/60 max-w-md"
-          >
-            {subtitle}
-          </motion.p>
+          {subtitle && (
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="text-white/60 max-w-md"
+            >
+              {subtitle}
+            </motion.p>
+          )}
         </div>
 
         {/* Form content */}

@@ -1,4 +1,3 @@
-// src/app/farmer/activities/new/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -6,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Plus, DollarSign } from "lucide-react";
 import { ACTIVITY_CATEGORIES } from "@/app/profile/farmerprofile/options";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 // Convert readonly arrays to mutable for TypeScript
 type ActivityCategories = {

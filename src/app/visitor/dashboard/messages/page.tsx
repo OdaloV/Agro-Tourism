@@ -1,4 +1,3 @@
-// src/app/visitor/dashboard/messages/page.tsx
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -15,6 +14,12 @@ import {
   MapPin,
   Star,
 } from "lucide-react";
+import { 
+  Skeleton, 
+  ConversationSkeleton, 
+  MessageSkeleton, 
+  ChatHeaderSkeleton 
+} from "@/components/ui/Skeleton";
 
 interface Conversation {
   conversation_id: number;
@@ -46,7 +51,7 @@ interface Farm {
   farm_location: string;
   city: string;
   county: string;
-  average_rating: number;
+  average_rating: number | string | null;
   cover_photo: string;
 }
 
@@ -58,6 +63,7 @@ export default function VisitorMessages() {
   
   // State
   const [loading, setLoading] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
@@ -73,6 +79,19 @@ export default function VisitorMessages() {
   const [isOtherOnline, setIsOtherOnline] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   
+  // Helper function to safely get rating
+  const getSafeRating = (rating: number | string | null | undefined): number => {
+    if (typeof rating === 'number') return rating;
+    if (typeof rating === 'string') return parseFloat(rating) || 0;
+    return 0;
+  };
+
+  // Helper function to format rating display
+  const formatRating = (rating: number | string | null | undefined): string => {
+    const safeRating = getSafeRating(rating);
+    return safeRating.toFixed(1);
+  };
+
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -101,7 +120,6 @@ export default function VisitorMessages() {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
       }
-      // Set user offline
       fetch('/api/messages/status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -194,16 +212,13 @@ export default function VisitorMessages() {
   };
 
   const startPolling = useCallback(() => {
-    // Clear existing interval
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
     }
     
-    // Only start polling if we have a selected conversation
     if (!selectedConversation) return;
     
-    // Poll every 30 seconds (reduced frequency)
     pollingIntervalRef.current = setInterval(() => {
       if (selectedConversation && document.visibilityState === 'visible' && isMountedRef.current) {
         checkTypingStatus(selectedConversation.conversation_id);
@@ -219,6 +234,7 @@ export default function VisitorMessages() {
   }, []);
 
   const fetchConversations = async () => {
+    setLoading(true);
     try {
       const response = await fetch("/api/messages");
       const data = await response.json();
@@ -251,6 +267,7 @@ export default function VisitorMessages() {
   };
 
   const fetchMessages = async (conversationId: number) => {
+    setLoadingMessages(true);
     try {
       const response = await fetch(`/api/messages?conversationId=${conversationId}`);
       const data = await response.json();
@@ -259,6 +276,8 @@ export default function VisitorMessages() {
       }
     } catch (error) {
       console.error("Error fetching messages:", error);
+    } finally {
+      if (isMountedRef.current) setLoadingMessages(false);
     }
   };
 
@@ -391,10 +410,57 @@ export default function VisitorMessages() {
     (farm.county && farm.county.toLowerCase().includes(farmSearch.toLowerCase()))
   );
 
+  // Loading skeleton for conversations
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+      <div className="py-8">
+        <div className="container mx-auto px-4 max-w-6xl">
+          {/* Header Skeleton */}
+          <div className="mb-6">
+            <Skeleton className="h-5 w-32 mb-4" />
+            <div className="flex justify-between items-center">
+              <div>
+                <Skeleton className="h-8 w-48 mb-2" />
+                <Skeleton className="h-5 w-64" />
+              </div>
+              <Skeleton className="h-10 w-32 rounded-xl" />
+            </div>
+          </div>
+
+          <div className="grid lg:grid-cols-3 gap-6">
+            {/* Conversations List Skeleton */}
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden">
+                <div className="p-3 border-b border-emerald-100">
+                  <Skeleton className="h-6 w-32" />
+                </div>
+                <div className="divide-y divide-emerald-100">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <ConversationSkeleton key={i} />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Chat Area Skeleton */}
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden flex flex-col h-[600px]">
+                <ChatHeaderSkeleton />
+                <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <MessageSkeleton key={i} isMyMessage={i % 2 === 0} />
+                  ))}
+                </div>
+                <div className="p-4 border-t border-emerald-100 bg-white">
+                  <div className="flex gap-2">
+                    <Skeleton className="flex-1 h-10 rounded-xl" />
+                    <Skeleton className="h-10 w-20 rounded-xl" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -510,9 +576,15 @@ export default function VisitorMessages() {
                   </div>
                 </div>
 
-                {/* Messages Area */}
+                {/* Messages Area - with loading skeleton for messages */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
-                  {messages.length === 0 ? (
+                  {loadingMessages ? (
+                    <>
+                      {Array.from({ length: 3 }).map((_, i) => (
+                        <MessageSkeleton key={i} isMyMessage={i % 2 === 0} />
+                      ))}
+                    </>
+                  ) : messages.length === 0 ? (
                     <div className="text-center py-12">
                       <MessageCircle className="h-12 w-12 text-emerald-300 mx-auto mb-3" />
                       <p className="text-emerald-500">No messages yet</p>
@@ -660,9 +732,18 @@ export default function VisitorMessages() {
                   Select a Farm to Contact
                 </label>
                 {loadingFarms ? (
-                  <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent mx-auto"></div>
-                    <p className="text-sm text-gray-500 mt-2">Loading farms...</p>
+                  <div className="space-y-2">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="p-3 rounded-lg border border-gray-200">
+                        <div className="flex items-start gap-3">
+                          <Skeleton variant="circular" className="h-10 w-10" />
+                          <div className="flex-1">
+                            <Skeleton className="h-5 w-40 mb-2" />
+                            <Skeleton className="h-3 w-32" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-2">
@@ -689,10 +770,12 @@ export default function VisitorMessages() {
                                 <MapPin className="h-3 w-3" />
                                 <span>{farm.city || farm.county || farm.farm_location}</span>
                               </div>
-                              {farm.average_rating > 0 && (
+                              {farm.average_rating && (
                                 <div className="flex items-center gap-1 mt-1">
                                   <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                                  <span className="text-xs">{farm.average_rating.toFixed(1)}</span>
+                                  <span className="text-xs">
+                                    {formatRating(farm.average_rating)}
+                                  </span>
                                 </div>
                               )}
                             </div>

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import BookingModal from "@/app/components/BookingModal";
 import MessageModal from "@/app/components/MessageModal";
+import { Skeleton, FarmDetailSkeleton } from "@/components/ui/Skeleton";
 
 interface Farm {
   id: number;
@@ -107,13 +108,11 @@ export default function FarmDetailsPage() {
   const [isVisitor, setIsVisitor] = useState(false);
   const [groupSettings, setGroupSettings] = useState<GroupSettings | null>(null);
   
-  // Booking form state
   const [bookingDate, setBookingDate] = useState("");
   const [participants, setParticipants] = useState(1);
   const [specialRequests, setSpecialRequests] = useState("");
   const [bookingLoading, setBookingLoading] = useState(false);
 
-  // Check if user is logged in as visitor
   useEffect(() => {
     const userRole = localStorage.getItem("userRole");
     setIsVisitor(userRole === "visitor");
@@ -195,12 +194,9 @@ export default function FarmDetailsPage() {
     alert(`Booking created successfully! Booking reference: ${booking.reference}`);
   };
 
+  // Loading skeleton
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
-      </div>
-    );
+    return <FarmDetailSkeleton />;
   }
 
   if (!farm) {
@@ -244,7 +240,6 @@ export default function FarmDetailsPage() {
 
         {/* Farm Header */}
         <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden mb-6">
-          {/* Image Gallery */}
           <div className="relative h-96 bg-gray-100">
             {photos.length > 0 ? (
               <img
@@ -269,7 +264,6 @@ export default function FarmDetailsPage() {
               </div>
             )}
             
-            {/* Action Buttons */}
             <div className="absolute top-4 right-4 flex gap-2">
               <button
                 onClick={toggleFavorite}
@@ -285,7 +279,6 @@ export default function FarmDetailsPage() {
               </button>
             </div>
             
-            {/* Rating Badge */}
             {farm.average_rating > 0 && (
               <div className="absolute bottom-4 left-4 bg-white/90 rounded-full px-3 py-1.5 flex items-center gap-1">
                 <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
@@ -295,13 +288,10 @@ export default function FarmDetailsPage() {
             )}
           </div>
           
-          {/* Farm Info */}
           <div className="p-6">
             <div className="flex flex-wrap justify-between items-start gap-4">
               <div>
-                <h1 className="text-3xl font-bold text-emerald-900">
-                  {farm.farm_name}
-                </h1>
+                <h1 className="text-3xl font-bold text-emerald-900">{farm.farm_name}</h1>
                 <div className="flex items-center gap-2 mt-2 text-emerald-600">
                   <MapPin className="h-4 w-4" />
                   <span>{farm.city || farm.county || farm.farm_location}</span>
@@ -346,9 +336,7 @@ export default function FarmDetailsPage() {
             {/* Description */}
             <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 p-6">
               <h2 className="text-xl font-semibold text-emerald-900 mb-4">About the Farm</h2>
-              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                {farm.farm_description}
-              </p>
+              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{farm.farm_description}</p>
             </div>
 
             {/* Activities Section */}
@@ -432,13 +420,9 @@ export default function FarmDetailsPage() {
                   <Users className="h-5 w-5" />
                   Group Booking Information
                 </h3>
-                
-                {/* Max Guests */}
                 <p className="text-sm text-emerald-700 mb-3">
                   👥 Maximum {groupSettings.max_guests_per_booking} guests per booking
                 </p>
-                
-                {/* Discount Tiers */}
                 {groupSettings.discount_tiers.length > 0 && (
                   <div className="mb-4">
                     <p className="text-sm font-medium text-emerald-800 mb-2">Group Discounts</p>
@@ -452,21 +436,13 @@ export default function FarmDetailsPage() {
                     </div>
                   </div>
                 )}
-                
-                {/* Requirements */}
                 {(groupSettings.requirements.require_deposit || groupSettings.requirements.require_waiver || groupSettings.requirements.require_coordinator) && (
                   <div className="mt-3 pt-3 border-t border-emerald-200">
                     <p className="text-sm font-medium text-emerald-800 mb-2">Requirements for Large Groups (50+ guests)</p>
                     <div className="space-y-1">
-                      {groupSettings.requirements.require_deposit && (
-                        <p className="text-sm text-amber-700">💰 50% deposit required</p>
-                      )}
-                      {groupSettings.requirements.require_waiver && (
-                        <p className="text-sm text-emerald-700">📝 Signed waiver required</p>
-                      )}
-                      {groupSettings.requirements.require_coordinator && (
-                        <p className="text-sm text-emerald-700">📋 Group coordinator contact required (you will be the coordinator)</p>
-                      )}
+                      {groupSettings.requirements.require_deposit && <p className="text-sm text-amber-700">💰 50% deposit required</p>}
+                      {groupSettings.requirements.require_waiver && <p className="text-sm text-emerald-700">📝 Signed waiver required</p>}
+                      {groupSettings.requirements.require_coordinator && <p className="text-sm text-emerald-700">📋 Group coordinator contact required (you will be the coordinator)</p>}
                     </div>
                   </div>
                 )}
@@ -477,21 +453,13 @@ export default function FarmDetailsPage() {
             <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 p-6">
               <h2 className="text-xl font-semibold text-emerald-900 mb-4">Reviews</h2>
               
-              {/* Rating Summary */}
               {reviewStats && reviewStats.total > 0 && (
                 <div className="flex items-center gap-6 mb-6 pb-6 border-b border-gray-100">
                   <div className="text-center">
                     <div className="text-4xl font-bold text-emerald-900">{reviewStats.average.toFixed(1)}</div>
                     <div className="flex items-center gap-0.5 mt-1">
                       {[1,2,3,4,5].map(star => (
-                        <Star
-                          key={star}
-                          className={`h-4 w-4 ${
-                            star <= Math.round(reviewStats.average)
-                              ? 'fill-yellow-400 text-yellow-400'
-                              : 'text-gray-300'
-                          }`}
-                        />
+                        <Star key={star} className={`h-4 w-4 ${star <= Math.round(reviewStats.average) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
                       ))}
                     </div>
                     <div className="text-sm text-gray-500 mt-1">{reviewStats.total} reviews</div>
@@ -501,23 +469,15 @@ export default function FarmDetailsPage() {
                       <div key={rating} className="flex items-center gap-2">
                         <span className="text-sm w-8">{rating} ★</span>
                         <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-emerald-500 rounded-full"
-                            style={{
-                              width: `${(reviewStats.distribution[rating] / reviewStats.total) * 100}%`
-                            }}
-                          />
+                          <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${(reviewStats.distribution[rating] / reviewStats.total) * 100}%` }} />
                         </div>
-                        <span className="text-xs text-gray-500 w-8">
-                          {reviewStats.distribution[rating]}
-                        </span>
+                        <span className="text-xs text-gray-500 w-8">{reviewStats.distribution[rating]}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
               
-              {/* Review List */}
               <div className="space-y-6">
                 {reviews.map((review) => (
                   <div key={review.id} className="border-b border-gray-100 last:border-0 pb-6 last:pb-0">
@@ -527,28 +487,16 @@ export default function FarmDetailsPage() {
                           <span className="font-medium text-gray-900">{review.visitor_name}</span>
                           <div className="flex items-center gap-0.5">
                             {[1,2,3,4,5].map(star => (
-                              <Star
-                                key={star}
-                                className={`h-3 w-3 ${
-                                  star <= review.rating
-                                    ? 'fill-yellow-400 text-yellow-400'
-                                    : 'text-gray-300'
-                                }`}
-                              />
+                              <Star key={star} className={`h-3 w-3 ${star <= review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
                             ))}
                           </div>
                         </div>
-                        <p className="text-xs text-gray-400 mt-1">
-                          {new Date(review.created_at).toLocaleDateString()}
-                        </p>
+                        <p className="text-xs text-gray-400 mt-1">{new Date(review.created_at).toLocaleDateString()}</p>
                       </div>
                     </div>
-                    {review.title && (
-                      <h4 className="font-medium text-gray-800 mt-2">{review.title}</h4>
-                    )}
+                    {review.title && <h4 className="font-medium text-gray-800 mt-2">{review.title}</h4>}
                     <p className="text-gray-600 text-sm mt-2">{review.comment}</p>
                     
-                    {/* Farm Response */}
                     {review.farm_response && (
                       <div className="mt-3 p-3 bg-emerald-50 rounded-lg">
                         <div className="flex items-center gap-2 mb-1">
@@ -561,9 +509,7 @@ export default function FarmDetailsPage() {
                   </div>
                 ))}
                 
-                {reviews.length === 0 && (
-                  <p className="text-gray-500 text-center py-4">No reviews yet</p>
-                )}
+                {reviews.length === 0 && <p className="text-gray-500 text-center py-4">No reviews yet</p>}
                 
                 {hasBooked && (
                   <Link href={`/visitor/dashboard/reviews?farmId=${farmId}`}>
@@ -579,7 +525,6 @@ export default function FarmDetailsPage() {
           {/* Right Column - Sidebar */}
           <div className="space-y-6">
             
-            {/* Farmer Info Card */}
             <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 p-6">
               <h3 className="font-semibold text-emerald-900 mb-4">Farm Host</h3>
               <div className="flex items-center gap-3 mb-4">
@@ -591,15 +536,11 @@ export default function FarmDetailsPage() {
                   <p className="text-xs text-gray-500">Farmer</p>
                 </div>
               </div>
-              <button
-                onClick={() => setShowContactModal(true)}
-                className="w-full py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
-              >
+              <button onClick={() => setShowContactModal(true)} className="w-full py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition">
                 Contact Farmer
               </button>
             </div>
             
-            {/* Location Map */}
             <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 p-6">
               <h3 className="font-semibold text-emerald-900 mb-3">Location</h3>
               <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
@@ -611,26 +552,13 @@ export default function FarmDetailsPage() {
               </p>
             </div>
             
-            {/* Quick Info */}
             <div className="bg-gradient-to-r from-emerald-50 to-white rounded-2xl p-6 border border-emerald-100">
               <h3 className="font-semibold text-emerald-900 mb-3">Quick Info</h3>
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Response rate</span>
-                  <span className="text-emerald-700 font-medium">95%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Avg response time</span>
-                  <span className="text-emerald-700 font-medium">Within 2 hours</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Check-in</span>
-                  <span className="text-emerald-700 font-medium">Flexible</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Languages</span>
-                  <span className="text-emerald-700 font-medium">English, Swahili</span>
-                </div>
+                <div className="flex justify-between"><span className="text-gray-600">Response rate</span><span className="text-emerald-700 font-medium">95%</span></div>
+                <div className="flex justify-between"><span className="text-gray-600">Avg response time</span><span className="text-emerald-700 font-medium">Within 2 hours</span></div>
+                <div className="flex justify-between"><span className="text-gray-600">Check-in</span><span className="text-emerald-700 font-medium">Flexible</span></div>
+                <div className="flex justify-between"><span className="text-gray-600">Languages</span><span className="text-emerald-700 font-medium">English, Swahili</span></div>
               </div>
             </div>
           </div>
@@ -643,33 +571,20 @@ export default function FarmDetailsPage() {
           <div className="bg-white rounded-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
             <div className="p-4 border-b border-gray-200 flex justify-between items-center">
               <h3 className="text-lg font-semibold text-emerald-900">Contact {farm.farmer_name}</h3>
-              <button onClick={() => setShowContactModal(false)} className="p-1 hover:bg-gray-100 rounded-lg">
-                <X className="h-5 w-5" />
-              </button>
+              <button onClick={() => setShowContactModal(false)} className="p-1 hover:bg-gray-100 rounded-lg"><X className="h-5 w-5" /></button>
             </div>
             <div className="p-6 space-y-4">
               {farm.farmer_phone && (
                 <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                   <Phone className="h-5 w-5 text-emerald-600" />
-                  <a href={`tel:${farm.farmer_phone}`} className="text-gray-900 hover:text-emerald-600">
-                    {farm.farmer_phone}
-                  </a>
+                  <a href={`tel:${farm.farmer_phone}`} className="text-gray-900 hover:text-emerald-600">{farm.farmer_phone}</a>
                 </div>
               )}
               <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                 <Mail className="h-5 w-5 text-emerald-600" />
-                <a href={`mailto:${farm.farmer_email}`} className="text-gray-900 hover:text-emerald-600">
-                  {farm.farmer_email}
-                </a>
+                <a href={`mailto:${farm.farmer_email}`} className="text-gray-900 hover:text-emerald-600">{farm.farmer_email}</a>
               </div>
-              
-              <button
-                onClick={() => {
-                  setShowContactModal(false);
-                  setShowMessageModal(true);
-                }}
-                className="w-full py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
-              >
+              <button onClick={() => { setShowContactModal(false); setShowMessageModal(true); }} className="w-full py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition">
                 Send Message
               </button>
             </div>
@@ -702,9 +617,7 @@ export default function FarmDetailsPage() {
         farmId={parseInt(farmId)}
         farmName={farm?.farm_name || ""}
         farmerName={farm?.farmer_name || ""}
-        onMessageSent={() => {
-          console.log("Message sent successfully");
-        }}
+        onMessageSent={() => { console.log("Message sent successfully"); }}
       />
     </div>
   );

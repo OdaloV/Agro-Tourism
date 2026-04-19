@@ -1,4 +1,3 @@
-// src/app/farmer/earnings/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -16,6 +15,7 @@ import {
   ArrowUpRight,
   Users,
 } from "lucide-react";
+import { Skeleton, StatCardSkeleton, TableSkeleton } from "@/components/ui/Skeleton";
 
 interface Earning {
   id: number;
@@ -92,10 +92,55 @@ export default function FarmerEarnings() {
     return true;
   });
 
+  // Loading skeleton
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-100/30 py-8">
+        <div className="container mx-auto px-4 max-w-6xl">
+          {/* Header Skeleton */}
+          <div className="mb-6">
+            <Skeleton className="h-5 w-32 mb-4" />
+            <div className="flex justify-between items-center flex-wrap gap-4">
+              <div>
+                <Skeleton className="h-8 w-48 mb-2" />
+                <Skeleton className="h-5 w-64" />
+              </div>
+              <Skeleton className="h-10 w-32 rounded-xl" />
+            </div>
+          </div>
+
+          {/* Summary Cards Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <StatCardSkeleton key={i} />
+            ))}
+          </div>
+
+          {/* Platform Fee Info Skeleton */}
+          <div className="bg-amber-50 rounded-2xl p-4 border border-amber-200 mb-6">
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-5 w-5 rounded-full" />
+              <div className="flex-1">
+                <Skeleton className="h-4 w-64 mb-2" />
+                <Skeleton className="h-3 w-48" />
+              </div>
+            </div>
+          </div>
+
+          {/* Filters Skeleton */}
+          <div className="bg-white rounded-2xl p-4 border border-emerald-100 mb-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <Skeleton className="h-10 w-32 rounded-xl" />
+              <div className="flex gap-2 ml-auto">
+                <Skeleton className="h-10 w-36 rounded-lg" />
+                <Skeleton className="h-10 w-36 rounded-lg" />
+              </div>
+            </div>
+          </div>
+
+          {/* Table Skeleton */}
+          <TableSkeleton rows={5} columns={7} />
+        </div>
       </div>
     );
   }
@@ -125,7 +170,7 @@ export default function FarmerEarnings() {
           </div>
         </div>
 
-        {/* Summary Cards - Only showing paid earnings */}
+        {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <SummaryCard
             title="Total Earnings"
@@ -199,7 +244,7 @@ export default function FarmerEarnings() {
           </div>
         </div>
 
-        {/* Earnings Table - Only showing paid bookings */}
+        {/* Earnings Table */}
         {filteredEarnings.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-emerald-100">
             <DollarSign className="h-16 w-16 text-emerald-300 mx-auto mb-4" />

@@ -1,4 +1,3 @@
-// src/app/visitor/dashboard/favorites/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -17,6 +16,7 @@ import {
   DollarSign,
   CheckCircle,
 } from "lucide-react";
+import { FarmCardSkeleton, StatCardSkeleton } from "@/components/ui/Skeleton";
 
 interface FavoriteFarm {
   id: number;
@@ -79,8 +79,11 @@ export default function VisitorFavorites() {
           },
         ];
 
-        setFavorites(mockFavorites);
-        setLoading(false);
+        // Simulate API delay
+        setTimeout(() => {
+          setFavorites(mockFavorites);
+          setLoading(false);
+        }, 1000);
       } catch (error) {
         console.error("Error fetching favorites:", error);
         setLoading(false);
@@ -121,10 +124,39 @@ export default function VisitorFavorites() {
     setSelectedFarm(null);
   };
 
+  // Skeleton Loading State
   if (!mounted || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-100/30 py-8">
+        <div className="container mx-auto px-4 max-w-5xl">
+          {/* Header Skeleton */}
+          <div className="mb-6">
+            <div className="h-5 w-32 bg-muted rounded-lg animate-pulse mb-4"></div>
+            <div className="h-8 w-48 bg-muted rounded-lg animate-pulse"></div>
+            <div className="h-4 w-64 bg-muted rounded-lg animate-pulse mt-2"></div>
+          </div>
+
+          {/* Stats Card Skeleton */}
+          <div className="bg-white rounded-2xl p-4 mb-6 border border-emerald-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-6 w-6 bg-muted rounded-full animate-pulse"></div>
+                <div>
+                  <div className="h-4 w-24 bg-muted rounded animate-pulse"></div>
+                  <div className="h-6 w-8 bg-muted rounded animate-pulse mt-1"></div>
+                </div>
+              </div>
+              <div className="h-10 w-40 bg-muted rounded-xl animate-pulse"></div>
+            </div>
+          </div>
+
+          {/* Favorites Grid Skeleton */}
+          <div className="grid md:grid-cols-2 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <FarmCardSkeleton key={i} />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

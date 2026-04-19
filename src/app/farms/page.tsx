@@ -1,4 +1,3 @@
-// src/app/farms/page.tsx
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -13,6 +12,7 @@ import {
   Star,
   Loader2,
 } from "lucide-react";
+import { Skeleton, FarmCardSkeleton } from "@/components/ui/Skeleton";
 
 interface Farm {
   id: number;
@@ -53,7 +53,6 @@ export default function DiscoverFarms() {
     hasMore: false
   });
   
-  // Use ref to track initial load to prevent double fetch
   const initialLoadDone = useRef(false);
   const isFetching = useRef(false);
 
@@ -70,7 +69,6 @@ export default function DiscoverFarms() {
   ];
 
   const fetchFarms = useCallback(async (reset = true) => {
-    // Prevent multiple simultaneous fetches
     if (isFetching.current) return;
     isFetching.current = true;
     
@@ -125,7 +123,6 @@ export default function DiscoverFarms() {
     }
   }, [searchQuery, filters, pagination.limit, pagination.offset]);
 
-  // Initial load - only runs once
   useEffect(() => {
     if (!initialLoadDone.current) {
       initialLoadDone.current = true;
@@ -133,7 +130,6 @@ export default function DiscoverFarms() {
     }
   }, [fetchFarms]);
 
-  // Handle filter changes - reset and refetch
   const handleFilterChange = (newFilters: typeof filters) => {
     setFilters(newFilters);
     setPagination(prev => ({ ...prev, offset: 0, hasMore: false }));
@@ -153,40 +149,36 @@ export default function DiscoverFarms() {
   };
 
   const toggleFavorite = async (farmId: number, isCurrentlyFavorite: boolean) => {
-  try {
-    const url = '/api/favorites';
-    const method = isCurrentlyFavorite ? 'DELETE' : 'POST';
-    
-    // Make sure to send the body as JSON
-    const response = await fetch(url, { 
-      method, 
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ farmId: Number(farmId) })  // Ensure farmId is a number
-    });
-    
-    const data = await response.json();
-    
-    if (response.ok) {
-      // Update local state
-      setFarms(prev => prev.map(farm => 
-        farm.id === farmId ? { ...farm, is_favorite: !isCurrentlyFavorite } : farm
-      ));
-      console.log("Favorite toggled successfully:", data);
-    } else {
-      console.error("Failed to toggle favorite:", data.error);
-      // If user is not logged in, redirect to login
-      if (response.status === 401) {
-        alert("Please login to save favorites");
-        router.push("/auth/login/visitor");
+    try {
+      const url = '/api/favorites';
+      const method = isCurrentlyFavorite ? 'DELETE' : 'POST';
+      
+      const response = await fetch(url, { 
+        method, 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ farmId: Number(farmId) })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setFarms(prev => prev.map(farm => 
+          farm.id === farmId ? { ...farm, is_favorite: !isCurrentlyFavorite } : farm
+        ));
       } else {
-        alert(data.error || "Failed to update favorite");
+        if (response.status === 401) {
+          alert("Please login to save favorites");
+          router.push("/auth/login/visitor");
+        } else {
+          alert(data.error || "Failed to update favorite");
+        }
       }
+    } catch (error) {
+      console.error("Error toggling favorite:", error);
+      alert("Network error. Please try again.");
     }
-  } catch (error) {
-    console.error("Error toggling favorite:", error);
-    alert("Network error. Please try again.");
-  }
-};
+  };
+  
   const clearFilters = () => {
     handleFilterChange({
       farmType: "",
@@ -205,10 +197,37 @@ export default function DiscoverFarms() {
     window.location.href = `/farms/${farmId}`;
   };
 
+  // Loading skeleton
   if (loading && farms.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-100/30">
+        <div className="container mx-auto px-4 py-8 max-w-7xl">
+          {/* Header Skeleton */}
+          <div className="mb-8">
+            <Skeleton className="h-10 w-64 mb-2" />
+            <Skeleton className="h-5 w-80" />
+          </div>
+
+          {/* Search Bar Skeleton */}
+          <div className="mb-6">
+            <div className="flex gap-3">
+              <Skeleton className="flex-1 h-12 rounded-xl" />
+              <Skeleton className="h-12 w-24 rounded-xl" />
+            </div>
+          </div>
+
+          {/* Results Count Skeleton */}
+          <div className="mb-4">
+            <Skeleton className="h-5 w-32" />
+          </div>
+
+          {/* Farms Grid Skeleton */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <FarmCardSkeleton key={i} />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -219,12 +238,8 @@ export default function DiscoverFarms() {
         
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-heading font-bold text-emerald-900">
-            Discover Farms
-          </h1>
-          <p className="text-emerald-600 mt-1">
-            Find authentic farm experiences across Kenya
-          </p>
+          <h1 className="text-3xl font-heading font-bold text-emerald-900">Discover Farms</h1>
+          <p className="text-emerald-600 mt-1">Find authentic farm experiences across Kenya</p>
         </div>
 
         {/* Search Bar */}
@@ -271,16 +286,10 @@ export default function DiscoverFarms() {
               <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-4">
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="font-semibold text-gray-900">Filter Farms</h3>
-                  <button
-                    onClick={clearFilters}
-                    className="text-sm text-accent hover:underline"
-                  >
-                    Clear all
-                  </button>
+                  <button onClick={clearFilters} className="text-sm text-accent hover:underline">Clear all</button>
                 </div>
 
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {/* Farm Type */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Farm Type</label>
                     <select
@@ -295,7 +304,6 @@ export default function DiscoverFarms() {
                     </select>
                   </div>
 
-                  {/* Location */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
                     <input
@@ -307,7 +315,6 @@ export default function DiscoverFarms() {
                     />
                   </div>
 
-                  {/* Price Range */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Price Range (KES)</label>
                     <div className="flex gap-2">
@@ -328,7 +335,6 @@ export default function DiscoverFarms() {
                     </div>
                   </div>
 
-                  {/* Rating */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Rating</label>
                     <select
@@ -343,7 +349,6 @@ export default function DiscoverFarms() {
                     </select>
                   </div>
 
-                  {/* Sort By */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
                     <select
@@ -364,9 +369,7 @@ export default function DiscoverFarms() {
 
         {/* Results Count */}
         <div className="flex justify-between items-center mb-4">
-          <p className="text-sm text-gray-500">
-            Found {pagination.total} farm{pagination.total !== 1 ? 's' : ''}
-          </p>
+          <p className="text-sm text-gray-500">Found {pagination.total} farm{pagination.total !== 1 ? 's' : ''}</p>
         </div>
 
         {/* Farms Grid */}
@@ -375,12 +378,7 @@ export default function DiscoverFarms() {
             <Search className="h-16 w-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500 text-lg mb-2">No farms found</p>
             <p className="text-gray-400 mb-6">Try adjusting your search or filters</p>
-            <button
-              onClick={clearFilters}
-              className="px-4 py-2 bg-accent text-white rounded-lg"
-            >
-              Clear Filters
-            </button>
+            <button onClick={clearFilters} className="px-4 py-2 bg-accent text-white rounded-lg">Clear Filters</button>
           </div>
         ) : (
           <>
@@ -404,11 +402,7 @@ export default function DiscoverFarms() {
                   disabled={loadingMore}
                   className="px-6 py-3 bg-white border border-gray-200 rounded-xl text-emerald-600 hover:bg-gray-50 transition disabled:opacity-50"
                 >
-                  {loadingMore ? (
-                    <Loader2 className="h-5 w-5 animate-spin mx-auto" />
-                  ) : (
-                    'Load More Farms'
-                  )}
+                  {loadingMore ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : 'Load More Farms'}
                 </button>
               </div>
             )}
@@ -434,6 +428,9 @@ function FarmCard({ farm, index, onToggleFavorite, onViewDetails }: {
     return `KES ${farm.min_price.toLocaleString()} - ${farm.max_price.toLocaleString()}`;
   };
 
+  // Safely format rating
+  const safeRating = typeof farm.average_rating === 'number' ? farm.average_rating : parseFloat(farm.average_rating as any) || 0;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -442,7 +439,6 @@ function FarmCard({ farm, index, onToggleFavorite, onViewDetails }: {
       className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden hover:shadow-md transition cursor-pointer group"
       onClick={onViewDetails}
     >
-      {/* Image */}
       <div className="relative h-48 overflow-hidden">
         {farm.cover_photo || farm.profile_photo_url ? (
           <img
@@ -457,7 +453,6 @@ function FarmCard({ farm, index, onToggleFavorite, onViewDetails }: {
           </div>
         )}
         
-        {/* Favorite Button */}
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -465,36 +460,25 @@ function FarmCard({ farm, index, onToggleFavorite, onViewDetails }: {
           }}
           className="absolute top-3 right-3 p-2 bg-white/90 rounded-full hover:bg-white transition shadow-md"
         >
-          <Heart
-            className={`h-5 w-5 ${farm.is_favorite ? 'fill-red-500 text-red-500' : 'text-gray-500'}`}
-          />
+          <Heart className={`h-5 w-5 ${farm.is_favorite ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} />
         </button>
         
-        {/* Rating Badge */}
-        {farm.average_rating > 0 && (
+        {safeRating > 0 && (
           <div className="absolute bottom-3 left-3 bg-white/90 rounded-full px-2 py-1 flex items-center gap-1">
             <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-            <span className="text-xs font-medium">{farm.average_rating.toFixed(1)}</span>
+            <span className="text-xs font-medium">{safeRating.toFixed(1)}</span>
             <span className="text-xs text-gray-500">({farm.review_count})</span>
           </div>
         )}
       </div>
       
-      {/* Content */}
       <div className="p-4">
-        <h3 className="font-semibold text-emerald-900 text-lg line-clamp-1 mb-1">
-          {farm.farm_name}
-        </h3>
-        
+        <h3 className="font-semibold text-emerald-900 text-lg line-clamp-1 mb-1">{farm.farm_name}</h3>
         <div className="flex items-center gap-1 text-sm text-emerald-600 mb-2">
           <MapPin className="h-3 w-3" />
           <span className="truncate">{farm.city || farm.county || farm.farm_location}</span>
         </div>
-        
-        <p className="text-sm text-gray-600 line-clamp-2 mb-3">
-          {farm.farm_description}
-        </p>
-        
+        <p className="text-sm text-gray-600 line-clamp-2 mb-3">{farm.farm_description}</p>
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-gray-400">Starting from</p>

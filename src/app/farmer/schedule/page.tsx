@@ -1,4 +1,3 @@
-// src/app/farmer/schedule/page.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -25,6 +24,7 @@ import CalendarGrid from "./components/CalendarGrid";
 import BookingDetailsModal from "./components/BookingDetailsModal";
 import AvailabilityModal from "./components/AvailabilityModal";
 import UpcomingBookings from "./components/UpcomingBookings";
+import { Skeleton, StatCardSkeleton, BookingCardSkeleton } from "@/components/ui/Skeleton";
 
 interface Booking {
   id: number;
@@ -89,18 +89,15 @@ export default function FarmerSchedule() {
         setBookings(data.bookings || []);
         setBlockedDates(data.blocked_dates || []);
         
-        // Get today's date at midnight
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
-        // Calculate today's bookings
         const todayCount = (data.bookings || []).filter((b: Booking) => {
           const bookingDate = new Date(b.booking_date);
           bookingDate.setHours(0, 0, 0, 0);
           return bookingDate.getTime() === today.getTime();
         }).length;
         
-        // Calculate upcoming bookings (future dates, excluding today)
         const upcomingCount = (data.bookings || []).filter((b: Booking) => {
           const bookingDate = new Date(b.booking_date);
           bookingDate.setHours(0, 0, 0, 0);
@@ -209,18 +206,15 @@ export default function FarmerSchedule() {
     }
   };
 
-  // Filter logic for different views
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Today's bookings
   const todayBookingsList = bookings.filter(b => {
     const bookingDate = new Date(b.booking_date);
     bookingDate.setHours(0, 0, 0, 0);
     return bookingDate.getTime() === today.getTime();
   });
 
-  // Upcoming bookings (future dates, excluding today)
   const upcomingBookingsList = bookings
     .filter(b => {
       const bookingDate = new Date(b.booking_date);
@@ -259,7 +253,6 @@ export default function FarmerSchedule() {
     }
   };
 
-  // Helper function for status colors
   const getBookingStatusBadge = (status: string) => {
     switch (status) {
       case "confirmed": return { color: "bg-green-100 text-green-700", text: "Approved" };
@@ -271,14 +264,51 @@ export default function FarmerSchedule() {
   };
 
   const getPaymentStatusBadge = (paymentStatus?: string) => {
-  if (paymentStatus === "paid") {
-    return { color: "bg-green-100 text-green-700", text: "Paid ✅" };  
-  } else if (paymentStatus === "pending_cash") {
-    return { color: "bg-blue-100 text-blue-700", text: "Pay at Farm" };
-  } else {
-    return { color: "bg-yellow-100 text-yellow-700", text: "Payment Due" };
+    if (paymentStatus === "paid") {
+      return { color: "bg-green-100 text-green-700", text: "Paid ✅" };  
+    } else if (paymentStatus === "pending_cash") {
+      return { color: "bg-blue-100 text-blue-700", text: "Pay at Farm" };
+    } else {
+      return { color: "bg-yellow-100 text-yellow-700", text: "Payment Due" };
+    }
+  };
+
+  // Loading skeleton
+  if (loading && bookings.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-emerald-100/30">
+        <div className="container mx-auto px-4 py-8 max-w-7xl">
+          {/* Header Skeleton */}
+          <div className="mb-6">
+            <Skeleton className="h-5 w-32 mb-4" />
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <Skeleton className="h-8 w-48 mb-2" />
+                <Skeleton className="h-5 w-64" />
+              </div>
+              <div className="flex gap-3">
+                <Skeleton className="h-10 w-32 rounded-xl" />
+                <Skeleton className="h-10 w-24 rounded-xl" />
+              </div>
+            </div>
+          </div>
+
+          {/* Stats Cards Skeleton */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <StatCardSkeleton key={i} />
+            ))}
+          </div>
+
+          {/* Calendar Skeleton */}
+          <div className="bg-white rounded-2xl p-12 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
+            <p className="text-gray-500 mt-4">Loading schedule...</p>
+          </div>
+        </div>
+      </div>
+    );
   }
-};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-emerald-100/30">
@@ -315,13 +345,9 @@ export default function FarmerSchedule() {
           </div>
         </div>
 
-        {/* Summary Stats - Clickable Cards */}
+        {/* Summary Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          {/* Clickable Today's Bookings Card */}
-          <div 
-            onClick={() => showList("today")}
-            className="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100 cursor-pointer hover:shadow-md transition group"
-          >
+          <div onClick={() => showList("today")} className="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100 cursor-pointer hover:shadow-md transition group">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Today's Bookings</p>
@@ -330,18 +356,11 @@ export default function FarmerSchedule() {
               <Calendar className="h-8 w-8 text-emerald-400 group-hover:text-emerald-600 transition" />
             </div>
             {summary.today_count > 0 && (
-              <p className="text-xs text-emerald-500 mt-2 flex items-center gap-1">
-                Click to view
-                <ChevronRight className="h-3 w-3" />
-              </p>
+              <p className="text-xs text-emerald-500 mt-2 flex items-center gap-1">Click to view <ChevronRight className="h-3 w-3" /></p>
             )}
           </div>
           
-          {/* Clickable Upcoming Card */}
-          <div 
-            onClick={() => showList("upcoming")}
-            className="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100 cursor-pointer hover:shadow-md transition group"
-          >
+          <div onClick={() => showList("upcoming")} className="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100 cursor-pointer hover:shadow-md transition group">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Upcoming</p>
@@ -350,18 +369,11 @@ export default function FarmerSchedule() {
               <Calendar className="h-8 w-8 text-emerald-400 group-hover:text-emerald-600 transition" />
             </div>
             {summary.upcoming_count > 0 && (
-              <p className="text-xs text-emerald-500 mt-2 flex items-center gap-1">
-                Click to view
-                <ChevronRight className="h-3 w-3" />
-              </p>
+              <p className="text-xs text-emerald-500 mt-2 flex items-center gap-1">Click to view <ChevronRight className="h-3 w-3" /></p>
             )}
           </div>
           
-          {/* Clickable Pending Approval Card */}
-          <div 
-            onClick={() => showList("pending")}
-            className="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100 cursor-pointer hover:shadow-md transition group"
-          >
+          <div onClick={() => showList("pending")} className="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100 cursor-pointer hover:shadow-md transition group">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Pending Approval</p>
@@ -370,18 +382,11 @@ export default function FarmerSchedule() {
               <AlertCircle className="h-8 w-8 text-emerald-400 group-hover:text-emerald-600 transition" />
             </div>
             {summary.pending_count > 0 && (
-              <p className="text-xs text-emerald-500 mt-2 flex items-center gap-1">
-                Click to review
-                <ChevronRight className="h-3 w-3" />
-              </p>
+              <p className="text-xs text-emerald-500 mt-2 flex items-center gap-1">Click to review <ChevronRight className="h-3 w-3" /></p>
             )}
           </div>
           
-          {/* Clickable Total Bookings Card */}
-          <div 
-            onClick={() => showList("total")}
-            className="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100 cursor-pointer hover:shadow-md transition group"
-          >
+          <div onClick={() => showList("total")} className="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100 cursor-pointer hover:shadow-md transition group">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Total Bookings</p>
@@ -390,21 +395,14 @@ export default function FarmerSchedule() {
               <List className="h-8 w-8 text-emerald-400 group-hover:text-emerald-600 transition" />
             </div>
             {summary.total_bookings > 0 && (
-              <p className="text-xs text-emerald-500 mt-2 flex items-center gap-1">
-                Click to view all
-                <ChevronRight className="h-3 w-3" />
-              </p>
+              <p className="text-xs text-emerald-500 mt-2 flex items-center gap-1">Click to view all <ChevronRight className="h-3 w-3" /></p>
             )}
           </div>
         </div>
 
-        {/* Dynamic List View - Shows when a card is clicked */}
+        {/* Dynamic List View */}
         {activeList && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6"
-          >
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
             <div className="bg-white rounded-2xl border border-emerald-200 overflow-hidden shadow-sm">
               <div className="p-4 border-b border-emerald-100 bg-gray-50">
                 <div className="flex items-center justify-between">
@@ -413,76 +411,37 @@ export default function FarmerSchedule() {
                     {activeList === "upcoming" && <Calendar className="h-5 w-5 text-emerald-600" />}
                     {activeList === "pending" && <AlertCircle className="h-5 w-5 text-emerald-600" />}
                     {activeList === "total" && <List className="h-5 w-5 text-emerald-600" />}
-                    <h2 className="font-semibold text-emerald-800">
-                      {getListTitle()} ({getListData().length})
-                    </h2>
+                    <h2 className="font-semibold text-emerald-800">{getListTitle()} ({getListData().length})</h2>
                   </div>
-                  <button
-                    onClick={() => {
-                      setActiveList(null);
-                      setViewMode("month");
-                    }}
-                    className="text-xs text-gray-500 hover:text-gray-700"
-                  >
-                    Close
-                  </button>
+                  <button onClick={() => { setActiveList(null); setViewMode("month"); }} className="text-xs text-gray-500 hover:text-gray-700">Close</button>
                 </div>
               </div>
               <div className="p-4">
                 {getListData().length === 0 ? (
-                  <div className="text-center py-12">
-                    <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500">No {activeList} bookings found</p>
-                  </div>
+                  <div className="text-center py-12"><Calendar className="h-12 w-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500">No {activeList} bookings found</p></div>
                 ) : (
                   <div className="space-y-3">
                     {getListData().map((booking) => {
                       const bookingStatus = getBookingStatusBadge(booking.status);
                       const paymentStatus = getPaymentStatusBadge(booking.payment_status);
                       return (
-                        <div
-                          key={booking.id}
-                          className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:shadow-md transition flex items-center justify-between flex-wrap gap-4"
-                        >
+                        <div key={booking.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:shadow-md transition flex items-center justify-between flex-wrap gap-4">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1 flex-wrap">
                               <h3 className="font-semibold text-gray-900">{booking.visitor_name}</h3>
-                              <span className={`text-xs px-2 py-0.5 rounded-full ${bookingStatus.color}`}>
-                                {bookingStatus.text}
-                              </span>
-                              <span className={`text-xs px-2 py-0.5 rounded-full ${paymentStatus.color}`}>
-                                {paymentStatus.text}
-                              </span>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${bookingStatus.color}`}>{bookingStatus.text}</span>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${paymentStatus.color}`}>{paymentStatus.text}</span>
                             </div>
                             <p className="text-sm text-gray-600">{booking.activity_name}</p>
                             <div className="flex gap-4 mt-2 text-xs text-gray-500">
-                              <span className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                {new Date(booking.booking_date).toLocaleDateString()}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Users className="h-3 w-3" />
-                                {booking.guests_count} guests
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <DollarSign className="h-3 w-3" />
-                                KES {booking.total_amount?.toLocaleString()}
-                              </span>
+                              <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{new Date(booking.booking_date).toLocaleDateString()}</span>
+                              <span className="flex items-center gap-1"><Users className="h-3 w-3" />{booking.guests_count} guests</span>
+                              <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" />KES {booking.total_amount?.toLocaleString()}</span>
                             </div>
                           </div>
                           <div className="flex gap-2">
-                            <button
-                              onClick={() => handleBookingClick(booking)}
-                              className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 transition"
-                            >
-                              View Details
-                            </button>
-                            <button
-                              onClick={() => handleDeleteBooking(booking.id)}
-                              className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition"
-                            >
-                              Delete
-                            </button>
+                            <button onClick={() => handleBookingClick(booking)} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 transition">View Details</button>
+                            <button onClick={() => handleDeleteBooking(booking.id)} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition">Delete</button>
                           </div>
                         </div>
                       );
@@ -497,34 +456,16 @@ export default function FarmerSchedule() {
         {/* View Toggle */}
         <div className="flex justify-end mb-4">
           <div className="flex gap-2 bg-white rounded-lg border border-emerald-200 p-1">
-            <button
-              onClick={() => {
-                setViewMode("month");
-                setActiveList(null);
-              }}
-              className={`px-3 py-1.5 rounded-md text-sm transition ${
-                viewMode === "month" && !activeList ? "bg-accent text-white" : "text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              <Grid3x3 className="h-4 w-4 inline mr-1" />
-              Month
+            <button onClick={() => { setViewMode("month"); setActiveList(null); }} className={`px-3 py-1.5 rounded-md text-sm transition ${viewMode === "month" && !activeList ? "bg-accent text-white" : "text-gray-600 hover:bg-gray-100"}`}>
+              <Grid3x3 className="h-4 w-4 inline mr-1" /> Month
             </button>
-            <button
-              onClick={() => {
-                setViewMode("list");
-                setActiveList(null);
-              }}
-              className={`px-3 py-1.5 rounded-md text-sm transition ${
-                viewMode === "list" && !activeList ? "bg-accent text-white" : "text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              <List className="h-4 w-4 inline mr-1" />
-              List
+            <button onClick={() => { setViewMode("list"); setActiveList(null); }} className={`px-3 py-1.5 rounded-md text-sm transition ${viewMode === "list" && !activeList ? "bg-accent text-white" : "text-gray-600 hover:bg-gray-100"}`}>
+              <List className="h-4 w-4 inline mr-1" /> List
             </button>
           </div>
         </div>
 
-        {/* Calendar View - Only shows when in month view and no active list */}
+        {/* Calendar View */}
         {viewMode === "month" && !activeList && (
           <>
             <CalendarHeader
@@ -535,86 +476,47 @@ export default function FarmerSchedule() {
               onNext={handleNextMonth}
               onToday={handleToday}
             />
-            {loading ? (
-              <div className="bg-white rounded-2xl p-12 text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto"></div>
-                <p className="text-gray-500 mt-4">Loading schedule...</p>
-              </div>
-            ) : (
-              <CalendarGrid
-                currentDate={currentDate}
-                bookings={bookings}
-                blockedDates={blockedDates}
-                onBookingClick={handleBookingClick}
-              />
-            )}
+            <CalendarGrid
+              currentDate={currentDate}
+              bookings={bookings}
+              blockedDates={blockedDates}
+              onBookingClick={handleBookingClick}
+            />
           </>
         )}
 
-        {/* List View - Shows all bookings when in list mode */}
+        {/* List View */}
         {viewMode === "list" && !activeList && (
           <div className="bg-white rounded-2xl border border-emerald-200 overflow-hidden shadow-sm">
             <div className="p-4 border-b border-emerald-100 bg-gray-50">
-              <div className="flex items-center gap-2">
-                <List className="h-5 w-5 text-emerald-600" />
-                <h2 className="font-semibold text-emerald-800">All Bookings ({bookings.length})</h2>
-              </div>
+              <div className="flex items-center gap-2"><List className="h-5 w-5 text-emerald-600" /><h2 className="font-semibold text-emerald-800">All Bookings ({bookings.length})</h2></div>
             </div>
             <div className="p-4">
               {bookings.length === 0 ? (
-                <div className="text-center py-12">
-                  <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500">No bookings yet</p>
-                </div>
+                <div className="text-center py-12"><Calendar className="h-12 w-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500">No bookings yet</p></div>
               ) : (
                 <div className="space-y-3">
                   {bookings.map((booking) => {
                     const bookingStatus = getBookingStatusBadge(booking.status);
                     const paymentStatus = getPaymentStatusBadge(booking.payment_status);
                     return (
-                      <div
-                        key={booking.id}
-                        className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:shadow-md transition flex items-center justify-between flex-wrap gap-4"
-                      >
+                      <div key={booking.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:shadow-md transition flex items-center justify-between flex-wrap gap-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <h3 className="font-semibold text-gray-900">{booking.visitor_name}</h3>
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${bookingStatus.color}`}>
-                              {bookingStatus.text}
-                            </span>
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${paymentStatus.color}`}>
-                              {paymentStatus.text}
-                            </span>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${bookingStatus.color}`}>{bookingStatus.text}</span>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${paymentStatus.color}`}>{paymentStatus.text}</span>
                           </div>
                           <p className="text-sm text-gray-600">{booking.activity_name}</p>
                           <div className="flex gap-4 mt-2 text-xs text-gray-500">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {new Date(booking.booking_date).toLocaleDateString()}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Users className="h-3 w-3" />
-                              {booking.guests_count} guests
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <DollarSign className="h-3 w-3" />
-                              KES {booking.total_amount?.toLocaleString()}
-                            </span>
+                            <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{new Date(booking.booking_date).toLocaleDateString()}</span>
+                            <span className="flex items-center gap-1"><Users className="h-3 w-3" />{booking.guests_count} guests</span>
+                            <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" />KES {booking.total_amount?.toLocaleString()}</span>
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <button
-                            onClick={() => handleBookingClick(booking)}
-                            className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 transition"
-                          >
-                            View Details
-                          </button>
-                          <button
-                            onClick={() => handleDeleteBooking(booking.id)}
-                            className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition"
-                          >
-                            Delete
-                          </button>
+                          <button onClick={() => handleBookingClick(booking)} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 transition">View Details</button>
+                          <button onClick={() => handleDeleteBooking(booking.id)} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition">Delete</button>
                         </div>
                       </div>
                     );
@@ -626,7 +528,6 @@ export default function FarmerSchedule() {
         )}
       </div>
 
-      {/* Booking Details Modal */}
       {selectedBooking && (
         <BookingDetailsModal
           booking={selectedBooking}
@@ -635,7 +536,6 @@ export default function FarmerSchedule() {
         />
       )}
 
-      {/* Availability Modal */}
       {showAvailabilityModal && (
         <AvailabilityModal
           onClose={() => setShowAvailabilityModal(false)}

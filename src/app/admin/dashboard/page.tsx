@@ -12,6 +12,11 @@ import {
   AlertCircle,
   Search,
 } from "lucide-react";
+import {
+  StatCardSkeleton,
+  TableSkeleton,
+  ChartSkeleton,
+} from "@/components/ui/Skeleton";
 
 interface Farm {
   id: number;
@@ -61,6 +66,18 @@ export default function AdminDashboard() {
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
+  // Stats data
+  const [stats, setStats] = useState({
+    totalFarms: 0,
+    pendingVerifications: 0,
+    approvedFarms: 0,
+    rejectedFarms: 0,
+    totalBookings: 0,
+    totalRevenue: 0,
+    platformEarnings: 0,
+  });
+  const [statsLoading, setStatsLoading] = useState(true);
+
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -80,6 +97,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchAllFarms();
     fetchBookings();
+    fetchStats();
   }, []);
 
   useEffect(() => {
@@ -111,6 +129,19 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error("Error fetching bookings:", error);
       setBookings([]);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const response = await fetch('/api/admin/stats');
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      setStats(data);
+      setStatsLoading(false);
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+      setStatsLoading(false);
     }
   };
 
@@ -154,6 +185,7 @@ export default function AdminDashboard() {
       if (response.ok) {
         alert(`✅ Farm "${farm.farm_name}" has been approved!`);
         await fetchAllFarms();
+        await fetchStats();
       } else {
         throw new Error("Failed to approve");
       }
@@ -188,6 +220,7 @@ export default function AdminDashboard() {
         setShowRejectModal(false);
         setRejectionNote("");
         await fetchAllFarms();
+        await fetchStats();
       } else {
         throw new Error("Failed to reject");
       }
@@ -201,8 +234,38 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+      <div className="min-h-screen bg-background">
+        {/* Admin Header Skeleton */}
+        <div className="bg-card border-b border-border sticky top-0 z-20">
+          <div className="container mx-auto px-4 md:px-6 py-4">
+            <div className="flex items-center gap-3 mb-3 md:mb-0">
+              <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl">
+                <Shield className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <div className="h-7 w-48 bg-muted rounded-lg animate-pulse"></div>
+                <div className="h-4 w-64 bg-muted rounded-lg animate-pulse mt-1"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="container mx-auto px-4 md:px-6 py-8">
+          {/* Stats Cards Skeleton */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {[...Array(4)].map((_, i) => (
+              <StatCardSkeleton key={i} />
+            ))}
+          </div>
+
+          {/* Farms Table Skeleton */}
+          <div className="bg-card rounded-2xl border border-border overflow-hidden">
+            <div className="p-6 border-b border-border">
+              <div className="h-6 w-32 bg-muted rounded-lg animate-pulse"></div>
+            </div>
+            <TableSkeleton rows={5} columns={4} />
+          </div>
+        </div>
       </div>
     );
   }
@@ -250,6 +313,90 @@ export default function AdminDashboard() {
       </div>
 
       <div className="container mx-auto px-4 md:px-6 py-8">
+        {/* Stats Cards */}
+        {activeTab !== "bookings" && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="bg-card rounded-2xl border border-border p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Farms</p>
+                  <p className="text-2xl font-bold text-card-foreground mt-1">
+                    {stats.totalFarms}
+                  </p>
+                </div>
+                <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl">
+                  <Shield className="h-6 w-6 text-emerald-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-card rounded-2xl border border-border p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Pending Verifications</p>
+                  <p className="text-2xl font-bold text-yellow-600 mt-1">
+                    {stats.pendingVerifications}
+                  </p>
+                </div>
+                <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-xl">
+                  <Clock className="h-6 w-6 text-yellow-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-card rounded-2xl border border-border p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Approved Farms</p>
+                  <p className="text-2xl font-bold text-green-600 mt-1">
+                    {stats.approvedFarms}
+                  </p>
+                </div>
+                <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
+                  <CheckCircle className="h-6 w-6 text-green-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-card rounded-2xl border border-border p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Platform Earnings</p>
+                  <p className="text-2xl font-bold text-card-foreground mt-1">
+                    KES {stats.platformEarnings?.toLocaleString() || 0}
+                  </p>
+                </div>
+                <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
+                  <Shield className="h-6 w-6 text-purple-600" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab Navigation */}
+        <div className="flex gap-2 mb-6 border-b border-border overflow-x-auto pb-2">
+          {[
+            { id: "pending", label: "Pending Verification", count: stats.pendingVerifications },
+            { id: "verified", label: "Verified Farms", count: stats.approvedFarms },
+            { id: "rejected", label: "Rejected Farms", count: stats.rejectedFarms },
+            { id: "all", label: "All Farms", count: stats.totalFarms },
+            { id: "bookings", label: "Bookings", count: stats.totalBookings },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                activeTab === tab.id
+                  ? "text-emerald-600 border-b-2 border-emerald-600"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {tab.label} {tab.count !== undefined && `(${tab.count})`}
+            </button>
+          ))}
+        </div>
+
         {/* Content Sections */}
         {(activeTab === "pending" || activeTab === "verified" || activeTab === "rejected" || activeTab === "all") && (
           <div className="space-y-4">
@@ -325,7 +472,7 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      {/* Modals (same as before) */}
+      {/* Modals */}
       {showFarmModal && selectedFarm && (
         <FarmDetailsModal
           farm={selectedFarm}
@@ -356,7 +503,7 @@ export default function AdminDashboard() {
   );
 }
 
-// Farm Card Component (keep the same)
+// Farm Card Component
 function FarmCard({ farm, onApprove, onReject, onViewDetails, processing, showActions }: { 
   farm: Farm;
   onApprove: () => void;
@@ -445,7 +592,7 @@ function FarmCard({ farm, onApprove, onReject, onViewDetails, processing, showAc
   );
 }
 
-// Keep FarmDetailsModal, PhotoPreviewModal, RejectionModal from previous version (same as before)
+// Farm Details Modal
 function FarmDetailsModal({ farm, onClose, onPhotoClick }: { 
   farm: Farm;
   onClose: () => void;
@@ -536,6 +683,7 @@ function FarmDetailsModal({ farm, onClose, onPhotoClick }: {
   );
 }
 
+// Photo Preview Modal
 function PhotoPreviewModal({ photoUrl, onClose }: { photoUrl: string; onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[60] p-4" onClick={onClose}>
@@ -552,6 +700,7 @@ function PhotoPreviewModal({ photoUrl, onClose }: { photoUrl: string; onClose: (
   );
 }
 
+// Rejection Modal
 function RejectionModal({ onConfirm, onClose, note, setNote }: { 
   onConfirm: () => void;
   onClose: () => void;

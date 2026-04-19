@@ -1,4 +1,3 @@
-// src/app/visitor/dashboard/reviews/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -16,6 +15,7 @@ import {
   Edit2,
   Trash2,
 } from "lucide-react";
+import { Skeleton, ReviewCardSkeleton, ReviewableBookingSkeleton } from "@/components/ui/Skeleton";
 
 interface Review {
   id: number;
@@ -86,7 +86,6 @@ export default function VisitorReviews() {
         
         const data = await response.json();
         
-        // Process submitted reviews
         const realReviews: Review[] = (data.reviews || []).map((r: any) => ({
           id: r.id,
           farmId: r.farm_id,
@@ -99,7 +98,6 @@ export default function VisitorReviews() {
           farmResponse: r.farm_response
         }));
         
-        // Process reviewable bookings
         const realReviewableBookings: ReviewableBooking[] = (data.reviewableBookings || []).map((b: any) => ({
           booking_id: b.booking_id,
           farm_id: b.farm_id,
@@ -295,10 +293,45 @@ export default function VisitorReviews() {
     setShowEditModal(true);
   };
 
+  // Loading skeleton
   if (!mounted || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-100/30 py-8">
+        <div className="container mx-auto px-4 max-w-4xl">
+          {/* Header Skeleton */}
+          <div className="mb-6">
+            <Skeleton className="h-5 w-32 mb-4" />
+            <Skeleton className="h-8 w-48 mb-2" />
+            <Skeleton className="h-5 w-64" />
+          </div>
+
+          {/* Stats Skeleton */}
+          <div className="grid md:grid-cols-2 gap-4 mb-6">
+            <Skeleton className="h-28 rounded-2xl" />
+            <Skeleton className="h-28 rounded-2xl" />
+          </div>
+
+          {/* Reviewable Bookings Skeleton */}
+          <div className="mb-8">
+            <Skeleton className="h-7 w-48 mb-4" />
+            <Skeleton className="h-5 w-80 mb-4" />
+            <div className="space-y-4">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <ReviewableBookingSkeleton key={i} />
+              ))}
+            </div>
+          </div>
+
+          {/* Reviews List Skeleton */}
+          <div>
+            <Skeleton className="h-7 w-32 mb-4" />
+            <div className="space-y-4">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <ReviewCardSkeleton key={i} />
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -373,7 +406,7 @@ export default function VisitorReviews() {
           </div>
         )}
 
-        {/* Submitted Reviews Section with Edit/Delete */}
+        {/* Submitted Reviews Section */}
         {reviews.length > 0 ? (
           <div>
             <h2 className="text-lg font-heading font-semibold text-emerald-900 mb-4">My Reviews</h2>
@@ -588,7 +621,6 @@ function ReviewCard({ review, onEdit, onDelete, isDeleting }: {
               />
             ))}
           </div>
-          {/* Edit Button */}
           <button
             onClick={onEdit}
             className="p-1.5 text-emerald-500 hover:bg-emerald-50 rounded-lg transition"
@@ -596,7 +628,6 @@ function ReviewCard({ review, onEdit, onDelete, isDeleting }: {
           >
             <Edit2 className="h-4 w-4" />
           </button>
-          {/* Delete Button */}
           <button
             onClick={onDelete}
             disabled={isDeleting}

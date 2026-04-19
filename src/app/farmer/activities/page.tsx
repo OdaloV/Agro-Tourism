@@ -15,6 +15,7 @@ import {
   DollarSign,
   Tag 
 } from "lucide-react";
+import { Skeleton, ActivityCardSkeleton } from "@/components/ui/Skeleton";
 
 interface ActivityItem {
   id: number;
@@ -129,10 +130,32 @@ export default function FarmerActivities() {
     }
   };
 
+  // Loading skeleton
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-emerald-100/30 py-8">
+        <div className="container mx-auto px-4 max-w-4xl">
+          {/* Back Button Skeleton */}
+          <Skeleton className="h-5 w-32 mb-6" />
+          
+          {/* Header Skeleton */}
+          <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden">
+            <div className="p-6 border-b border-emerald-100 flex justify-between items-center">
+              <div>
+                <Skeleton className="h-8 w-48 mb-2" />
+                <Skeleton className="h-5 w-64" />
+              </div>
+              <Skeleton className="h-10 w-32 rounded-xl" />
+            </div>
+            
+            {/* Activities List Skeleton */}
+            <div className="p-6 space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <ActivityCardSkeleton key={i} />
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -274,7 +297,7 @@ export default function FarmerActivities() {
                         </div>
                       </div>
                     ) : (
-                      // View Mode - Improved contrast for badges
+                      // View Mode
                       <div className="flex items-center justify-between p-4">
                         <div className="flex-1">
                           <h3 className="font-medium text-emerald-900">{activity.name}</h3>

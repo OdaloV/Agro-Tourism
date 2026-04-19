@@ -22,6 +22,11 @@ import {
   CreditCard,
   Zap,
 } from "lucide-react";
+import {
+  StatCardSkeleton,
+  ChartSkeleton,
+  TableSkeleton,
+} from "@/components/ui/Skeleton";
 
 interface AnalyticsData {
   summary: {
@@ -148,10 +153,76 @@ export default function AdminAnalytics() {
     window.URL.revokeObjectURL(url);
   };
 
+  // Skeleton Loading State
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-100/30">
+        {/* Header Skeleton */}
+        <div className="bg-white border-b border-emerald-100 sticky top-0 z-20">
+          <div className="container mx-auto px-6 py-4">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-50 rounded-xl">
+                  <ArrowLeft className="h-5 w-5 text-emerald-300" />
+                </div>
+                <div>
+                  <div className="h-7 w-48 bg-muted rounded-lg animate-pulse"></div>
+                  <div className="h-4 w-64 bg-muted rounded-lg animate-pulse mt-1"></div>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <div className="h-10 w-32 bg-muted rounded-xl animate-pulse"></div>
+                <div className="h-10 w-24 bg-muted rounded-xl animate-pulse"></div>
+                <div className="h-10 w-24 bg-muted rounded-xl animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="container mx-auto px-6 py-8">
+          {/* Metrics Grid Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+            {[...Array(6)].map((_, i) => (
+              <StatCardSkeleton key={i} />
+            ))}
+          </div>
+
+          {/* Farm Status Summary Skeleton */}
+          <div className="grid grid-cols-3 gap-4 mb-8">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl p-4 border border-emerald-100">
+                <div className="h-6 w-6 bg-muted rounded-full mx-auto mb-2 animate-pulse"></div>
+                <div className="h-8 w-16 bg-muted rounded-lg mx-auto mb-2 animate-pulse"></div>
+                <div className="h-4 w-24 bg-muted rounded-lg mx-auto animate-pulse"></div>
+              </div>
+            ))}
+          </div>
+
+          {/* Top Farms Skeleton */}
+          <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 p-6 mb-8">
+            <div className="h-6 w-48 bg-muted rounded-lg animate-pulse mb-4"></div>
+            <div className="space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex items-center justify-between border-b border-emerald-100 pb-3">
+                  <div>
+                    <div className="h-5 w-40 bg-muted rounded animate-pulse"></div>
+                    <div className="h-3 w-32 bg-muted rounded animate-pulse mt-1"></div>
+                  </div>
+                  <div className="text-right">
+                    <div className="h-4 w-12 bg-muted rounded animate-pulse"></div>
+                    <div className="h-3 w-16 bg-muted rounded animate-pulse mt-1"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Monthly Chart Skeleton */}
+          <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 p-6">
+            <div className="h-6 w-48 bg-muted rounded-lg animate-pulse mb-6"></div>
+            <ChartSkeleton />
+          </div>
+        </div>
       </div>
     );
   }
@@ -164,6 +235,12 @@ export default function AdminAnalytics() {
             <BarChart3 className="h-16 w-16 text-emerald-300 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-emerald-900">No data available yet</h2>
             <p className="text-emerald-600 mt-2">Start getting users and bookings to see analytics</p>
+            <button
+              onClick={fetchAnalytics}
+              className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700"
+            >
+              Retry
+            </button>
           </div>
         </div>
       </div>
@@ -194,16 +271,26 @@ export default function AdminAnalytics() {
               </div>
             </div>
             <div className="flex gap-3">
-              <select value={timeRange} onChange={(e) => setTimeRange(e.target.value as any)} className="px-4 py-2 bg-white border border-emerald-200 rounded-xl text-emerald-900 focus:outline-none focus:border-emerald-500">
+              <select 
+                value={timeRange} 
+                onChange={(e) => setTimeRange(e.target.value as any)} 
+                className="px-4 py-2 bg-white border border-emerald-200 rounded-xl text-emerald-900 focus:outline-none focus:border-emerald-500"
+              >
                 <option value="7d">Last 7 days</option>
                 <option value="30d">Last 30 days</option>
                 <option value="90d">Last 90 days</option>
                 <option value="1y">Last year</option>
               </select>
-              <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition text-emerald-700">
+              <button 
+                onClick={handleExport} 
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition text-emerald-700"
+              >
                 <Download className="h-5 w-5" /> Export
               </button>
-              <button onClick={fetchAnalytics} className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition text-emerald-700">
+              <button 
+                onClick={fetchAnalytics} 
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition text-emerald-700"
+              >
                 <RefreshCw className="h-5 w-5" /> Refresh
               </button>
             </div>

@@ -1,4 +1,3 @@
-// src/app/visitor/dashboard/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -13,6 +12,7 @@ import {
   Users,
   ChevronRight,
 } from "lucide-react";
+import { Skeleton, StatCardSkeleton, BookingCardSkeleton, FarmCardSkeleton } from "@/components/ui/Skeleton";
 
 interface Booking {
   id: number;
@@ -100,17 +100,14 @@ export default function VisitorDashboard() {
           console.log("Fetched profile photo:", photoData.visitorpfp ? "Yes" : "No");
           if (photoData.visitorpfp) {
             setProfilePhoto(photoData.visitorpfp);
-            // Also save to localStorage for backup
             localStorage.setItem("visitor_profile_photo", photoData.visitorpfp);
           } else {
-            // Check localStorage as fallback
             const localPhoto = localStorage.getItem("visitor_profile_photo");
             if (localPhoto) {
               setProfilePhoto(localPhoto);
             }
           }
         } else {
-          // Fallback to localStorage
           const localPhoto = localStorage.getItem("visitor_profile_photo");
           if (localPhoto) {
             setProfilePhoto(localPhoto);
@@ -131,17 +128,53 @@ export default function VisitorDashboard() {
     (b.status === "confirmed" || b.status === "pending") && new Date(b.date) >= new Date()
   );
 
+  // Loading skeleton
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+      <div className="py-8">
+        {/* Header Skeleton */}
+        <div className="mb-8">
+          <div className="flex items-center gap-4">
+            <Skeleton variant="circular" className="h-16 w-16" />
+            <div>
+              <Skeleton className="h-8 w-64 mb-2" />
+              <Skeleton className="h-5 w-48" />
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Cards Skeleton */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <StatCardSkeleton key={i} />
+          ))}
+        </div>
+
+        {/* Two Column Layout Skeleton */}
+        <div className="grid lg:grid-cols-2 gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden">
+              <div className="p-5 border-b border-emerald-100">
+                <div className="flex justify-between items-center">
+                  <Skeleton className="h-6 w-32" />
+                  <Skeleton className="h-4 w-16" />
+                </div>
+              </div>
+              <div className="p-5 space-y-3">
+                {Array.from({ length: 2 }).map((_, j) => (
+                  <BookingCardSkeleton key={j} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
     <>
-      {/* Header with Profile Photo next to welcome message */}
+      {/* Header with Profile Photo */}
       <div className="mb-8">
         <div className="flex items-center gap-4">
           {/* Profile Photo Circle */}
@@ -152,7 +185,6 @@ export default function VisitorDashboard() {
                 alt="Profile"
                 className="w-full h-full object-cover"
                 onError={() => {
-                  // If image fails to load, clear it
                   console.error("Failed to load profile photo");
                   setProfilePhoto(null);
                 }}

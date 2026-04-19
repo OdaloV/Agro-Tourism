@@ -1,8 +1,8 @@
-// src/app/farms/[id]/book/page.tsx
 "use client";
 
 import { useState } from "react";
 import { useSettings } from "@/lib/hooks/useSettings";
+import { StatCardSkeleton } from "@/components/ui/Skeleton";
 
 export default function BookingPage() {
   const { minBookingAmount, maxGuestsPerBooking, loading } = useSettings();
@@ -32,8 +32,51 @@ export default function BookingPage() {
     // Proceed with booking...
   };
 
+  // Skeleton Loading State
   if (loading) {
-    return <div className="flex justify-center p-8">Loading...</div>;
+    return (
+      <div className="max-w-md mx-auto p-6">
+        <div className="h-8 w-48 bg-muted rounded-lg animate-pulse mb-6"></div>
+        
+        {/* Guest Selection Skeleton */}
+        <div className="mb-4">
+          <div className="h-5 w-32 bg-muted rounded-lg animate-pulse mb-2"></div>
+          <div className="h-10 w-full bg-muted rounded-xl animate-pulse"></div>
+          <div className="h-3 w-48 bg-muted rounded-lg animate-pulse mt-2"></div>
+        </div>
+
+        {/* Price Breakdown Skeleton */}
+        <div className="bg-gray-50 p-4 rounded-xl mb-4 space-y-3">
+          <div className="flex justify-between">
+            <div className="h-4 w-32 bg-muted rounded animate-pulse"></div>
+            <div className="h-4 w-20 bg-muted rounded animate-pulse"></div>
+          </div>
+          <div className="flex justify-between">
+            <div className="h-4 w-24 bg-muted rounded animate-pulse"></div>
+            <div className="h-4 w-20 bg-muted rounded animate-pulse"></div>
+          </div>
+          <div className="border-t border-gray-200 pt-2">
+            <div className="flex justify-between">
+              <div className="h-5 w-24 bg-muted rounded animate-pulse"></div>
+              <div className="h-5 w-24 bg-muted rounded animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Submit Button Skeleton */}
+        <div className="h-12 w-full bg-muted rounded-xl animate-pulse"></div>
+
+        {/* Info Box Skeleton */}
+        <div className="mt-4 p-3 bg-blue-50 rounded-xl">
+          <div className="h-4 w-32 bg-muted rounded animate-pulse mb-2"></div>
+          <div className="space-y-1">
+            <div className="h-3 w-48 bg-muted rounded animate-pulse"></div>
+            <div className="h-3 w-52 bg-muted rounded animate-pulse"></div>
+            <div className="h-3 w-44 bg-muted rounded animate-pulse"></div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

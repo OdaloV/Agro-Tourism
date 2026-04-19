@@ -17,6 +17,7 @@ import {
   CalendarCheck,
 } from "lucide-react";
 import AddToCalendar from "@/app/components/AddToCalendar";
+import { Skeleton, BookingCardSkeleton } from "@/components/ui/Skeleton";
 
 interface Booking {
   id: number;
@@ -187,10 +188,32 @@ export default function VisitorBookings() {
     router.push(`/visitor/dashboard/reviews?farmId=${booking.farmId}&bookingId=${booking.id}`);
   };
 
+  // Loading skeleton
   if (!mounted || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-100/30 py-8">
+        <div className="container mx-auto px-4 max-w-5xl">
+          {/* Header Skeleton */}
+          <div className="mb-6">
+            <Skeleton className="h-5 w-32 mb-4" />
+            <Skeleton className="h-8 w-48 mb-2" />
+            <Skeleton className="h-5 w-64" />
+          </div>
+
+          {/* Tabs Skeleton */}
+          <div className="flex gap-2 border-b border-emerald-200 mb-6">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-28 rounded-t-xl" />
+            ))}
+          </div>
+
+          {/* Bookings List Skeleton */}
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <BookingCardSkeleton key={i} />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

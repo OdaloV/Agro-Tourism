@@ -47,11 +47,4 @@ export default function FarmerProfilePage() {
   const onRemoveActivity = (activity: string) => handleRemove('activity', activity)
   const onRemoveFacility = (facility: string) => handleRemove('facility', facility)
 
-  // Step 1: Farm Information
-  // Step 2: Animals & Crops
-  // Step 3: Activities
-  // Step 4: Facilities & Accommodation
-  // Step 5: Media
-  // Step 6: Verification & Summary
-  // Navigation buttons with Previous/Next/Submit
 }

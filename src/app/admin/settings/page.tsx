@@ -1,5 +1,3 @@
-// src/app/admin/settings/page.tsx 
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -16,6 +14,7 @@ import {
   AlertCircle,
   CheckCircle,
 } from "lucide-react";
+import { StatCardSkeleton, TableSkeleton } from "@/components/ui/Skeleton";
 
 interface AdminSettings {
   platformName: string;
@@ -116,10 +115,69 @@ export default function AdminSettingsPage() {
     }
   };
 
+  // Skeleton Loading State
   if (!mounted || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-100/30 py-8">
+        <div className="container mx-auto px-4 max-w-3xl">
+          {/* Header Skeleton */}
+          <div className="mb-6">
+            <div className="h-5 w-32 bg-muted rounded-lg animate-pulse mb-4"></div>
+            <div className="h-8 w-48 bg-muted rounded-lg animate-pulse"></div>
+            <div className="h-4 w-64 bg-muted rounded-lg animate-pulse mt-2"></div>
+          </div>
+
+          {/* Platform Settings Skeleton */}
+          <div className="bg-white rounded-2xl border border-emerald-100 overflow-hidden mb-6">
+            <div className="p-5 border-b border-emerald-100">
+              <div className="h-6 w-40 bg-muted rounded-lg animate-pulse"></div>
+              <div className="h-4 w-64 bg-muted rounded-lg animate-pulse mt-1"></div>
+            </div>
+            <div className="p-5 space-y-4">
+              {[...Array(2)].map((_, i) => (
+                <div key={i}>
+                  <div className="h-4 w-32 bg-muted rounded-lg animate-pulse mb-2"></div>
+                  <div className="h-10 w-full bg-muted rounded-xl animate-pulse"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Commission & Pricing Skeleton */}
+          <div className="bg-white rounded-2xl border border-emerald-100 overflow-hidden mb-6">
+            <div className="p-5 border-b border-emerald-100">
+              <div className="h-6 w-48 bg-muted rounded-lg animate-pulse"></div>
+              <div className="h-4 w-64 bg-muted rounded-lg animate-pulse mt-1"></div>
+            </div>
+            <div className="p-5 space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <div key={i}>
+                  <div className="h-4 w-40 bg-muted rounded-lg animate-pulse mb-2"></div>
+                  <div className="h-10 w-full bg-muted rounded-xl animate-pulse"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Verification Section Skeleton */}
+          <div className="bg-white rounded-2xl border border-emerald-100 overflow-hidden mb-6">
+            <div className="p-5">
+              <div className="flex items-start gap-3">
+                <div className="h-5 w-5 bg-muted rounded animate-pulse"></div>
+                <div className="flex-1">
+                  <div className="h-5 w-40 bg-muted rounded-lg animate-pulse"></div>
+                  <div className="h-4 w-full bg-muted rounded-lg animate-pulse mt-2"></div>
+                  <div className="h-4 w-3/4 bg-muted rounded-lg animate-pulse mt-1"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Save Button Skeleton */}
+          <div className="flex justify-end">
+            <div className="h-10 w-32 bg-muted rounded-xl animate-pulse"></div>
+          </div>
+        </div>
       </div>
     );
   }

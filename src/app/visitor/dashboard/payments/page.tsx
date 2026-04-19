@@ -1,4 +1,3 @@
-// src/app/visitor/dashboard/payments/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -18,6 +17,7 @@ import {
   Filter,
   Trash2,
 } from "lucide-react";
+import { Skeleton, PaymentCardSkeleton, StatsCardSkeleton } from "@/components/ui/Skeleton";
 
 interface Payment {
   id: number;
@@ -91,7 +91,6 @@ export default function VisitorPayments() {
       });
 
       if (response.ok) {
-        // Remove the payment from the list
         setPayments(payments.filter(p => p.id !== paymentId));
         alert("Payment record deleted successfully");
       } else {
@@ -152,10 +151,42 @@ export default function VisitorPayments() {
     .filter(p => p.status === "pending")
     .reduce((sum, p) => sum + p.amount, 0);
 
+  // Loading skeleton
   if (!mounted || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-100/30 py-8">
+        <div className="container mx-auto px-4 max-w-5xl">
+          {/* Header Skeleton */}
+          <div className="mb-6">
+            <Skeleton className="h-5 w-32 mb-4" />
+            <Skeleton className="h-8 w-48 mb-2" />
+            <Skeleton className="h-5 w-64" />
+          </div>
+
+          {/* Stats Cards Skeleton */}
+          <div className="grid md:grid-cols-3 gap-4 mb-6">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <StatsCardSkeleton key={i} />
+            ))}
+          </div>
+
+          {/* Search and Filter Skeleton */}
+          <div className="flex flex-col md:flex-row gap-3 mb-6">
+            <Skeleton className="flex-1 h-12 rounded-xl" />
+            <div className="flex gap-2">
+              <Skeleton className="h-12 w-20 rounded-xl" />
+              <Skeleton className="h-12 w-24 rounded-xl" />
+              <Skeleton className="h-12 w-20 rounded-xl" />
+            </div>
+          </div>
+
+          {/* Payments List Skeleton */}
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <PaymentCardSkeleton key={i} />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
