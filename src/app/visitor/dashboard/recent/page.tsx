@@ -173,7 +173,7 @@ export default function VisitorRecent() {
                         {view.average_rating > 0 && (
                           <div className="flex items-center gap-1">
                             <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                            <span className="text-xs text-emerald-600">{view.average_rating.toFixed(1)}</span>
+                            <span className="text-xs text-emerald-600">{Number(view.average_rating).toFixed(1)}</span>
                             <span className="text-xs text-gray-400">({view.review_count})</span>
                           </div>
                         )}

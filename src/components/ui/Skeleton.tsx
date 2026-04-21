@@ -37,6 +37,31 @@ export function StatCardSkeleton() {
   );
 }
 
+// Alias for StatsCardSkeleton (for compatibility)
+export const StatsCardSkeleton = StatCardSkeleton;
+
+// ActivityCardSkeleton - defined BEFORE its alias
+export function ActivityCardSkeleton() {
+  return (
+    <div className="bg-card rounded-2xl border border-border p-5">
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex-1">
+          <Skeleton className="h-5 w-40 mb-2" />
+          <Skeleton className="h-3 w-56" />
+        </div>
+        <Skeleton className="h-8 w-20 rounded-full" />
+      </div>
+      <div className="flex justify-between items-center">
+        <Skeleton className="h-5 w-24" />
+        <Skeleton className="h-9 w-20 rounded-xl" />
+      </div>
+    </div>
+  );
+}
+
+// Alias for ActivitySkeleton (for compatibility with farmer/analytics page)
+export const ActivitySkeleton = ActivityCardSkeleton;
+
 export function BookingCardSkeleton() {
   return (
     <div className="bg-card rounded-2xl border border-border overflow-hidden">
@@ -91,48 +116,22 @@ export function FarmCardSkeleton() {
   );
 }
 
-export function ActivityCardSkeleton() {
-  return (
-    <div className="bg-card rounded-2xl border border-border p-5">
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
-          <Skeleton className="h-5 w-40 mb-2" />
-          <Skeleton className="h-3 w-56" />
-        </div>
-        <Skeleton className="h-8 w-20 rounded-full" />
-      </div>
-      <div className="flex justify-between items-center">
-        <Skeleton className="h-5 w-24" />
-        <Skeleton className="h-9 w-20 rounded-xl" />
-      </div>
-    </div>
-  );
-}
-
 export function FarmDetailSkeleton() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
-      {/* Header */}
       <div className="mb-6">
         <Skeleton className="h-8 w-64 mb-2" />
         <Skeleton className="h-4 w-48" />
       </div>
-
-      {/* Main content */}
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
-          {/* Image gallery */}
           <Skeleton className="h-96 w-full rounded-2xl" />
-          
-          {/* Description */}
           <div className="space-y-3">
             <Skeleton className="h-6 w-32" />
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-3/4" />
           </div>
-
-          {/* Activities */}
           <div className="space-y-3">
             <Skeleton className="h-6 w-40" />
             <div className="space-y-2">
@@ -142,8 +141,6 @@ export function FarmDetailSkeleton() {
             </div>
           </div>
         </div>
-
-        {/* Sidebar */}
         <div className="space-y-6">
           <div className="bg-card rounded-2xl border border-border p-6">
             <Skeleton className="h-6 w-40 mb-4" />
@@ -246,21 +243,16 @@ export function FarmProfileSkeleton() {
 export function EarningsSkeleton() {
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[...Array(4)].map((_, i) => (
           <StatCardSkeleton key={i} />
         ))}
       </div>
-      
-      {/* Filters */}
       <div className="flex gap-4">
         <Skeleton className="h-10 flex-1 rounded-xl" />
         <Skeleton className="h-10 flex-1 rounded-xl" />
         <Skeleton className="h-10 w-32 rounded-xl" />
       </div>
-      
-      {/* Table */}
       <div className="bg-card rounded-2xl border border-border overflow-hidden">
         <div className="p-4 border-b border-border">
           <Skeleton className="h-6 w-40" />
@@ -333,8 +325,6 @@ export function ChartSkeleton() {
   );
 }
 
-// Additional skeleton components for specific use cases
-
 export function ReviewCardSkeleton() {
   return (
     <div className="bg-card rounded-2xl border border-border p-5">
@@ -348,6 +338,77 @@ export function ReviewCardSkeleton() {
       </div>
       <Skeleton className="h-4 w-full mb-2" />
       <Skeleton className="h-4 w-3/4" />
+      <div className="mt-3 flex gap-2">
+        <Skeleton className="h-8 w-20 rounded-lg" />
+        <Skeleton className="h-8 w-20 rounded-lg" />
+      </div>
+    </div>
+  );
+}
+
+export function ReviewableBookingSkeleton() {
+  return (
+    <div className="bg-card rounded-2xl border border-border p-5">
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex-1">
+          <Skeleton className="h-5 w-40 mb-2" />
+          <Skeleton className="h-4 w-32" />
+          <div className="flex items-center gap-1 mt-2">
+            <Skeleton className="h-4 w-4 rounded-full" />
+            <Skeleton className="h-3 w-16" />
+          </div>
+        </div>
+        <Skeleton className="h-8 w-24 rounded-full" />
+      </div>
+      <div className="border-t border-border my-3"></div>
+      <div className="space-y-2">
+        <div className="flex justify-between">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 w-20" />
+        </div>
+        <div className="flex justify-between">
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-4 w-20" />
+        </div>
+        <div className="flex justify-between">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-4 w-20" />
+        </div>
+      </div>
+      <div className="mt-4 flex gap-2">
+        <Skeleton className="h-9 flex-1 rounded-xl" />
+        <Skeleton className="h-9 w-24 rounded-xl" />
+      </div>
+    </div>
+  );
+}
+
+export function PaymentCardSkeleton() {
+  return (
+    <div className="bg-card rounded-2xl border border-border p-5">
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex-1">
+          <Skeleton className="h-5 w-40 mb-2" />
+          <Skeleton className="h-3 w-32" />
+        </div>
+        <Skeleton className="h-8 w-20 rounded-full" />
+      </div>
+      <div className="space-y-2 mb-3">
+        <div className="flex justify-between">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-4 w-24" />
+        </div>
+        <div className="flex justify-between">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 w-20" />
+        </div>
+      </div>
+      <div className="border-t border-border pt-3 mt-2">
+        <div className="flex justify-between">
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-5 w-28" />
+        </div>
+      </div>
       <div className="mt-3 flex gap-2">
         <Skeleton className="h-8 w-20 rounded-lg" />
         <Skeleton className="h-8 w-20 rounded-lg" />

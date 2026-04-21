@@ -1,4 +1,3 @@
-// src/app/farmer/messages/page.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -13,6 +12,7 @@ import {
   Check,
   Search,
   RefreshCw,
+  Package,
 } from "lucide-react";
 
 interface Conversation {
@@ -26,6 +26,10 @@ interface Conversation {
   last_message: string;
   last_message_time: string;
   unread_count: number;
+  product_id?: number;
+  product_name?: string;
+  product_photo?: string;
+  product_price?: number;
 }
 
 interface Message {
@@ -37,6 +41,10 @@ interface Message {
   message: string;
   is_read: boolean;
   created_at: string;
+  product_id?: number;
+  product_name?: string;
+  product_price?: number;
+  product_photo?: string;
 }
 
 export default function FarmerMessages() {
@@ -286,10 +294,30 @@ export default function FarmerMessages() {
   const filteredConversations = conversations.filter(conv =>
     conv.other_party_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     conv.farm_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    conv.last_message.toLowerCase().includes(searchQuery.toLowerCase())
+    (conv.last_message && conv.last_message.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const totalUnread = conversations.reduce((sum, conv) => sum + conv.unread_count, 0);
+
+  // Product Preview Component
+  const ProductPreview = ({ productName, productPrice, productPhoto, productId }: any) => {
+    if (!productId) return null;
+    
+    return (
+      <Link href={`/marketplace/product/${productId}`}>
+        <div className="mt-2 p-2 bg-white rounded-lg border border-gray-200 flex gap-2 cursor-pointer hover:border-emerald-400 transition">
+          {productPhoto && (
+            <img src={productPhoto} className="w-10 h-10 object-cover rounded" alt={productName} />
+          )}
+          <div className="flex-1">
+            <p className="font-medium text-sm">{productName}</p>
+            <p className="text-emerald-600 text-sm font-semibold">KES {productPrice}</p>
+            <p className="text-xs text-gray-400">Click to view product</p>
+          </div>
+        </div>
+      </Link>
+    );
+  };
 
   if (loading) {
     return (
@@ -385,6 +413,12 @@ export default function FarmerMessages() {
                             )}
                           </div>
                           <p className="text-xs text-emerald-500 mt-1">{conv.farm_name}</p>
+                          {conv.product_name && (
+                            <p className="text-xs text-blue-500 mt-1 flex items-center gap-1">
+                              <Package className="h-3 w-3" />
+                              {conv.product_name}
+                            </p>
+                          )}
                           <p className="text-sm text-gray-600 truncate mt-1">
                             {conv.last_message}
                           </p>
@@ -419,6 +453,12 @@ export default function FarmerMessages() {
                         </h3>
                         <p className="text-xs flex items-center gap-2">
                           <span className="text-emerald-500">{selectedConversation.farm_name}</span>
+                          {selectedConversation.product_name && (
+                            <span className="text-blue-500 text-xs flex items-center gap-1">
+                              <Package className="h-3 w-3" />
+                              {selectedConversation.product_name}
+                            </span>
+                          )}
                           {isOtherOnline && (
                             <span className="text-green-500 text-xs">● Online</span>
                           )}
@@ -447,31 +487,52 @@ export default function FarmerMessages() {
                       const isMyMessage = msg.sender_id === currentUserId;
                       
                       return (
-                        <div
-                          key={msg.id}
-                          className={`flex ${isMyMessage ? "justify-end" : "justify-start"}`}
-                        >
+                        <div key={msg.id}>
                           <div
-                            className={`max-w-[70%] rounded-2xl px-4 py-2 ${
-                              isMyMessage
-                                ? "bg-accent text-white rounded-br-sm"
-                                : "bg-white text-gray-800 rounded-bl-sm shadow-sm border border-gray-100"
-                            }`}
+                            className={`flex ${isMyMessage ? "justify-end" : "justify-start"}`}
                           >
-                            <p className="text-sm break-words">{msg.message}</p>
-                            <div className={`text-xs mt-1 flex items-center gap-1 ${
-                              isMyMessage ? "text-white/70" : "text-gray-400"
-                            }`}>
-                              {formatTime(msg.created_at)}
-                              {isMyMessage && (
-                                msg.is_read ? (
-                                  <CheckCheck className="h-3 w-3" />
-                                ) : (
-                                  <Check className="h-3 w-3" />
-                                )
-                              )}
+                            <div
+                              className={`max-w-[70%] rounded-2xl px-4 py-2 ${
+                                isMyMessage
+                                  ? "bg-accent text-white rounded-br-sm"
+                                  : "bg-white text-gray-800 rounded-bl-sm shadow-sm border border-gray-100"
+                              }`}
+                            >
+                              <p className="text-sm break-words">{msg.message}</p>
+                              <div className={`text-xs mt-1 flex items-center gap-1 ${
+                                isMyMessage ? "text-white/70" : "text-gray-400"
+                              }`}>
+                                {formatTime(msg.created_at)}
+                                {isMyMessage && (
+                                  msg.is_read ? (
+                                    <CheckCheck className="h-3 w-3" />
+                                  ) : (
+                                    <Check className="h-3 w-3" />
+                                  )
+                                )}
+                              </div>
                             </div>
                           </div>
+                          
+                          {/* Product Preview in Message */}
+                          {msg.product_id && (
+                            <div className={`flex ${isMyMessage ? "justify-end" : "justify-start"} mt-1`}>
+                              <div className="max-w-[70%]">
+                                <Link href={`/marketplace/product/${msg.product_id}`}>
+                                  <div className="p-2 bg-white rounded-lg border border-gray-200 flex gap-2 cursor-pointer hover:border-emerald-400 transition">
+                                    {msg.product_photo && (
+                                      <img src={msg.product_photo} className="w-12 h-12 object-cover rounded" alt={msg.product_name} />
+                                    )}
+                                    <div>
+                                      <p className="font-medium text-sm">{msg.product_name}</p>
+                                      <p className="text-emerald-600 text-sm font-semibold">KES {msg.product_price}</p>
+                                      <p className="text-xs text-gray-400">Click to view product</p>
+                                    </div>
+                                  </div>
+                                </Link>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })

@@ -1,3 +1,5 @@
+'use client'
+
 import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { FarmerProfileData, FORM_STEPS } from './options'

@@ -2,14 +2,14 @@ import type { NextConfig } from "next";
 import withPWA from "@ducanh2912/next-pwa";
 
 const nextConfig: NextConfig = {
-  // React compiler for performance
-  reactCompiler: true,
+  // React compiler - disable in dev for faster compilation, enable in production
+  reactCompiler: process.env.NODE_ENV === 'production',
   
   // Allow dev access from network devices
   allowedDevOrigins: ['192.168.100.7', 'localhost', '*.local'],
   
-  // React strict mode for better development
-  reactStrictMode: true,
+  // React strict mode - disable in dev for faster compilation
+  reactStrictMode: process.env.NODE_ENV === 'production',
   
   // Image configuration
   images: {
@@ -40,7 +40,7 @@ const nextConfig: NextConfig = {
   
   // Experimental features
   experimental: {
-    optimizeCss: true,
+    optimizeCss: process.env.NODE_ENV === 'production',
   },
 };
 

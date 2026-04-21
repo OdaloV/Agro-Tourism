@@ -11,7 +11,10 @@ import {
   Tractor,
   Settings,
   LogOut,
-  Star, // Add Star icon for Reviews
+  Star,
+  ShoppingBag,
+  Package,
+  Plus,
 } from "lucide-react";
 import { useAuth } from "@/lib/context/AuthContext";
 import { useEffect, useState } from "react";
@@ -21,6 +24,21 @@ const navigationItems = [
     href: "/farmer/dashboard",
     label: "Dashboard",
     icon: Home,
+  },
+  {
+    href: "/marketplace",
+    label: "Marketplace",
+    icon: ShoppingBag,
+  },
+  {
+    href: "/farmer/marketplace/my-products",
+    label: "My Products",
+    icon: Package,
+  },
+  {
+    href: "/farmer/marketplace/post",
+    label: "Sell Product",
+    icon: Plus,
   },
   {
     href: "/farmer/verification",
@@ -48,7 +66,7 @@ const navigationItems = [
     icon: MessageCircle,
   },
   {
-    href: "/farmer/reviews",  // Add Reviews section
+    href: "/farmer/reviews",
     label: "Reviews",
     icon: Star,
   },
@@ -204,7 +222,7 @@ export default function FarmerLayout({
               >
                 <Icon className="h-5 w-5" />
                 <span className="text-xs mt-1">
-                  {item.label === "Dashboard" ? "Home" : item.label}
+                  {item.label === "Dashboard" ? "Home" : item.label === "Marketplace" ? "Shop" : item.label.slice(0, 8)}
                 </span>
                 {item.label === "Verification" && !isActive && (
                   <span className="absolute top-1 right-1/4 w-1.5 h-1.5 bg-accent rounded-full" />
