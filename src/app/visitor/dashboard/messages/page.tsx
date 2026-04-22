@@ -1,5 +1,5 @@
-
 "use client";
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -148,6 +148,17 @@ export default function VisitorMessages() {
     fetchConversations();
   }, []);
 
+  // Select conversation from URL query param when conversations are loaded
+  useEffect(() => {
+    const conversationId = searchParams.get("conversation");
+    if (conversationId && conversations.length > 0 && !selectedConversation) {
+      const found = conversations.find(c => c.conversation_id === parseInt(conversationId));
+      if (found) {
+        setSelectedConversation(found);
+      }
+    }
+  }, [conversations, searchParams, selectedConversation]);
+
   useEffect(() => {
     if (showNewChatModal) {
       fetchFarms();
@@ -239,7 +250,7 @@ export default function VisitorMessages() {
       const data = await response.json();
       if (response.ok && isMountedRef.current) {
         setConversations(data.conversations || []);
-        if (data.conversations?.length > 0 && !selectedConversation) {
+        if (data.conversations?.length > 0 && !selectedConversation && !searchParams.get("conversation")) {
           setSelectedConversation(data.conversations[0]);
         }
       }
@@ -347,6 +358,7 @@ export default function VisitorMessages() {
       const response = await fetch("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(body),
       });
       const data = await response.json();

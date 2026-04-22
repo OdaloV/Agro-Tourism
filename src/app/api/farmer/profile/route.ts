@@ -20,10 +20,7 @@ export async function GET(request: Request) {
     const userId = searchParams.get('userId');
 
     if (!userId) {
-      return NextResponse.json(
-        { error: 'User ID required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'User ID required' }, { status: 400 });
     }
 
     const result = await pool.query(
@@ -44,11 +41,6 @@ export async function GET(request: Request) {
          fp.verification_status as "verificationStatus",
          fp.submitted_at as "submittedAt",
          fp.profile_views,
-         fp.google_calendar_connected,
-         fp.google_calendar_id,
-         fp.google_access_token,
-         fp.google_refresh_token,
-         fp.google_token_expires,
          COALESCE(array_agg(DISTINCT a.activity_name) FILTER (WHERE a.activity_name IS NOT NULL), '{}') as activities,
          COALESCE(array_agg(DISTINCT f.facility_name) FILTER (WHERE f.facility_name IS NOT NULL), '{}') as facilities,
          COUNT(DISTINCT m.id) as "farmPhotos",
@@ -65,45 +57,51 @@ export async function GET(request: Request) {
        LEFT JOIN farmer_facilities f ON fp.id = f.farmer_id
        LEFT JOIN farmer_media m ON fp.id = m.farmer_id AND m.media_type = 'photo'
        WHERE u.id = $1
-       GROUP BY u.id, fp.id, fp.profile_views, fp.google_calendar_connected, fp.google_calendar_id, fp.google_access_token, fp.google_refresh_token, fp.google_token_expires`,
+       GROUP BY u.id, fp.id, fp.profile_views`,
       [userId]
     );
 
     if (result.rows.length === 0) {
-      return NextResponse.json(
-        { error: 'Farmer not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Farmer not found' }, { status: 404 });
     }
 
     const farmer = result.rows[0];
     const farmerId = farmer.farmer_profile_id;
 
+    // ── Base shape shared by both response paths ──
+    const baseProfile = {
+      id: farmer.id,
+      // ─── FIX: expose farmer_profiles.id so callers can pass it to /api/messages ───
+      farmProfileId: farmerId ?? null,
+      name: farmer.name,
+      email: farmer.email,
+      phone: farmer.phone,
+      farmName: farmer.farmName,
+      farmLocation: farmer.farmLocation,
+      farmSize: farmer.farmSize,
+      yearEstablished: farmer.yearEstablished,
+      farmDescription: farmer.farmDescription,
+      farmType: farmer.farmType,
+      activities: farmer.activities || [],
+      facilities: farmer.facilities || [],
+      accommodation: farmer.accommodation || false,
+      maxGuests: farmer.maxGuests,
+      farmPhotos: parseInt(farmer.farmPhotos) || 0,
+      videoLink: farmer.videoLink,
+      documents: farmer.documents || {
+        businessLicense: false,
+        nationalId: false,
+        insurance: false,
+        certifications: false,
+      },
+      verificationStatus: farmer.verificationStatus || 'pending',
+      submittedAt: farmer.submittedAt || new Date().toISOString(),
+    };
+
+    // No farm profile row yet — return early with empty stats
     if (!farmerId) {
       return NextResponse.json({
-        id: farmer.id,
-        name: farmer.name,
-        email: farmer.email,
-        phone: farmer.phone,
-        farmName: farmer.farmName,
-        farmLocation: farmer.farmLocation,
-        farmSize: farmer.farmSize,
-        yearEstablished: farmer.yearEstablished,
-        farmDescription: farmer.farmDescription,
-        farmType: farmer.farmType,
-        activities: farmer.activities || [],
-        facilities: farmer.facilities || [],
-        accommodation: farmer.accommodation || false,
-        maxGuests: farmer.maxGuests,
-        farmPhotos: parseInt(farmer.farmPhotos) || 0,
-        videoLink: farmer.videoLink,
-        documents: farmer.documents,
-        verificationStatus: farmer.verificationStatus || 'pending',
-        submittedAt: farmer.submittedAt || new Date().toISOString(),
-        googleCalendar: {
-          connected: farmer.google_calendar_connected || false,
-          calendarId: farmer.google_calendar_id || null,
-        },
+        ...baseProfile,
         stats: {
           profileViews: farmer.profile_views || 0,
           bookings: 0,
@@ -112,9 +110,9 @@ export async function GET(request: Request) {
           totalEarnings: 0,
           totalRevenue: 0,
           platformFee: 0,
-          commissionRate: 10
+          commissionRate: 10,
         },
-        recentEarnings: []
+        recentEarnings: [],
       });
     }
 
@@ -135,12 +133,12 @@ export async function GET(request: Request) {
       GROUP BY fp.id
     `, [farmerId]);
 
-    const stats = statsResult.rows[0] || { 
-      total_bookings: 0, 
-      avg_rating: 0, 
-      total_reviews: 0, 
+    const stats = statsResult.rows[0] || {
+      total_bookings: 0,
+      avg_rating: 0,
+      total_reviews: 0,
       total_revenue_all: 0,
-      paid_revenue: 0
+      paid_revenue: 0,
     };
 
     const totalEarningsResult = await pool.query(`
@@ -171,37 +169,7 @@ export async function GET(request: Request) {
     `, [commissionRate, farmerPercentage, farmerId]);
 
     return NextResponse.json({
-      id: farmer.id,
-      name: farmer.name,
-      email: farmer.email,
-      phone: farmer.phone,
-      farmName: farmer.farmName,
-      farmLocation: farmer.farmLocation,
-      farmSize: farmer.farmSize,
-      yearEstablished: farmer.yearEstablished,
-      farmDescription: farmer.farmDescription,
-      farmType: farmer.farmType,
-      activities: farmer.activities || [],
-      facilities: farmer.facilities || [],
-      accommodation: farmer.accommodation || false,
-      maxGuests: farmer.maxGuests,
-      farmPhotos: parseInt(farmer.farmPhotos) || 0,
-      videoLink: farmer.videoLink,
-      documents: farmer.documents || {
-        businessLicense: false,
-        nationalId: false,
-        insurance: false,
-        certifications: false,
-      },
-      verificationStatus: farmer.verificationStatus || 'pending',
-      submittedAt: farmer.submittedAt || new Date().toISOString(),
-      googleCalendar: {
-        connected: farmer.google_calendar_connected || false,
-        calendarId: farmer.google_calendar_id || null,
-        accessToken: farmer.google_access_token || null,
-        refreshToken: farmer.google_refresh_token || null,
-        tokenExpires: farmer.google_token_expires || null,
-      },
+      ...baseProfile,
       stats: {
         profileViews: farmer.profile_views || 0,
         bookings: parseInt(stats.total_bookings) || 0,
@@ -210,7 +178,7 @@ export async function GET(request: Request) {
         totalEarnings: totalEarningsSum,
         totalRevenue: totalRevenue,
         platformFee: platformFee,
-        commissionRate: commissionRate
+        commissionRate: commissionRate,
       },
       recentEarnings: earningsResult.rows.map(row => ({
         id: row.id,
@@ -219,16 +187,13 @@ export async function GET(request: Request) {
         guests: row.guests,
         amount: parseFloat(row.amount),
         platformFee: parseFloat(row.platform_fee),
-        farmerEarning: parseFloat(row.farmer_earning)
-      }))
+        farmerEarning: parseFloat(row.farmer_earning),
+      })),
     });
 
   } catch (error: any) {
     console.error('Error fetching farmer profile:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch profile' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch profile' }, { status: 500 });
   }
 }
 
@@ -238,14 +203,11 @@ export async function PUT(request: Request) {
     const { userId, ...updateData } = body;
 
     if (!userId) {
-      return NextResponse.json(
-        { error: 'User ID required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'User ID required' }, { status: 400 });
     }
 
-    const fields = [];
-    const values = [];
+    const fields: string[] = [];
+    const values: any[] = [];
     let paramIndex = 1;
 
     const fieldMappings: Record<string, string> = {
@@ -258,12 +220,6 @@ export async function PUT(request: Request) {
       accommodation: 'accommodation',
       maxGuests: 'max_guests',
       videoLink: 'video_link',
-      // Google Calendar fields
-      googleCalendarConnected: 'google_calendar_connected',
-      googleCalendarId: 'google_calendar_id',
-      googleAccessToken: 'google_access_token',
-      googleRefreshToken: 'google_refresh_token',
-      googleTokenExpires: 'google_token_expires',
     };
 
     for (const [key, value] of Object.entries(updateData)) {
@@ -276,10 +232,7 @@ export async function PUT(request: Request) {
     }
 
     if (fields.length === 0) {
-      return NextResponse.json(
-        { error: 'No fields to update' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
     }
 
     values.push(userId);
@@ -292,16 +245,10 @@ export async function PUT(request: Request) {
 
     const result = await pool.query(query, values);
 
-    return NextResponse.json({
-      success: true,
-      profile: result.rows[0]
-    });
+    return NextResponse.json({ success: true, profile: result.rows[0] });
 
   } catch (error: any) {
     console.error('Error updating farmer profile:', error);
-    return NextResponse.json(
-      { error: 'Failed to update profile' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 });
   }
 }

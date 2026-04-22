@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
 
-// GET /api/marketplace/products - List products
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -11,33 +10,29 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get("category") || "";
     const search = searchParams.get("search") || "";
     
-    let whereClause = "WHERE status = 'active'";
+    let sql = "SELECT * FROM marketplace_products WHERE status = 'active'";
     const params: any[] = [];
     let paramIndex = 1;
     
     if (category) {
-      whereClause += ` AND category = $${paramIndex}`;
+      sql += ` AND category = $${paramIndex}`;
       params.push(category);
       paramIndex++;
     }
     
     if (search) {
-      whereClause += ` AND (product_name ILIKE $${paramIndex} OR description ILIKE $${paramIndex} OR location ILIKE $${paramIndex})`;
+      sql += ` AND (product_name ILIKE $${paramIndex} OR description ILIKE $${paramIndex} OR location ILIKE $${paramIndex})`;
       params.push(`%${search}%`);
       paramIndex++;
     }
     
-    const result = await pool.query(
-      `SELECT * FROM marketplace_products 
-       ${whereClause}
-       ORDER BY created_at DESC 
-       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
-      [...params, limit, offset]
-    );
+    sql += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    params.push(limit, offset);
+    
+    const result = await pool.query(sql, params);
     
     const countResult = await pool.query(
-      `SELECT COUNT(*) FROM marketplace_products ${whereClause}`,
-      params
+      `SELECT COUNT(*) FROM marketplace_products WHERE status = 'active'`
     );
     
     return NextResponse.json({
@@ -55,7 +50,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/marketplace/products - Create product
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -75,14 +69,34 @@ export async function POST(request: NextRequest) {
       farmer_id
     } = body;
     
+    // Convert empty strings to null for numeric fields
+    const latitudeValue = latitude && latitude !== "" ? parseFloat(latitude) : null;
+    const longitudeValue = longitude && longitude !== "" ? parseFloat(longitude) : null;
+    const priceValue = parseFloat(price);
+    const quantityValue = parseInt(quantity);
+    const farmerIdValue = parseInt(farmer_id);
+    
     const result = await pool.query(
       `INSERT INTO marketplace_products 
        (farmer_id, product_name, category, price, quantity, unit_type, 
         description, photos, location, latitude, longitude, phone, email)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING *`,
-      [farmer_id, product_name, category, price, quantity, unit_type,
-       description, photos, location, latitude, longitude, phone, email]
+      [
+        farmerIdValue, 
+        product_name, 
+        category, 
+        priceValue, 
+        quantityValue, 
+        unit_type,
+        description || null, 
+        photos || [], 
+        location, 
+        latitudeValue, 
+        longitudeValue, 
+        phone, 
+        email
+      ]
     );
     
     return NextResponse.json(result.rows[0], { status: 201 });

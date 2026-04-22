@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   MessageCircle,
@@ -49,6 +49,7 @@ interface Message {
 
 export default function FarmerMessages() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
@@ -83,6 +84,17 @@ export default function FarmerMessages() {
   useEffect(() => {
     fetchConversations();
   }, []);
+
+  // Select conversation from URL query param when conversations are loaded
+  useEffect(() => {
+    const conversationId = searchParams.get("conversation");
+    if (conversationId && conversations.length > 0 && !selectedConversation) {
+      const found = conversations.find(c => c.conversation_id === parseInt(conversationId));
+      if (found) {
+        setSelectedConversation(found);
+      }
+    }
+  }, [conversations, searchParams, selectedConversation]);
 
   // Fetch messages when conversation changes
   useEffect(() => {
@@ -132,7 +144,8 @@ export default function FarmerMessages() {
       const data = await response.json();
       if (response.ok) {
         setConversations(data.conversations || []);
-        if (data.conversations?.length > 0 && !selectedConversation) {
+        // If no conversation selected yet and no query param, select first
+        if (data.conversations?.length > 0 && !selectedConversation && !searchParams.get("conversation")) {
           setSelectedConversation(data.conversations[0]);
         }
       }
@@ -230,6 +243,7 @@ export default function FarmerMessages() {
       const response = await fetch("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(body),
       });
       
@@ -299,7 +313,6 @@ export default function FarmerMessages() {
 
   const totalUnread = conversations.reduce((sum, conv) => sum + conv.unread_count, 0);
 
-  // Product Preview Component
   const ProductPreview = ({ productName, productPrice, productPhoto, productId }: any) => {
     if (!productId) return null;
     
@@ -518,18 +531,12 @@ export default function FarmerMessages() {
                           {msg.product_id && (
                             <div className={`flex ${isMyMessage ? "justify-end" : "justify-start"} mt-1`}>
                               <div className="max-w-[70%]">
-                                <Link href={`/marketplace/product/${msg.product_id}`}>
-                                  <div className="p-2 bg-white rounded-lg border border-gray-200 flex gap-2 cursor-pointer hover:border-emerald-400 transition">
-                                    {msg.product_photo && (
-                                      <img src={msg.product_photo} className="w-12 h-12 object-cover rounded" alt={msg.product_name} />
-                                    )}
-                                    <div>
-                                      <p className="font-medium text-sm">{msg.product_name}</p>
-                                      <p className="text-emerald-600 text-sm font-semibold">KES {msg.product_price}</p>
-                                      <p className="text-xs text-gray-400">Click to view product</p>
-                                    </div>
-                                  </div>
-                                </Link>
+                                <ProductPreview
+                                  productId={msg.product_id}
+                                  productName={msg.product_name}
+                                  productPrice={msg.product_price}
+                                  productPhoto={msg.product_photo}
+                                />
                               </div>
                             </div>
                           )}

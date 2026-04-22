@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Phone, Mail, MessageCircle, Share2, MapPin, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { Phone, Mail, MessageCircle, Share2, MapPin, ArrowLeft } from "lucide-react";
 
 interface Product {
   id: number;
@@ -30,20 +30,20 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [showContact, setShowContact] = useState(false);
-  const [userId, setUserId] = useState<number | null>(null);
+  const [startingChat, setStartingChat] = useState(false);
 
   useEffect(() => {
-    const userData = localStorage.getItem("userData");
-    if (userData) {
-      const user = JSON.parse(userData);
-      setUserId(user.id);
-    }
     fetchProduct();
-  }, []);
+  }, [params.id]);
 
   const fetchProduct = async () => {
     try {
-      const response = await fetch(`/api/marketplace/products/${params.id}`);
+      const storedUser = localStorage.getItem("userData");
+      const uid = storedUser ? JSON.parse(storedUser).id : null;
+      const url = uid
+        ? `/api/marketplace/products/${params.id}?userId=${uid}`
+        : `/api/marketplace/products/${params.id}`;
+      const response = await fetch(url);
       const data = await response.json();
       setProduct(data);
     } catch (error) {
@@ -54,8 +54,7 @@ export default function ProductDetailPage() {
   };
 
   const shareProduct = () => {
-    const url = window.location.href;
-    navigator.clipboard.writeText(url);
+    navigator.clipboard.writeText(window.location.href);
     alert("Link copied!");
   };
 
@@ -67,26 +66,62 @@ export default function ProductDetailPage() {
     }
 
     const user = JSON.parse(userData);
-    
     if (!product) return;
-    
+
+    if (user.id === product.farmer_id) {
+      alert("This is your own product");
+      return;
+    }
+
+    setStartingChat(true);
     try {
-      const response = await fetch("/api/marketplace/chats", {
+      // ─── Step 1: get farmer_profiles.id (farmProfileId) from profile API ───
+      // The profile route now returns farmProfileId explicitly
+      const profileRes = await fetch(`/api/farmer/profile?userId=${product.farmer_id}`);
+      const profileData = await profileRes.json();
+
+      const farmProfileId = profileData.farmProfileId;
+
+      if (!farmProfileId) {
+        console.error("farmProfileId missing from profile response:", profileData);
+        alert("Unable to start chat — farm profile not found.");
+        return;
+      }
+
+      // ─── Step 2: create/reuse conversation using farmer_profiles.id ───
+      const response = await fetch("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          farmId: farmProfileId,          // ← farmer_profiles.id ✓
           product_id: product.id,
-          buyer_id: user.id,
-          seller_id: product.farmer_id,
-          first_message: `Hi, I'm interested in ${product.product_name}`,
+          message: `Hi, I'm interested in your product: ${product.product_name}. Price: KES ${product.price}`,
+          subject: `Product Inquiry: ${product.product_name}`,
         }),
       });
-      
+
       const data = await response.json();
-      router.push(`/marketplace/chats/${data.id}`);
-    } catch (error) {
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to start conversation");
+      }
+
+      const conversationId = data.conversationId ?? data.conversation_id;
+
+      if (!conversationId) {
+        console.error("No conversationId in response:", data);
+        router.push("/visitor/dashboard/messages");
+        return;
+      }
+
+      // ─── Step 3: redirect to correct path ───
+      router.push(`/visitor/dashboard/messages?conversation=${conversationId}`);
+
+    } catch (error: any) {
       console.error("Error starting chat:", error);
-      alert("Failed to start chat");
+      alert(error.message || "Failed to start chat. Please try again.");
+    } finally {
+      setStartingChat(false);
     }
   };
 
@@ -111,7 +146,6 @@ export default function ProductDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      {/* Header */}
       <div className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
           <Link href="/marketplace">
@@ -124,16 +158,14 @@ export default function ProductDetailPage() {
       </div>
 
       <div className="max-w-4xl mx-auto p-4">
-        {/* Images */}
         {product.photos && product.photos.length > 0 && (
-          <img 
-            src={product.photos[0]} 
-            className="w-full h-96 object-cover rounded-xl" 
-            alt={product.product_name} 
+          <img
+            src={product.photos[0]}
+            className="w-full h-96 object-cover rounded-xl"
+            alt={product.product_name}
           />
         )}
 
-        {/* Product Info */}
         <div className="bg-white rounded-xl p-5 mt-4 shadow-sm">
           <h1 className="text-2xl font-bold">{product.product_name}</h1>
           <p className="text-3xl text-emerald-600 font-bold mt-2">
@@ -148,7 +180,6 @@ export default function ProductDetailPage() {
           </div>
         </div>
 
-        {/* Farm Location */}
         <div className="bg-white rounded-xl p-5 mt-4 shadow-sm">
           <h3 className="font-semibold flex items-center gap-2 mb-3">
             <MapPin className="h-5 w-5 text-emerald-600" />
@@ -158,7 +189,6 @@ export default function ProductDetailPage() {
           <p className="text-sm text-gray-500 mt-1">{product.farm_name || product.farmer_name}</p>
         </div>
 
-        {/* Description */}
         {product.description && (
           <div className="bg-white rounded-xl p-5 mt-4 shadow-sm">
             <h3 className="font-semibold mb-2">Description</h3>
@@ -166,11 +196,12 @@ export default function ProductDetailPage() {
           </div>
         )}
 
-        {/* Seller Info */}
         <div className="bg-white rounded-xl p-5 mt-4 shadow-sm">
           <h3 className="font-semibold mb-3">Seller Information</h3>
           <p className="text-gray-700">{product.farm_name || product.farmer_name}</p>
-          <p className="text-sm text-gray-500">Member since {new Date(product.created_at).getFullYear()}</p>
+          <p className="text-sm text-gray-500">
+            Member since {new Date(product.created_at).getFullYear()}
+          </p>
         </div>
       </div>
 
@@ -179,22 +210,27 @@ export default function ProductDetailPage() {
         <div className="max-w-4xl mx-auto flex gap-3">
           <button
             onClick={startChat}
-            className="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2"
+            disabled={startingChat}
+            className="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
           >
-            <MessageCircle className="h-5 w-5" />
-            Chat with Seller
+            {startingChat ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+            ) : (
+              <MessageCircle className="h-5 w-5" />
+            )}
+            {startingChat ? "Starting chat..." : "Chat with Seller"}
           </button>
-          
+
           <button
             onClick={() => setShowContact(true)}
             className="px-6 py-3 border border-emerald-600 text-emerald-600 rounded-xl font-semibold"
           >
             Contact
           </button>
-          
+
           <button
             onClick={shareProduct}
-            className="px-6 py-3 border rounded-xl flex items-center justify-center gap-2"
+            className="px-6 py-3 border rounded-xl flex items-center justify-center"
           >
             <Share2 className="h-5 w-5" />
           </button>
@@ -205,8 +241,9 @@ export default function ProductDetailPage() {
       {showContact && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold mb-4">Contact {product.farm_name || "Farmer"}</h3>
-            
+            <h3 className="text-xl font-bold mb-4">
+              Contact {product.farm_name || "Farmer"}
+            </h3>
             <div className="space-y-3">
               <a href={`tel:${product.phone}`} className="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl">
                 <Phone className="h-6 w-6 text-emerald-600" />
@@ -215,7 +252,6 @@ export default function ProductDetailPage() {
                   <p className="text-sm text-gray-600">{product.phone}</p>
                 </div>
               </a>
-              
               <a href={`mailto:${product.email}`} className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl">
                 <Mail className="h-6 w-6 text-blue-600" />
                 <div>
@@ -223,10 +259,10 @@ export default function ProductDetailPage() {
                   <p className="text-sm text-gray-600">{product.email}</p>
                 </div>
               </a>
-              
               <button
                 onClick={startChat}
-                className="w-full flex items-center gap-3 p-3 bg-emerald-600 text-white rounded-xl"
+                disabled={startingChat}
+                className="w-full flex items-center gap-3 p-3 bg-emerald-600 text-white rounded-xl disabled:opacity-60"
               >
                 <MessageCircle className="h-6 w-6" />
                 <div>
@@ -235,11 +271,7 @@ export default function ProductDetailPage() {
                 </div>
               </button>
             </div>
-            
-            <button
-              onClick={() => setShowContact(false)}
-              className="w-full mt-4 p-3 border rounded-xl"
-            >
+            <button onClick={() => setShowContact(false)} className="w-full mt-4 p-3 border rounded-xl">
               Close
             </button>
           </div>

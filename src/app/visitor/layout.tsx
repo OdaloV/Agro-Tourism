@@ -1,4 +1,3 @@
-// // src/app/visitor/layout.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -17,10 +16,12 @@ import {
   Eye,
   Menu,
   X,
+  ShoppingBag,  // <-- added for Marketplace
 } from "lucide-react";
 
 const navigationItems = [
   { href: "/visitor/dashboard", label: "Dashboard", icon: Home },
+  { href: "/marketplace", label: "Marketplace", icon: ShoppingBag },  // <-- new
   { href: "/farms", label: "Discover Farms", icon: Search },
   { href: "/visitor/dashboard/bookings", label: "My Bookings", icon: Calendar },
   { href: "/visitor/dashboard/favorites", label: "Favorites", icon: Heart },
@@ -223,15 +224,16 @@ export default function VisitorLayout({ children }: { children: React.ReactNode 
         </main>
       </div>
 
-      {/* ── Mobile bottom nav ── */}
+      {/* ── Mobile bottom nav (shows first 6 items now because we added Marketplace) ── */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-emerald-100 md:hidden z-30">
         <div className="flex justify-around py-2">
-          {navigationItems.slice(0, 5).map((item) => {
+          {navigationItems.slice(0, 6).map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
             const showBadge = item.label === "Messages" && unreadCount > 0;
             const shortLabel =
               item.label === "Dashboard" ? "Home" :
+              item.label === "Marketplace" ? "Shop" :
               item.label === "Discover Farms" ? "Explore" :
               item.label === "My Bookings" ? "Bookings" :
               item.label === "Recent Views" ? "Recent" :

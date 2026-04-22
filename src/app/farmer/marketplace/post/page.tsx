@@ -2,41 +2,49 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
+import Link from "next/link";
+import { ArrowLeft, Plus, X } from "lucide-react";
 
 export default function PostProductPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [farmerId, setFarmerId] = useState<number | null>(null);
+  const [farmerProfile, setFarmerProfile] = useState<any>(null);
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     product_name: "",
     category: "",
     price: "",
-    quantity: "",
+    stock: "",
     unit_type: "kg",
     description: "",
-    location: "",
-    latitude: "",
-    longitude: "",
-    phone: "",
-    email: "",
   });
 
   const categories = ["Vegetables", "Fruits", "Dairy", "Eggs", "Meat", "Honey", "Grains", "Herbs", "Other"];
+  const unitTypes = ["kg", "piece", "bunch", "liter", "dozen", "basket"];
 
   useEffect(() => {
-    const userData = localStorage.getItem("userData");
-    if (userData) {
+    const fetchFarmerProfile = async () => {
+      const userData = localStorage.getItem("userData");
+      if (!userData) {
+        router.push("/auth/login/farmer");
+        return;
+      }
+      
       const user = JSON.parse(userData);
-      setFarmerId(user.id);
-      setFormData(prev => ({
-        ...prev,
-        phone: user.phone || "",
-        email: user.email || "",
-      }));
-    }
+      
+      try {
+        const response = await fetch(`/api/farmer/profile?userId=${user.id}`);
+        if (response.ok) {
+          const profile = await response.json();
+          setFarmerProfile(profile);
+        }
+      } catch (error) {
+        console.error("Error fetching farmer profile:", error);
+      }
+    };
+    
+    fetchFarmerProfile();
   }, []);
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -54,14 +62,13 @@ export default function PostProductPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!farmerId) {
-      alert("Please login first");
+    if (!farmerProfile) {
+      alert("Please wait for profile to load");
       return;
     }
     
     setLoading(true);
     
-    // Convert photos to base64
     const photoBase64 = await Promise.all(
       photos.map(async (photo) => {
         return new Promise<string>((resolve) => {
@@ -72,29 +79,67 @@ export default function PostProductPage() {
       })
     );
     
-    const response = await fetch("/api/marketplace/products", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...formData,
-        price: parseFloat(formData.price),
-        quantity: parseInt(formData.quantity),
-        photos: photoBase64,
-        farmer_id: farmerId,
-      }),
-    });
+    const productData = {
+      product_name: formData.product_name,
+      category: formData.category,
+      price: parseFloat(formData.price) || 0,
+      quantity: parseInt(formData.stock) || 0,
+      unit_type: formData.unit_type,
+      description: formData.description || null,
+      photos: photoBase64,
+      location: farmerProfile.farm_location,
+      phone: farmerProfile.phone,
+      email: farmerProfile.email,
+      farmer_id: farmerProfile.user_id,
+    };
     
-    if (response.ok) {
-      router.push("/farmer/marketplace/my-products");
-    } else {
+    try {
+      const response = await fetch("/api/marketplace/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(productData),
+      });
+      
+      if (response.ok) {
+        router.push("/farmer/marketplace/my-products");
+      } else {
+        const error = await response.json();
+        alert(error.error || "Failed to post product");
+      }
+    } catch (error) {
+      console.error("Error posting product:", error);
       alert("Failed to post product");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
+
+  if (!farmerProfile) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto p-4 pb-24">
+      <div className="mb-6">
+        <Link href="/farmer/marketplace/my-products" className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700">
+          <ArrowLeft className="h-5 w-5" />
+          Back to My Products
+        </Link>
+      </div>
+
       <h1 className="text-2xl font-bold mb-6">Sell Product</h1>
+      
+      <div className="bg-emerald-50 p-4 rounded-xl mb-6">
+        <h3 className="font-semibold text-emerald-800 mb-2">Farm Information</h3>
+        <p className="text-emerald-700"><strong>Farm:</strong> {farmerProfile.farm_name}</p>
+        <p className="text-emerald-700"><strong>Location:</strong> {farmerProfile.farm_location}</p>
+        <p className="text-emerald-700"><strong>Contact:</strong> {farmerProfile.phone} | {farmerProfile.email}</p>
+        <p className="text-xs text-emerald-500 mt-2">This information will be shown to buyers</p>
+      </div>
       
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Photos */}
@@ -114,9 +159,9 @@ export default function PostProductPage() {
               </div>
             ))}
             {photoPreviews.length < 10 && (
-              <label className="aspect-square rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer">
+              <label className="aspect-square rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-emerald-500 transition">
                 <input type="file" multiple accept="image/*" className="hidden" onChange={handlePhotoUpload} />
-                <span className="text-2xl text-gray-400">+</span>
+                <Plus className="h-8 w-8 text-gray-400" />
               </label>
             )}
           </div>
@@ -129,7 +174,7 @@ export default function PostProductPage() {
             required
             value={formData.product_name}
             onChange={(e) => setFormData({ ...formData, product_name: e.target.value })}
-            className="w-full p-3 border rounded-xl"
+            className="w-full p-3 border rounded-xl focus:outline-none focus:border-emerald-500"
             placeholder="e.g., Fresh Tomatoes"
           />
         </div>
@@ -141,62 +186,48 @@ export default function PostProductPage() {
             required
             value={formData.category}
             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-            className="w-full p-3 border rounded-xl"
+            className="w-full p-3 border rounded-xl focus:outline-none focus:border-emerald-500"
           >
             <option value="">Select category</option>
             {categories.map(cat => <option key={cat}>{cat}</option>)}
           </select>
         </div>
 
-        {/* Price & Quantity */}
+        {/* Price & Stock */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block font-medium mb-2">Price (KES) *</label>
+            <label className="block font-medium mb-2">Price per {formData.unit_type} (KES) *</label>
             <input
               required
               type="number"
+              step="0.01"
               value={formData.price}
               onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-              className="w-full p-3 border rounded-xl"
+              className="w-full p-3 border rounded-xl focus:outline-none focus:border-emerald-500"
               placeholder="500"
             />
           </div>
           <div>
-            <label className="block font-medium mb-2">Quantity *</label>
+            <label className="block font-medium mb-2">Stock Available ({formData.unit_type}) *</label>
             <div className="flex gap-2">
               <input
                 required
                 type="number"
-                value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                className="flex-1 p-3 border rounded-xl"
+                value={formData.stock}
+                onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                className="flex-1 p-3 border rounded-xl focus:outline-none focus:border-emerald-500"
                 placeholder="10"
               />
               <select
                 value={formData.unit_type}
                 onChange={(e) => setFormData({ ...formData, unit_type: e.target.value })}
-                className="w-24 p-3 border rounded-xl"
+                className="w-24 p-3 border rounded-xl focus:outline-none focus:border-emerald-500"
               >
-                <option>kg</option>
-                <option>piece</option>
-                <option>bunch</option>
-                <option>liter</option>
-                <option>dozen</option>
+                {unitTypes.map(unit => <option key={unit}>{unit}</option>)}
               </select>
             </div>
+            <p className="text-xs text-gray-500 mt-1">Example: 10 kg available at KES 500 per kg</p>
           </div>
-        </div>
-
-        {/* Location */}
-        <div>
-          <label className="block font-medium mb-2">Farm Location *</label>
-          <input
-            required
-            value={formData.location}
-            onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-            className="w-full p-3 border rounded-xl"
-            placeholder="Nairobi, Kenya"
-          />
         </div>
 
         {/* Description */}
@@ -206,39 +237,15 @@ export default function PostProductPage() {
             rows={4}
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            className="w-full p-3 border rounded-xl"
+            className="w-full p-3 border rounded-xl focus:outline-none focus:border-emerald-500"
             placeholder="Describe your product..."
           />
         </div>
 
-        {/* Contact Info */}
-        <div className="bg-gray-50 p-4 rounded-xl">
-          <h3 className="font-semibold mb-3">Contact Information</h3>
-          <div className="space-y-3">
-            <input
-              required
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full p-3 border rounded-xl"
-              placeholder="Phone number"
-            />
-            <input
-              required
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full p-3 border rounded-xl"
-              placeholder="Email address"
-            />
-          </div>
-        </div>
-
-        {/* Submit */}
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-emerald-600 text-white py-3 rounded-xl font-semibold disabled:opacity-50"
+          className="w-full bg-emerald-600 text-white py-3 rounded-xl font-semibold hover:bg-emerald-700 disabled:opacity-50 transition"
         >
           {loading ? "Posting..." : "Post Product"}
         </button>
