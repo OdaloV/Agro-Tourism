@@ -13,6 +13,7 @@ import {
   Search,
   RefreshCw,
   Package,
+  Trash2,
 } from "lucide-react";
 
 interface Conversation {
@@ -144,7 +145,6 @@ export default function FarmerMessages() {
       const data = await response.json();
       if (response.ok) {
         setConversations(data.conversations || []);
-        // If no conversation selected yet and no query param, select first
         if (data.conversations?.length > 0 && !selectedConversation && !searchParams.get("conversation")) {
           setSelectedConversation(data.conversations[0]);
         }
@@ -332,6 +332,28 @@ export default function FarmerMessages() {
     );
   };
 
+  // Delete entire conversation
+  const deleteConversation = async () => {
+    if (!selectedConversation) return;
+    if (!confirm("Delete this entire conversation? This action cannot be undone.")) return;
+    try {
+      const res = await fetch(`/api/messages/conversations/${selectedConversation.conversation_id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        // Remove from conversations list
+        setConversations(conversations.filter(c => c.conversation_id !== selectedConversation.conversation_id));
+        setSelectedConversation(null);
+        alert("Conversation deleted.");
+      } else {
+        alert("Failed to delete conversation.");
+      }
+    } catch (error) {
+      console.error("Error deleting conversation:", error);
+      alert("An error occurred.");
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -478,12 +500,21 @@ export default function FarmerMessages() {
                         </p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => setSelectedConversation(null)}
-                      className="p-1 hover:bg-gray-100 rounded-lg lg:hidden"
-                    >
-                      <X className="h-5 w-5 text-gray-500" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={deleteConversation}
+                        className="p-2 hover:bg-red-100 rounded-lg text-red-500 transition"
+                        title="Delete conversation"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={() => setSelectedConversation(null)}
+                        className="p-1 hover:bg-gray-100 rounded-lg lg:hidden"
+                      >
+                        <X className="h-5 w-5 text-gray-500" />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
