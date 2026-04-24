@@ -14,6 +14,7 @@ import {
   MapPin,
   Star,
   Package,
+  Trash2,
 } from "lucide-react";
 import { 
   Skeleton, 
@@ -423,6 +424,27 @@ export default function VisitorMessages() {
     );
   };
 
+  // Delete entire conversation
+  const deleteConversation = async () => {
+    if (!selectedConversation) return;
+    if (!confirm("Delete this entire conversation? This action cannot be undone.")) return;
+    try {
+      const res = await fetch(`/api/messages/conversations/${selectedConversation.conversation_id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setConversations(conversations.filter(c => c.conversation_id !== selectedConversation.conversation_id));
+        setSelectedConversation(null);
+        alert("Conversation deleted.");
+      } else {
+        alert("Failed to delete conversation.");
+      }
+    } catch (error) {
+      console.error("Error deleting conversation:", error);
+      alert("An error occurred.");
+    }
+  };
+
   if (loading) {
     return (
       <div className="py-8">
@@ -554,22 +576,31 @@ export default function VisitorMessages() {
             {selectedConversation ? (
               <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden flex flex-col h-[600px]">
                 <div className="p-4 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-white">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white font-bold">
-                      {selectedConversation.other_party_name.charAt(0).toUpperCase()}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white font-bold">
+                        {selectedConversation.other_party_name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-emerald-900">{selectedConversation.other_party_name}</h3>
+                        <p className="text-xs flex items-center gap-2">
+                          <span className="text-emerald-500">{selectedConversation.farm_name}</span>
+                          {selectedConversation.product_name && (
+                            <span className="text-blue-500 text-xs flex items-center gap-1">
+                              <Package className="h-3 w-3" /> {selectedConversation.product_name}
+                            </span>
+                          )}
+                          {isOtherOnline && <span className="text-green-500 text-xs">● Online</span>}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-emerald-900">{selectedConversation.other_party_name}</h3>
-                      <p className="text-xs flex items-center gap-2">
-                        <span className="text-emerald-500">{selectedConversation.farm_name}</span>
-                        {selectedConversation.product_name && (
-                          <span className="text-blue-500 text-xs flex items-center gap-1">
-                            <Package className="h-3 w-3" /> {selectedConversation.product_name}
-                          </span>
-                        )}
-                        {isOtherOnline && <span className="text-green-500 text-xs">● Online</span>}
-                      </p>
-                    </div>
+                    <button
+                      onClick={deleteConversation}
+                      className="p-2 hover:bg-red-100 rounded-lg text-red-500 transition"
+                      title="Delete conversation"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
                   </div>
                 </div>
 
