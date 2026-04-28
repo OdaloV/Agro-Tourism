@@ -1,4 +1,3 @@
-//src/app/api/payments/webhook/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 
@@ -7,63 +6,58 @@ export async function POST(request: NextRequest) {
     const payload = await request.json();
     console.log('Webhook received:', JSON.stringify(payload, null, 2));
 
-    const event = payload.event; // e.g., "payment.success", "payment.failed", "refund.completed"
-    const data = payload.data;
+    // Extract relevant data
+    const invoiceId = payload.invoice_id;
+    const state = payload.state; // e.g., "PENDING", "SUCCESS", "FAILED"
+    const provider = payload.provider; // "M-PESA" or "CARD"
 
-    if (!event || !data) {
-      return NextResponse.json({ error: 'Invalid webhook payload' }, { status: 400 });
+    if (!invoiceId) {
+      console.warn('Webhook missing invoice_id');
+      return NextResponse.json({ received: true }, { status: 200 });
     }
 
-    // Extract IntaSend transaction ID and metadata
-    const intasendId = data.id;
-    const metadata = data.metadata || {};
-    const bookingId = metadata.booking_id;
+    // Find booking by intasend_id
+    const bookingRes = await pool.query(
+      `SELECT id, payment_status, intasend_id FROM bookings WHERE intasend_id = $1`,
+      [invoiceId]
+    );
+    if (bookingRes.rows.length === 0) {
+      console.warn(`No booking found for intasend_id: ${invoiceId}`);
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
+    const booking = bookingRes.rows[0];
 
-    if (!bookingId) {
-      console.warn('Webhook missing booking_id in metadata');
-      return NextResponse.json({ received: true });
+    // Update based on state
+    if (state === 'SUCCESS' || (provider === 'M-PESA' && state === 'SUCCESS')) {
+      // Payment succeeded – mark as 'held' (escrow)
+      await pool.query(
+        `UPDATE bookings SET payment_status = 'held' WHERE id = $1`,
+        [booking.id]
+      );
+      await pool.query(
+        `UPDATE escrow_transactions SET status = 'held', updated_at = NOW() WHERE intasend_txn_ref = $1`,
+        [invoiceId]
+      );
+      console.log(`Payment for booking ${booking.id} is now HELD (escrow).`);
+    } else if (state === 'FAILED') {
+      await pool.query(
+        `UPDATE bookings SET payment_status = 'failed' WHERE id = $1`,
+        [booking.id]
+      );
+      await pool.query(
+        `UPDATE escrow_transactions SET status = 'failed' WHERE intasend_txn_ref = $1`,
+        [invoiceId]
+      );
+      console.log(`Payment for booking ${booking.id} failed.`);
+    } else if (state === 'PENDING') {
+      // Still pending – ignore
+      console.log(`Payment for booking ${booking.id} is still PENDING.`);
     }
 
-    if (event === 'payment.success') {
-      // Update booking payment_status to 'held' (money in platform account, we simulate escrow)
-      await pool.query(
-        `UPDATE bookings SET payment_status = 'held' WHERE id = $1 AND intasend_id = $2`,
-        [bookingId, intasendId]
-      );
-
-      // Update escrow_transactions status to 'held'
-      await pool.query(
-        `UPDATE escrow_transactions SET status = 'held' WHERE booking_id = $1 AND intasend_txn_ref = $2`,
-        [bookingId, intasendId]
-      );
-
-      console.log(`✅ Payment success for booking ${bookingId}, intasend_id ${intasendId}`);
-    } 
-    else if (event === 'payment.failed') {
-      await pool.query(
-        `UPDATE bookings SET payment_status = 'failed' WHERE id = $1 AND intasend_id = $2`,
-        [bookingId, intasendId]
-      );
-      console.log(`❌ Payment failed for booking ${bookingId}`);
-    }
-    else if (event === 'refund.completed') {
-      await pool.query(
-        `UPDATE bookings SET payment_status = 'refunded', refunded_at = NOW() WHERE id = $1 AND intasend_id = $2`,
-        [bookingId, intasendId]
-      );
-      await pool.query(
-        `UPDATE escrow_transactions SET status = 'refunded', refunded_at = NOW() WHERE booking_id = $1 AND intasend_txn_ref = $2`,
-        [bookingId, intasendId]
-      );
-      console.log(`🔄 Refund completed for booking ${bookingId}`);
-    }
-    else {
-      console.log(`Unhandled webhook event: ${event}`);
-    }
-
-    return NextResponse.json({ received: true });
+    return NextResponse.json({ received: true }, { status: 200 });
   } catch (error) {
     console.error('Webhook error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    // Always return 200 to avoid IntaSend retrying
+    return NextResponse.json({ received: true }, { status: 200 });
   }
 }
