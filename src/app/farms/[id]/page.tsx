@@ -282,7 +282,7 @@ export default function FarmDetailsPage() {
             {farm.average_rating > 0 && (
               <div className="absolute bottom-4 left-4 bg-white/90 rounded-full px-3 py-1.5 flex items-center gap-1">
                 <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                <span className="font-semibold">{farm.average_rating.toFixed(1)}</span>
+                <span className="font-semibold">{Number(farm.average_rating).toFixed(1)}</span>
                 <span className="text-gray-500">({farm.review_count} reviews)</span>
               </div>
             )}
