@@ -1,7 +1,7 @@
+// src/app/api/payments/initiate/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { jwtVerify } from 'jose';
-import { createPayment } from '@/lib/intasend';
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'your-secret-key-change-in-production'
@@ -18,6 +18,9 @@ async function getUserFromToken(request: NextRequest) {
   }
 }
 
+// Use IntaSend SDK for reliable STK push
+const IntaSend = require('intasend-node');
+
 export async function POST(request: NextRequest) {
   try {
     const user = await getUserFromToken(request);
@@ -28,6 +31,9 @@ export async function POST(request: NextRequest) {
     const { bookingId, phoneNumber, paymentMethod } = await request.json();
     if (!bookingId) {
       return NextResponse.json({ error: 'Booking ID required' }, { status: 400 });
+    }
+    if (paymentMethod !== 'mpesa') {
+      return NextResponse.json({ error: 'Only M-PESA is supported for now' }, { status: 400 });
     }
 
     // Fetch booking details
@@ -47,63 +53,58 @@ export async function POST(request: NextRequest) {
     const platformFee = totalAmount * 0.10;
     const farmerAmount = totalAmount * 0.90;
 
-    // Determine payment method
-    let method: 'MPESA' | 'CARD' = 'MPESA';
-    if (paymentMethod === 'card') method = 'CARD';
-    else if (paymentMethod !== 'mpesa') {
-      return NextResponse.json({ error: 'Invalid payment method' }, { status: 400 });
+    // Format phone number: remove '+' or leading zero, ensure 254XXXXXXXX
+    let cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
+    if (cleanPhone.startsWith('0')) cleanPhone = '254' + cleanPhone.slice(1);
+    if (!cleanPhone.startsWith('254')) cleanPhone = '254' + cleanPhone;
+    if (cleanPhone.length !== 12) {
+      return NextResponse.json({ error: 'Invalid phone number format. Use 254XXXXXXXXX' }, { status: 400 });
     }
 
-    // Prepare IntaSend payment
-    const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/webhook`;
-    const redirectUrl = `${process.env.NEXT_PUBLIC_APP_URL}/visitor/payment/callback?bookingId=${bookingId}`;
+    // Initialize IntaSend SDK (sandbox mode)
+    const intasend = new IntaSend(
+      process.env.INTASEND_PUBLISHABLE_KEY,
+      process.env.INTASEND_SECRET_KEY,
+      true // true = sandbox
+    );
+    const collection = intasend.collection();
 
-    const payment = await createPayment({
-      amount: totalAmount,
-      currency: 'KES',
-      payment_method: method,
-      phone_number: method === 'MPESA' ? phoneNumber : undefined,
+    // Trigger STK push directly (no redirect)
+    const stkResponse = await collection.mpesaStkPush({
+      first_name: booking.visitor_name?.split(' ')[0] || 'Guest',
+      last_name: booking.visitor_name?.split(' ')[1] || '',
       email: booking.visitor_email,
-      redirect_url: method === 'CARD' ? redirectUrl : undefined,
-      webhook: webhookUrl,
-      metadata: { booking_id: bookingId },
+      host: process.env.NEXT_PUBLIC_APP_URL,
+      amount: totalAmount,
+      phone_number: cleanPhone,
+      api_ref: `booking-${bookingId}`,
     });
 
-    // Store IntaSend transaction ID in booking
+    // Extract invoice ID from SDK response
+    const intasendId = stkResponse.invoice?.invoice_id || stkResponse.id;
+    if (!intasendId) {
+      console.error('No invoice_id in STK response:', stkResponse);
+      throw new Error('Invoice ID missing from STK response');
+    }
+
+    // Update database
     await pool.query(
       `UPDATE bookings SET intasend_id = $1, payment_status = 'initiated' WHERE id = $2`,
-      [payment.id, bookingId]
+      [intasendId, bookingId]
     );
-
-    // Create escrow transaction record
     await pool.query(
       `INSERT INTO escrow_transactions 
        (booking_id, intasend_txn_ref, total_amount, platform_fee, farmer_amount, status, payment_method)
        VALUES ($1, $2, $3, $4, $5, 'pending', $6)`,
-      [bookingId, payment.id, totalAmount, platformFee, farmerAmount, method]
+      [bookingId, intasendId, totalAmount, platformFee, farmerAmount, 'M-PESA']
     );
 
-    // Return response based on payment method
-    if (method === 'MPESA') {
-      // IntaSend returns an object containing M-Pesa STK push details
-      const mpesaResponse = payment.mpesa_stk_push;
-      if (!mpesaResponse || mpesaResponse.ResponseCode !== '0') {
-        throw new Error(mpesaResponse?.ResponseDescription || 'STK push failed');
-      }
-      return NextResponse.json({
-        success: true,
-        paymentMethod: 'mpesa',
-        checkoutRequestId: mpesaResponse.CheckoutRequestID,
-        message: 'STK push sent to your phone. Enter your PIN to complete payment.',
-      });
-    } else {
-      // Card payment – redirect to IntaSend hosted page
-      return NextResponse.json({
-        success: true,
-        paymentMethod: 'card',
-        redirectUrl: payment.redirect_url,
-      });
-    }
+    return NextResponse.json({
+      success: true,
+      paymentMethod: 'mpesa',
+      invoiceId: intasendId,
+      message: 'STK push sent to your phone. Enter PIN to complete payment.',
+    });
   } catch (error: any) {
     console.error('Payment initiation error:', error);
     return NextResponse.json(
