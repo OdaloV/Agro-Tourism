@@ -196,10 +196,13 @@ export async function POST(request: NextRequest) {
     if (addToCalendar) {
       try {
         // Get farm details for calendar event
-        const farmResult = await pool.query(
-          'SELECT farm_name, farm_location, farmer_email FROM farmer_profiles WHERE id = $1',
-          [farmId]
-        );
+      const farmResult = await pool.query(
+  `SELECT fp.farm_name, fp.farm_location, u.email as farmer_email
+   FROM farmer_profiles fp
+   JOIN users u ON fp.user_id = u.id
+   WHERE fp.id = $1`,
+  [farmId]
+);
         const farmData = farmResult.rows[0];
         
         const eventData = {
