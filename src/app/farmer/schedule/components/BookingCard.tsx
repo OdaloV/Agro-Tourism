@@ -1,4 +1,3 @@
-// src/app/farmer/schedule/components/BookingCard.tsx
 "use client";
 
 import { Users } from "lucide-react";
@@ -20,41 +19,29 @@ interface BookingCardProps {
 }
 
 export default function BookingCard({ booking, onClick }: BookingCardProps) {
-  // Booking Status (farmer controls this)
-  console.log("🔍 BookingCard received:", { 
-    id: booking.id, 
-    status: booking.status, 
-    payment_status: booking.payment_status,
-    fullBooking: booking 
-  });
-  const getBookingStatus = () => {
-    switch (booking.status) {
-      case "confirmed": return { color: "bg-green-100 text-green-700", text: "Approved" };
-      case "pending": return { color: "bg-yellow-100 text-yellow-700", text: "Pending" };
-      case "completed": return { color: "bg-blue-100 text-blue-700", text: "Done" };
-      case "cancelled": return { color: "bg-red-100 text-red-700", text: "Cancelled" };
-      default: return { color: "bg-gray-100 text-gray-700", text: booking.status };
+  const getBookingStatus = (status: string) => {
+    switch (status) {
+      case "confirmed": return { color: "bg-emerald-700 text-white", text: "Approved" };
+      case "pending": return { color: "bg-amber-600 text-white", text: "Pending" };
+      case "completed": return { color: "bg-blue-700 text-white", text: "Done" };
+      case "cancelled": return { color: "bg-red-700 text-white", text: "Cancelled" };
+      default: return { color: "bg-gray-600 text-white", text: status };
     }
   };
 
-  // Payment Status (system controls this)
-  const getPaymentStatus = () => {
-    // Visitor paid online - waiting for farmer approval
-    if (booking.payment_status === "paid") {
-      return { color: "bg-green-100 text-green-700", text: "Paid ✅" };
-    } 
-    // Visitor will pay at farm
-    else if (booking.payment_status === "pending_cash") {
-      return { color: "bg-blue-100 text-blue-700", text: "Pay at Farm" };
-    }
-    // No payment made yet
-    else {
-      return { color: "bg-yellow-100 text-yellow-700", text: "Payment Due" };
+  const getPaymentStatus = (paymentStatus?: string) => {
+    switch (paymentStatus) {
+      case "held": return { color: "bg-emerald-700 text-white", text: "Paid" };
+      case "released": return { color: "bg-teal-700 text-white", text: "Released" };
+      case "refunded": return { color: "bg-red-700 text-white", text: "Refunded" };
+      case "paid": return { color: "bg-green-700 text-white", text: "Paid" };
+      case "pending_cash": return { color: "bg-blue-700 text-white", text: "Pay at Farm" };
+      default: return { color: "bg-orange-600 text-white", text: "Due" };
     }
   };
 
-  const bookingStatus = getBookingStatus();
-  const paymentStatus = getPaymentStatus();
+  const bookingStatus = getBookingStatus(booking.status);
+  const paymentStatus = getPaymentStatus(booking.payment_status);
 
   return (
     <div
@@ -65,19 +52,18 @@ export default function BookingCard({ booking, onClick }: BookingCardProps) {
         <span className="font-medium text-gray-900 truncate max-w-[80px]">
           {booking.visitor_name?.split(' ')[0]}
         </span>
-        <span className={`text-xs px-1.5 py-0.5 rounded-full ${bookingStatus.color}`}>
+        <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${bookingStatus.color}`}>
           {bookingStatus.text}
         </span>
       </div>
       <p className="text-gray-500 truncate text-xs mb-1">{booking.activity_name}</p>
       
-      {/* Show both guest count AND payment status */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1 text-gray-400 text-xs">
           <Users className="h-3 w-3" />
           <span>{booking.guests_count}</span>
         </div>
-        <span className={`text-xs px-1.5 py-0.5 rounded-full ${paymentStatus.color}`}>
+        <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${paymentStatus.color}`}>
           {paymentStatus.text}
         </span>
       </div>
