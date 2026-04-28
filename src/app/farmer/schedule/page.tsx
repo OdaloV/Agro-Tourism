@@ -145,6 +145,22 @@ export default function FarmerSchedule() {
 
   const handleStatusUpdate = async (bookingId: number, newStatus: string) => {
     try {
+      // If marking as completed, first release the escrow payment
+      if (newStatus === 'completed') {
+        const releaseRes = await fetch('/api/payments/release', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookingId }),
+        });
+        if (!releaseRes.ok) {
+          const err = await releaseRes.json();
+          alert(err.error || 'Failed to release payment');
+          return;
+        }
+        console.log('Escrow released for booking', bookingId);
+      }
+
+      // Then update the booking status
       const response = await fetch(`/api/farmer/schedule/bookings/${bookingId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -253,23 +269,32 @@ export default function FarmerSchedule() {
     }
   };
 
+  // FIXED: High-contrast booking status badges (dark background + white text)
   const getBookingStatusBadge = (status: string) => {
     switch (status) {
-      case "confirmed": return { color: "bg-green-100 text-green-700", text: "Approved" };
-      case "pending": return { color: "bg-yellow-100 text-yellow-700", text: "Pending" };
-      case "completed": return { color: "bg-blue-100 text-blue-700", text: "Done" };
-      case "cancelled": return { color: "bg-red-100 text-red-700", text: "Cancelled" };
-      default: return { color: "bg-gray-100 text-gray-700", text: status };
+      case "confirmed": return { color: "bg-emerald-700 text-white", text: "Approved" };
+      case "pending": return { color: "bg-amber-600 text-white", text: "Pending" };
+      case "completed": return { color: "bg-blue-700 text-white", text: "Done" };
+      case "cancelled": return { color: "bg-red-700 text-white", text: "Cancelled" };
+      default: return { color: "bg-gray-600 text-white", text: status };
     }
   };
 
+  // FIXED: High-contrast payment status badges (dark background + white text)
   const getPaymentStatusBadge = (paymentStatus?: string) => {
-    if (paymentStatus === "paid") {
-      return { color: "bg-green-100 text-green-700", text: "Paid ✅" };  
-    } else if (paymentStatus === "pending_cash") {
-      return { color: "bg-blue-100 text-blue-700", text: "Pay at Farm" };
-    } else {
-      return { color: "bg-yellow-100 text-yellow-700", text: "Payment Due" };
+    switch (paymentStatus) {
+      case "held":
+        return { color: "bg-emerald-700 text-white", text: "Paid (Escrow)" };
+      case "released":
+        return { color: "bg-teal-700 text-white", text: "Payment Released" };
+      case "refunded":
+        return { color: "bg-red-700 text-white", text: "Refunded" };
+      case "paid":
+        return { color: "bg-green-700 text-white", text: "Paid ✅" };
+      case "pending_cash":
+        return { color: "bg-blue-700 text-white", text: "Pay at Farm" };
+      default:
+        return { color: "bg-orange-600 text-white", text: "Payment Due" };
     }
   };
 
