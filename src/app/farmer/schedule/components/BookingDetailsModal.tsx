@@ -1,8 +1,7 @@
-// src/app/farmer/schedule/components/BookingDetailsModal.tsx
 "use client";
 
 import { useState } from "react";
-import { X, Calendar, Clock, Users, User, Mail, Phone, DollarSign, CreditCard } from "lucide-react";
+import { X, Calendar, Clock, Users, User, Mail, Phone, DollarSign, CreditCard, CheckCircle, Clock as ClockIcon } from "lucide-react";
 
 interface Booking {
   id: number;
@@ -58,20 +57,15 @@ export default function BookingDetailsModal({
     }
   };
 
- const getPaymentStatus = () => {
-  // PAID - visitor paid online
-  if (booking.payment_status === "paid") {
-    return { color: "bg-green-100 text-green-700", text: "Paid ✅", icon: <CheckCircle className="h-4 w-4" /> };
-  } 
-  // PENDING CASH - will pay at farm
-  else if (booking.payment_status === "pending_cash") {
-    return { color: "bg-blue-100 text-blue-700", text: "Pay at Farm", icon: <CreditCard className="h-4 w-4" /> };
-  }
-  // PENDING - no payment made yet
-  else {
-    return { color: "bg-yellow-100 text-yellow-700", text: "Payment Due", icon: <Clock className="h-4 w-4" /> };
-  }
-};
+  const getPaymentStatus = () => {
+    const ps = booking.payment_status;
+    if (ps === "held") return { color: "bg-emerald-100 text-emerald-700", text: "Paid (Escrow)", icon: <CheckCircle className="h-4 w-4" /> };
+    if (ps === "released") return { color: "bg-green-100 text-green-700", text: "Payment Released", icon: <CheckCircle className="h-4 w-4" /> };
+    if (ps === "refunded") return { color: "bg-red-100 text-red-700", text: "Refunded", icon: <ClockIcon className="h-4 w-4" /> };
+    if (ps === "paid") return { color: "bg-green-100 text-green-700", text: "Paid ✅", icon: <CheckCircle className="h-4 w-4" /> };
+    if (ps === "pending_cash") return { color: "bg-blue-100 text-blue-700", text: "Pay at Farm", icon: <CreditCard className="h-4 w-4" /> };
+    return { color: "bg-yellow-100 text-yellow-700", text: "Payment Due", icon: <ClockIcon className="h-4 w-4" /> };
+  };
 
   const paymentStatus = getPaymentStatus();
 
@@ -81,10 +75,7 @@ export default function BookingDetailsModal({
         {/* Header */}
         <div className="p-4 border-b border-gray-200 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-emerald-900">Booking Details</h3>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded-lg transition"
-          >
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg transition">
             <X className="h-5 w-5 text-gray-500" />
           </button>
         </div>
@@ -104,9 +95,7 @@ export default function BookingDetailsModal({
 
           {/* Activity Name */}
           <div>
-            <h4 className="text-xl font-semibold text-gray-900">
-              {booking.activity_name || "Farm Visit"}
-            </h4>
+            <h4 className="text-xl font-semibold text-gray-900">{booking.activity_name || "Farm Visit"}</h4>
           </div>
 
           {/* Booking Info */}
@@ -118,9 +107,7 @@ export default function BookingDetailsModal({
             {booking.start_time && (
               <div className="flex items-center gap-3 text-gray-600">
                 <Clock className="h-5 w-5 text-emerald-600" />
-                <span>
-                  {booking.start_time.substring(0, 5)} - {booking.end_time?.substring(0, 5) || "Flexible"}
-                </span>
+                <span>{booking.start_time.substring(0, 5)} - {booking.end_time?.substring(0, 5) || "Flexible"}</span>
               </div>
             )}
             <div className="flex items-center gap-3 text-gray-600">
@@ -143,16 +130,12 @@ export default function BookingDetailsModal({
               </div>
               <div className="flex items-center gap-3 text-gray-600">
                 <Mail className="h-4 w-4 text-gray-400" />
-                <a href={`mailto:${booking.visitor_email}`} className="text-emerald-600 hover:underline">
-                  {booking.visitor_email}
-                </a>
+                <a href={`mailto:${booking.visitor_email}`} className="text-emerald-600 hover:underline">{booking.visitor_email}</a>
               </div>
               {booking.visitor_phone && (
                 <div className="flex items-center gap-3 text-gray-600">
                   <Phone className="h-4 w-4 text-gray-400" />
-                  <a href={`tel:${booking.visitor_phone}`} className="text-emerald-600 hover:underline">
-                    {booking.visitor_phone}
-                  </a>
+                  <a href={`tel:${booking.visitor_phone}`} className="text-emerald-600 hover:underline">{booking.visitor_phone}</a>
                 </div>
               )}
             </div>
@@ -196,6 +179,3 @@ export default function BookingDetailsModal({
     </div>
   );
 }
-
-// Missing imports
-import { CheckCircle, Clock as ClockIcon } from "lucide-react";
