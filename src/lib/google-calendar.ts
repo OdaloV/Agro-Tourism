@@ -53,10 +53,10 @@ export async function createCalendarEvent(booking: any, farm: any, activity: any
       dateTime: endTime.toISOString(),
       timeZone: 'Africa/Nairobi',
     },
-    attendees: [
-      { email: farm.farmer_email },
-      { email: booking.visitor_email },
-    ],
+    // attendees: [
+    //   { email: farm.farmer_email },
+    //   { email: booking.visitor_email },
+    // ],
     reminders: {
       useDefault: false,
       overrides: [
