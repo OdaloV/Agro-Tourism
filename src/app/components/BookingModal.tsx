@@ -153,6 +153,23 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
   // Get dynamic discount from group settings
   const dynamicDiscount = getDiscountPercentFromTiers(participants);
 
+  const formatPhoneNumber = (raw: string): string => {
+    let digits = raw.replace(/\D/g, '');
+    if (digits.startsWith('0')) {
+      digits = '254' + digits.slice(1);
+    }
+    if (!digits.startsWith('254') && digits.length === 12 && digits.startsWith('254')) {
+      // already correct
+    } else if (digits.length === 9 && digits.startsWith('7')) {
+      digits = '254' + digits;
+    }
+    // Final validation: must be 12 digits starting with 254
+    if (digits.length !== 12 || !digits.startsWith('254')) {
+      return '';
+    }
+    return digits;
+  };
+
   const handleSubmit = async () => {
     if (!bookingDate) {
       alert("Please select a date");
@@ -168,6 +185,17 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
     // Check waiver if required
     if (participants >= 50 && groupSettings?.requirements.require_waiver && !waiverAccepted) {
       alert("Please accept the waiver requirement to continue.");
+      return;
+    }
+
+    // Format phone number
+    let finalPhone = phoneNumber.trim();
+    if (!finalPhone) {
+      finalPhone = userPhone;
+    }
+    const formattedPhone = formatPhoneNumber(finalPhone);
+    if (!formattedPhone) {
+      alert("Please enter a valid phone number (e.g., 0712345678 or 254712345678)");
       return;
     }
 
@@ -217,9 +245,10 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
       const paymentResponse = await fetch('/api/payments/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           bookingId: bookingData.booking.id,
-          phoneNumber: phoneNumber || userPhone,
+          phoneNumber: formattedPhone,
           paymentMethod: 'mpesa'
         })
       });
@@ -295,10 +324,10 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
               type="tel"
               value={phoneNumber}
               onChange={(e) => setPhoneNumber(e.target.value)}
-              placeholder="0712345678"
+              placeholder="0712345678 or 254712345678"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-emerald-500"
             />
-            <p className="text-xs text-gray-500 mt-1">You will receive an STK Push on this number</p>
+            <p className="text-xs text-gray-500 mt-1">We'll send an STK push to this number.</p>
           </div>
 
           <PriceCalculator
