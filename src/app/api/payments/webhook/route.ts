@@ -6,17 +6,15 @@ export async function POST(request: NextRequest) {
     const payload = await request.json();
     console.log('Webhook received:', JSON.stringify(payload, null, 2));
 
-    // Extract relevant data
     const invoiceId = payload.invoice_id;
-    const state = payload.state; // e.g., "PENDING", "SUCCESS", "FAILED"
-    const provider = payload.provider; // "M-PESA" or "CARD"
+    const state = payload.state; 
+    const provider = payload.provider;
 
     if (!invoiceId) {
       console.warn('Webhook missing invoice_id');
       return NextResponse.json({ received: true }, { status: 200 });
     }
 
-    // Find booking by intasend_id
     const bookingRes = await pool.query(
       `SELECT id, payment_status, intasend_id FROM bookings WHERE intasend_id = $1`,
       [invoiceId]
@@ -27,19 +25,19 @@ export async function POST(request: NextRequest) {
     }
     const booking = bookingRes.rows[0];
 
-    // Update based on state
-    if (state === 'SUCCESS' || (provider === 'M-PESA' && state === 'SUCCESS')) {
-      // Payment succeeded – mark as 'held' (escrow)
+    const successStates = ['success', 'complete'];
+    if (successStates.includes(state?.toLowerCase())) {
+      // Payment succeeded – mark as 'held' and set booking status to 'confirmed'
       await pool.query(
-        `UPDATE bookings SET payment_status = 'held' WHERE id = $1`,
+        `UPDATE bookings SET payment_status = 'held', status = 'confirmed' WHERE id = $1`,
         [booking.id]
       );
       await pool.query(
         `UPDATE escrow_transactions SET status = 'held', updated_at = NOW() WHERE intasend_txn_ref = $1`,
         [invoiceId]
       );
-      console.log(`Payment for booking ${booking.id} is now HELD (escrow).`);
-    } else if (state === 'FAILED') {
+      console.log(`Payment for booking ${booking.id} is now HELD (escrow) and booking confirmed.`);
+    } else if (state?.toLowerCase() === 'failed') {
       await pool.query(
         `UPDATE bookings SET payment_status = 'failed' WHERE id = $1`,
         [booking.id]
@@ -49,8 +47,7 @@ export async function POST(request: NextRequest) {
         [invoiceId]
       );
       console.log(`Payment for booking ${booking.id} failed.`);
-    } else if (state === 'PENDING') {
-      // Still pending – ignore
+    } else if (state?.toLowerCase() === 'pending') {
       console.log(`Payment for booking ${booking.id} is still PENDING.`);
     }
 
