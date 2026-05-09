@@ -30,7 +30,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Booking ID required' }, { status: 400 });
     }
 
-    // Verify booking belongs to this farmer and is in 'held' state
     const bookingRes = await pool.query(
       `SELECT b.id, b.intasend_id, b.payment_status, b.total_amount, 
               b.farm_id, fp.user_id as farmer_user_id, b.visitor_id,
@@ -47,25 +46,27 @@ export async function POST(request: NextRequest) {
     const booking = bookingRes.rows[0];
     const farmerAmount = parseFloat(booking.farmer_amount);
 
-    // Get farmer's phone number from users table
-    const farmerRes = await pool.query(
-      `SELECT phone FROM users WHERE id = $1`,
+    // Fetch farmer's bank details from farmer_profiles
+    const bankRes = await pool.query(
+      `SELECT bank_name, account_name, account_number, bank_code
+       FROM farmer_profiles
+       WHERE user_id = $1`,
       [booking.farmer_user_id]
     );
-    const farmerPhone = farmerRes.rows[0]?.phone;
-    if (!farmerPhone) {
-      return NextResponse.json({ error: 'Farmer phone number not found' }, { status: 400 });
+    const bankDetails = bankRes.rows[0];
+    if (!bankDetails || !bankDetails.account_number || !bankDetails.bank_code) {
+      return NextResponse.json({ error: 'Farmer bank account not set up' }, { status: 400 });
     }
 
-    // Format phone number for IntaSend payout
-    let formattedPhone = farmerPhone;
-    if (formattedPhone.startsWith('0')) formattedPhone = `254${formattedPhone.substring(1)}`;
-    if (formattedPhone.startsWith('+')) formattedPhone = formattedPhone.substring(1);
+    // Send bank payout
+    await sendPayout({
+      amount: farmerAmount,
+      bankAccount: bankDetails.account_number,
+      bankCode: bankDetails.bank_code,
+      accountName: bankDetails.account_name,
+      narrative: 'Booking payout - escrow release'
+    });
 
-    // Send 90% to farmer
-    await sendPayout(farmerAmount, formattedPhone);
-
-    // Update records
     await pool.query(
       `UPDATE bookings SET payment_status = 'completed' WHERE id = $1`,
       [bookingId]

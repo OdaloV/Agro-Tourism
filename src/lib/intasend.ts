@@ -20,9 +20,6 @@ interface CreatePaymentParams {
 
 /**
  * STK Push / collection
- * Auth:     Bearer <SECRET_KEY>
- * Endpoint: /api/v1/payment/collection/
- * Docs:     https://developers.intasend.com
  */
 export async function createPayment(params: CreatePaymentParams) {
   if (params.payment_method === 'M-PESA' && !params.phone_number) {
@@ -118,37 +115,54 @@ export async function refundPayment(intasendId: string, amount?: number) {
 }
 
 /**
- * Send a payout to a mobile number using B2C (Send Money) endpoint.
- * Uses the two‑step initiate/approve flow. For sandbox testing, ask IntaSend to enable auto‑approval.
+ * Send a payout (M-PESA or Bank).
+ * @param params - Payout details
  */
-export async function sendPayout(amount: number, mobileNumber: string, currency: string = 'KES') {
+export async function sendPayout(params: {
+  amount: number;
+  currency?: string;
+  mobileNumber?: string;
+  bankAccount?: string;
+  bankCode?: string;
+  accountName?: string;
+  narrative?: string;
+}) {
+  const {
+    amount,
+    currency = 'KES',
+    mobileNumber,
+    bankAccount,
+    bankCode,
+    accountName,
+    narrative = 'Booking payout - escrow release',
+  } = params;
+
+  if (!mobileNumber && (!bankAccount || !bankCode || !accountName)) {
+    throw new Error('Either mobileNumber or (bankAccount + bankCode + accountName) must be provided');
+  }
+
   const url = `${INTASEND_API_BASE}/api/v1/send-money/initiate/`;
-  
-  // Sanitise mobile number – remove any hidden characters
-  const cleanedNumber = mobileNumber.replace(/\s/g, '');
-  console.log('[sendPayout] Original mobile number:', JSON.stringify(mobileNumber));
-  console.log('[sendPayout] Cleaned mobile number:', cleanedNumber);
-  console.log('[sendPayout] Number length:', cleanedNumber.length);
-  console.log('[sendPayout] Number characters:', [...cleanedNumber].map(c => c.charCodeAt(0)).join(','));
+
+  const transaction: any = {
+    amount,
+    narrative,
+  };
+
+  if (mobileNumber) {
+    transaction.provider = 'MPESA-B2C';
+    transaction.account = mobileNumber.replace(/\s/g, '');
+    transaction.name = 'Farmer';
+  } else {
+    transaction.provider = 'BANK';
+    transaction.account = bankAccount;
+    transaction.bank_code = bankCode;
+    transaction.name = accountName;
+  }
 
   const payload = {
     currency,
-    provider: 'MPESA-B2C',
-    transactions: [
-      {
-        name: 'Farmer',
-        account: cleanedNumber,
-        amount,
-        narrative: 'Booking payout - escrow release',
-      },
-    ],
+    transactions: [transaction],
   };
-
-  const bodyString = JSON.stringify(payload);
-  console.log('[sendPayout] URL:', url);
-  console.log('[sendPayout] Payload string:', bodyString);
-  console.log('[sendPayout] Secret key (first 10 chars):', SECRET_KEY?.substring(0, 10));
-  console.log('[sendPayout] Environment:', process.env.INTASEND_ENVIRONMENT);
 
   const response = await fetch(url, {
     method: 'POST',
@@ -156,13 +170,10 @@ export async function sendPayout(amount: number, mobileNumber: string, currency:
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${SECRET_KEY}`,
     },
-    body: bodyString,
+    body: JSON.stringify(payload),
   });
 
   const rawText = await response.text();
-  console.log('[sendPayout] Response status:', response.status);
-  console.log('[sendPayout] Raw response body:', rawText.slice(0, 500));
-
   if (!response.ok) {
     let errorMsg = `HTTP ${response.status}: `;
     try {
@@ -178,7 +189,7 @@ export async function sendPayout(amount: number, mobileNumber: string, currency:
 }
 
 /**
- * Verify webhook signature (stub – implement if you set a secret)
+ * Verify webhook signature (stub)
  */
 export function verifyWebhookSignature(
   payload: any,
@@ -186,6 +197,6 @@ export function verifyWebhookSignature(
   expectedSecret: string
 ): boolean {
   if (!expectedSecret) return true;
-  // TODO: implement HMAC verification using expectedSecret and the payload
+  // TODO: implement HMAC verification
   return true;
 }
