@@ -1,4 +1,3 @@
-// src/app/api/farmer/settings/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { jwtVerify } from 'jose';
@@ -68,7 +67,6 @@ export async function GET(request: NextRequest) {
     );
     
     if (settingsResult.rows.length === 0) {
-      // Create default settings
       await pool.query(
         `INSERT INTO farmer_settings (farmer_id) VALUES ($1)`,
         [farmerId]
@@ -79,9 +77,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get payment settings
+    // Get payment settings (bank only – now includes bank_code)
     let paymentResult = await pool.query(
-      'SELECT * FROM farmer_payment_settings WHERE farmer_id = $1',
+      'SELECT bank_name, account_name, account_number, bank_code, tax_id FROM farmer_payment_settings WHERE farmer_id = $1',
       [farmerId]
     );
     
@@ -91,7 +89,7 @@ export async function GET(request: NextRequest) {
         [farmerId]
       );
       paymentResult = await pool.query(
-        'SELECT * FROM farmer_payment_settings WHERE farmer_id = $1',
+        'SELECT bank_name, account_name, account_number, bank_code, tax_id FROM farmer_payment_settings WHERE farmer_id = $1',
         [farmerId]
       );
     }
@@ -150,7 +148,6 @@ export async function PUT(request: NextRequest) {
       await client.query('BEGIN');
 
       if (type === 'profile') {
-        // Update user profile
         await client.query(
           `UPDATE users SET name = $1, phone = $2 WHERE id = $3`,
           [data.name, data.phone, user.id]
@@ -158,7 +155,6 @@ export async function PUT(request: NextRequest) {
       }
       
       else if (type === 'password') {
-        // Verify current password
         const userResult = await client.query(
           'SELECT password_hash FROM users WHERE id = $1',
           [user.id]
@@ -210,24 +206,23 @@ export async function PUT(request: NextRequest) {
       }
       
       else if (type === 'payment') {
+        // Update bank fields including bank_code
         await client.query(
           `UPDATE farmer_payment_settings 
-           SET bank_name = $1, account_name = $2, account_number = $3,
-               mpesa_number = $4, payment_methods = $5, tax_id = $6
-           WHERE farmer_id = $7`,
-          [data.bank_name, data.account_name, data.account_number,
-           data.mpesa_number, data.payment_methods, data.tax_id, farmerId]
+           SET bank_name = $1, account_name = $2, account_number = $3, 
+               bank_code = $4, tax_id = $5
+           WHERE farmer_id = $6`,
+          [data.bank_name, data.account_name, data.account_number, 
+           data.bank_code, data.tax_id, farmerId]
         );
       }
       
       else if (type === 'hours') {
-        // Delete existing hours
         await client.query(
           'DELETE FROM farmer_business_hours WHERE farmer_id = $1',
           [farmerId]
         );
         
-        // Insert new hours
         for (const hour of data.hours) {
           await client.query(
             `INSERT INTO farmer_business_hours (farmer_id, day_of_week, is_open, open_time, close_time)
