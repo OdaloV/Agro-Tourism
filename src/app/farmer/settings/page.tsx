@@ -57,8 +57,6 @@ interface SettingsData {
     bank_name: string;
     account_name: string;
     account_number: string;
-    mpesa_number: string;
-    payment_methods: string[];
     tax_id: string;
   };
   business_hours: Array<{
