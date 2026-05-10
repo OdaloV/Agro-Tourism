@@ -31,18 +31,28 @@ export default function PaymentSettingsTab({ payment, onSave, saving }: PaymentS
     fetch("/api/bank-codes")
       .then((res) => res.json())
       .then((data) => {
-        // The API returns an array like [{ code: "68", name: "KCB" }, ...]
-        setBankCodes(data);
+        if (Array.isArray(data)) {
+          setBankCodes(data);
+        } else {
+          console.error("Bank codes API returned non-array:", data);
+          setBankCodes([]);
+        }
         setLoadingBanks(false);
       })
       .catch((err) => {
         console.error("Failed to load bank codes:", err);
+        setBankCodes([]);
         setLoadingBanks(false);
       });
   }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("Submitting payment data:", formData);
+    if (!formData.bank_code) {
+      alert("Please select a bank code.");
+      return;
+    }
     onSave(formData);
   };
 
@@ -55,45 +65,40 @@ export default function PaymentSettingsTab({ payment, onSave, saving }: PaymentS
         </p>
       </div>
 
-      {/* Bank Details */}
       <div className="border border-gray-200 rounded-lg p-4">
         <div className="flex items-center gap-2 mb-4">
           <Building2 className="h-5 w-5 text-accent" />
           <h3 className="font-medium text-gray-900">Bank Account</h3>
         </div>
         <div className="space-y-4">
-          {/* Bank Name (text input – optional, can be auto‑filled from code) */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Bank Name
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
             <input
               type="text"
+              name="bank_name"
               value={formData.bank_name}
-              onChange={(e) =>
-                setFormData({ ...formData, bank_name: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-emerald-500 bg-white text-gray-900"
               placeholder="e.g., Equity Bank"
               required
             />
           </div>
 
-          {/* Bank Code (select from IntaSend list) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Bank Code <span className="text-xs text-gray-400">(required for payout)</span>
             </label>
             <select
+              name="bank_code"
               value={formData.bank_code}
-              onChange={(e) =>
-                setFormData({ ...formData, bank_code: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, bank_code: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-emerald-500 bg-white text-gray-900"
               required
               disabled={loadingBanks}
             >
-              <option value="">{loadingBanks ? "Loading banks..." : "Select bank"}</option>
+              <option key="placeholder" value="">
+                {loadingBanks ? "Loading banks..." : "Select bank"}
+              </option>
               {bankCodes.map((bank) => (
                 <option key={bank.code} value={bank.code}>
                   {bank.name} ({bank.code})
@@ -107,34 +112,26 @@ export default function PaymentSettingsTab({ payment, onSave, saving }: PaymentS
             )}
           </div>
 
-          {/* Account Holder Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Account Holder Name
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Account Holder Name</label>
             <input
               type="text"
+              name="account_name"
               value={formData.account_name}
-              onChange={(e) =>
-                setFormData({ ...formData, account_name: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, account_name: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-emerald-500 bg-white text-gray-900"
               placeholder="Name on the account"
               required
             />
           </div>
 
-          {/* Account Number */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Account Number
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
             <input
               type="text"
+              name="account_number"
               value={formData.account_number}
-              onChange={(e) =>
-                setFormData({ ...formData, account_number: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, account_number: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-emerald-500 bg-white text-gray-900"
               placeholder="Bank account number"
               required
@@ -143,28 +140,22 @@ export default function PaymentSettingsTab({ payment, onSave, saving }: PaymentS
         </div>
       </div>
 
-      {/* Tax Information (Optional) */}
       <div className="border border-gray-200 rounded-lg p-4">
         <div className="flex items-center gap-2 mb-4">
           <FileText className="h-5 w-5 text-accent" />
           <h3 className="font-medium text-gray-900">Tax Information (Optional)</h3>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Tax ID / PIN
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Tax ID / PIN</label>
           <input
             type="text"
+            name="tax_id"
             value={formData.tax_id}
-            onChange={(e) =>
-              setFormData({ ...formData, tax_id: e.target.value })
-            }
+            onChange={(e) => setFormData({ ...formData, tax_id: e.target.value })}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-emerald-500 bg-white text-gray-900"
             placeholder="e.g., KRA PIN"
           />
-          <p className="text-xs text-gray-400 mt-1">
-            Required for invoicing and tax reporting
-          </p>
+          <p className="text-xs text-gray-400 mt-1">Required for invoicing and tax reporting</p>
         </div>
       </div>
 
