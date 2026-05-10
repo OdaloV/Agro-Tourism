@@ -57,18 +57,15 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
   const [waiverAccepted, setWaiverAccepted] = useState(false);
   const [addToCalendar, setAddToCalendar] = useState(true);
   
-  // Group settings state
   const [groupSettings, setGroupSettings] = useState<GroupSettings | null>(null);
   const [showGroupWarning, setShowGroupWarning] = useState(false);
   const [advanceNoticeDays, setAdvanceNoticeDays] = useState(0);
   
-  // User info state for payment
   const [userEmail, setUserEmail] = useState("");
   const [userPhone, setUserPhone] = useState("");
   const [userFirstName, setUserFirstName] = useState("");
   const [userLastName, setUserLastName] = useState("");
 
-  // Load user data when modal opens
   useEffect(() => {
     if (isOpen) {
       const userData = localStorage.getItem("userData");
@@ -88,7 +85,6 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
     }
   }, [isOpen]);
 
-  // Fetch group settings when modal opens
   useEffect(() => {
     if (isOpen && farmId) {
       fetchGroupSettings();
@@ -107,7 +103,6 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
     }
   };
 
-  // Calculate discount based on participants
   const getDiscountPercentFromTiers = (guestCount: number) => {
     if (!groupSettings?.discount_tiers) return 0;
     let highestDiscount = 0;
@@ -119,7 +114,6 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
     return highestDiscount;
   };
 
-  // Get advance notice required
   const getAdvanceNoticeRequired = (guestCount: number) => {
     if (!groupSettings?.advance_notice_days) return 0;
     if (guestCount >= 50) return groupSettings.advance_notice_days.tier3;
@@ -128,7 +122,6 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
     return 0;
   };
 
-  // Check advance notice
   useEffect(() => {
     const required = getAdvanceNoticeRequired(participants);
     setAdvanceNoticeDays(required);
@@ -150,7 +143,6 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
     setDiscountPercent(discount);
   };
 
-  // Get dynamic discount from group settings
   const dynamicDiscount = getDiscountPercentFromTiers(participants);
 
   const formatPhoneNumber = (raw: string): string => {
@@ -163,7 +155,6 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
     } else if (digits.length === 9 && digits.startsWith('7')) {
       digits = '254' + digits;
     }
-    // Final validation: must be 12 digits starting with 254
     if (digits.length !== 12 || !digits.startsWith('254')) {
       return '';
     }
@@ -176,19 +167,16 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
       return;
     }
 
-    // Check advance notice warning
     if (showGroupWarning) {
       alert(`Groups of this size require ${advanceNoticeDays} days advance notice. Please select a later date.`);
       return;
     }
 
-    // Check waiver if required
     if (participants >= 50 && groupSettings?.requirements.require_waiver && !waiverAccepted) {
       alert("Please accept the waiver requirement to continue.");
       return;
     }
 
-    // Format phone number
     let finalPhone = phoneNumber.trim();
     if (!finalPhone) {
       finalPhone = userPhone;
@@ -201,7 +189,6 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
 
     setLoading(true);
     try {
-      // Step 1: Create the booking
       const bookingResponse = await fetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -241,7 +228,6 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
 
       setBooking(bookingData.booking);
       
-      // Step 2: Initiate payment with M-Pesa
       const paymentResponse = await fetch('/api/payments/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -306,15 +292,12 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
             />
           </div>
 
-          {/* Advance Notice Warning */}
           {showGroupWarning && (
             <div className="p-3 bg-amber-100 rounded-lg text-sm text-amber-800">
-              ⚠️ Groups of this size require {advanceNoticeDays} days advance notice.
-              Please select a later date.
+              ⚠️ Groups of this size require {advanceNoticeDays} days advance notice. Please select a later date.
             </div>
           )}
 
-          {/* M-Pesa Phone Number Input */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
               <Smartphone className="h-4 w-4" />
@@ -337,16 +320,12 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
             discountPercent={dynamicDiscount}
           />
 
-          {/* Show discount info if applicable */}
           {dynamicDiscount > 0 && (
             <div className="p-2 bg-green-50 rounded-lg text-center">
-              <p className="text-sm text-green-700">
-                🎉 {dynamicDiscount}% group discount applied!
-              </p>
+              <p className="text-sm text-green-700">🎉 {dynamicDiscount}% group discount applied!</p>
             </div>
           )}
 
-          {/* Add to Google Calendar Option */}
           <div className="flex items-center gap-2 p-2 bg-emerald-50 rounded-lg">
             <input
               type="checkbox"
@@ -363,9 +342,7 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
 
           {participants >= 11 && participants <= 50 && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Group/Organization Name
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Group/Organization Name</label>
               <input
                 type="text"
                 value={groupName}
@@ -376,7 +353,6 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
             </div>
           )}
 
-          {/* Large Group Requirements */}
           {participants >= 50 && groupSettings?.requirements.require_deposit && (
             <div className="p-3 bg-emerald-50 rounded-lg">
               <p className="text-sm text-emerald-800">💰 A 50% deposit is required for groups of 50+ guests.</p>
