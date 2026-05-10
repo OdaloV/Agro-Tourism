@@ -1,5 +1,4 @@
-// src/app/visitor/dashboard/components/BookingCard.tsx
-import { Calendar, Users, DollarSign, RefreshCw, X } from "lucide-react";
+import { Calendar, Users, DollarSign, RefreshCw, Undo2 } from "lucide-react";
 import Link from "next/link";
 
 interface Booking {
@@ -13,6 +12,7 @@ interface Booking {
   totalPrice: number;
   specialRequests?: string;
   waitlistPosition?: number;
+  paymentStatus?: string; // added
 }
 
 interface BookingCardProps {
@@ -20,9 +20,10 @@ interface BookingCardProps {
   onCancel?: (id: number) => void;
   onReschedule?: (id: number) => void;
   onAddSpecialRequest?: (id: number) => void;
+  onRefund?: (id: number) => void; // new
 }
 
-export function BookingCard({ booking, onCancel, onReschedule, onAddSpecialRequest }: BookingCardProps) {
+export function BookingCard({ booking, onCancel, onReschedule, onAddSpecialRequest, onRefund }: BookingCardProps) {
   const statusColors = {
     confirmed: "bg-green-100 text-green-600",
     pending: "bg-amber-100 text-amber-600",
@@ -31,6 +32,7 @@ export function BookingCard({ booking, onCancel, onReschedule, onAddSpecialReque
   };
 
   const isWaitlisted = booking.status === "waitlisted";
+  const canRefund = (booking.paymentStatus === "held" || booking.paymentStatus === "completed") && booking.status !== "cancelled" && booking.status !== "waitlisted";
 
   return (
     <div className="border border-emerald-100 rounded-xl p-4 hover:shadow-md transition">
@@ -95,6 +97,15 @@ export function BookingCard({ booking, onCancel, onReschedule, onAddSpecialReque
               >
                 Cancel
               </button>
+              {canRefund && (
+                <button
+                  onClick={() => onRefund?.(booking.id)}
+                  className="px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 flex items-center gap-1"
+                >
+                  <Undo2 className="h-3 w-3" />
+                  Request Refund
+                </button>
+              )}
             </>
           )}
           {isWaitlisted && (
