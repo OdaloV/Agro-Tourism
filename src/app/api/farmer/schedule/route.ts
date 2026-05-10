@@ -1,4 +1,3 @@
-// src/app/api/farmer/schedule/bookings/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { jwtVerify } from 'jose';
@@ -10,7 +9,6 @@ const JWT_SECRET = new TextEncoder().encode(
 async function getUserFromToken(request: NextRequest) {
   const token = request.cookies.get('auth_token')?.value;
   if (!token) return null;
-  
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET);
     return { id: payload.id as number, role: payload.role as string };
@@ -27,11 +25,10 @@ async function getFarmerId(userId: number) {
   return result.rows[0]?.id || null;
 }
 
-// GET - Get all bookings for the farmer
 export async function GET(request: NextRequest) {
   try {
     const user = await getUserFromToken(request);
-    if (!user) {
+    if (!user || user.role !== 'farmer') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -40,58 +37,36 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Farmer profile not found' }, { status: 404 });
     }
 
-    // FIXED: Explicitly select all fields including payment_status
-    const result = await pool.query(
-      `SELECT 
-         b.id,
-         b.activity_id,
-         b.visitor_id,
-         b.farm_id,
-         b.booking_date,
-         b.participants,
-         b.status,
-         b.payment_status,  -- EXPLICITLY SELECT payment_status
-         b.total_amount,
-         b.special_requests,
-         b.created_at,
-         b.updated_at,
-         a.activity_name,
-         u.name as visitor_name,
-         u.email as visitor_email,
-         u.phone as visitor_phone
-       FROM bookings b
-       LEFT JOIN farmer_activities a ON b.activity_id = a.id
-       JOIN users u ON b.visitor_id = u.id
-       WHERE b.farm_id = $1
-       ORDER BY b.booking_date ASC`,
-      [farmerId]
-    );
-
-    const bookings = result.rows;
-
-    // DEBUGGING: Log all bookings payment status
-    console.log('📊 All farmer bookings:');
-    bookings.forEach(booking => {
-      console.log(`Booking #${booking.id}:`, {
-        status: booking.status,
-        payment_status: booking.payment_status,
-        payment_type: typeof booking.payment_status,
-        is_paid: booking.payment_status === 'paid',
-        visitor: booking.visitor_name,
-        date: booking.booking_date
-      });
-    });
-
-    return NextResponse.json({
-      success: true,
-      bookings: bookings
-    });
-
+    const { searchParams } = new URL(request.url);
+    const year = parseInt(searchParams.get('year') || '0');
+    const month = parseInt(searchParams.get('month') || '0');
+    let query = `
+      SELECT 
+        b.id, b.booking_date, b.status, b.payment_status,
+        b.total_amount, b.participants, b.special_requests,
+        u.name as visitor_name, u.email as visitor_email,
+        a.activity_name,
+        (b.payment_status = 'completed') as is_paid
+      FROM bookings b
+      JOIN users u ON b.visitor_id = u.id
+      LEFT JOIN farmer_activities a ON b.activity_id = a.id
+      WHERE b.farm_id = $1
+    `;
+    const params: any[] = [farmerId];
+    let paramIndex = 2;
+    if (year > 0) {
+      query += ` AND EXTRACT(YEAR FROM b.booking_date) = $${paramIndex++}`;
+      params.push(year);
+    }
+    if (month > 0) {
+      query += ` AND EXTRACT(MONTH FROM b.booking_date) = $${paramIndex++}`;
+      params.push(month);
+    }
+    query += ` ORDER BY b.booking_date ASC`;
+    const result = await pool.query(query, params);
+    return NextResponse.json({ success: true, bookings: result.rows });
   } catch (error) {
-    console.error('Error fetching farmer bookings:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch bookings' },
-      { status: 500 }
-    );
+    console.error('Error fetching farmer schedule:', error);
+    return NextResponse.json({ error: 'Failed to fetch schedule' }, { status: 500 });
   }
 }
