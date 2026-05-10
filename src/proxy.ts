@@ -2,50 +2,28 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import pool from '@/lib/db';
+import { jwtVerify } from 'jose';
 
-// Protected routes that require authentication
-const protectedRoutes = [
-  '/farmer/dashboard',
-  '/farmer/verification',
-  '/farmer/profile',
-  '/farmer/activities',
-  '/farmer/calendar',
-  '/farmer/settings',
-  '/admin/dashboard',
-  '/admin/verifications',
-];
-
-// Auth routes
-const authRoutes = [
-  '/auth/login',
-  '/auth/register',
-];
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || '');
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
-  // Check if maintenance mode is enabled
   try {
     const result = await pool.query(
       "SELECT value FROM platform_settings WHERE key = 'maintenance_mode'"
     );
     const maintenanceMode = result.rows[0]?.value === 'true';
     
-    // Allow admin routes during maintenance
-    const isAdminRoute = pathname.startsWith('/admin') || 
+    const isAdminRoute = pathname.startsWith('/admin') ||
                          pathname.startsWith('/api/admin') ||
                          pathname === '/auth/login/admin';
-    
-    // Allow login pages during maintenance
     const isLoginRoute = pathname === '/auth/login/admin' ||
                          pathname === '/auth/login/farmer' ||
                          pathname === '/auth/login/visitor';
-    
-    // Allow settings API during maintenance (so admins can turn it off)
     const isSettingsApi = pathname.startsWith('/api/settings');
     
     if (maintenanceMode && !isAdminRoute && !isLoginRoute && !isSettingsApi) {
-      // Return maintenance page
       return new NextResponse(
         `<!DOCTYPE html>
         <html>
@@ -71,76 +49,78 @@ export async function proxy(request: NextRequest) {
           </div>
         </body>
         </html>`,
-        { status: 503, headers: { 'Content-Type': 'text/html' } }
+        {
+          status: 503,
+          headers: {
+            'Content-Type': 'text/html',
+            'Content-Security-Policy': "default-src 'self'; script-src 'none'; style-src 'unsafe-inline';",
+          },
+        }
       );
     }
   } catch (error) {
     console.error('Error checking maintenance mode:', error);
   }
-  
-  // Get auth from cookie
+
   const authToken = request.cookies.get('auth_token')?.value;
-  const userRole = request.cookies.get('user_role')?.value;
-  
-  const isAuthenticated = !!authToken;
-  
-  // Check if route is protected
-  const isProtectedRoute = protectedRoutes.some(route => 
-    pathname.startsWith(route)
-  );
-  
-  // Check if it's a specific login/register page
+  let userRole: string | null = null;
+  let isAuthenticated = false;
+
+  if (authToken) {
+    try {
+      const { payload } = await jwtVerify(authToken, JWT_SECRET);
+      userRole = payload.role as string;
+      isAuthenticated = true;
+    } catch (error) {
+      console.error('JWT verification failed:', error);
+    }
+  }
+
+  const farmerPath = pathname.startsWith('/farmer') || pathname.startsWith('/api/farmer');
+  const adminPath = pathname.startsWith('/admin') || pathname.startsWith('/api/admin');
+  const visitorPath = pathname.startsWith('/bookings') || pathname.startsWith('/api/bookings') || pathname.startsWith('/visitor') || pathname.startsWith('/api/visitor');
+
+  const isProtectedRoute = farmerPath || adminPath || visitorPath;
+
   const isAdminLogin = pathname === '/auth/login/admin';
   const isVisitorLogin = pathname === '/auth/login/visitor';
   const isFarmerLogin = pathname === '/auth/login/farmer';
   const isFarmerRegister = pathname === '/auth/register/farmer';
   const isVisitorRegister = pathname === '/auth/register/visitor';
   const isAuthPage = pathname === '/auth';
-  
-  // Check if it's any auth route
-  const isAuthRoute = authRoutes.some(route => 
-    pathname.startsWith(route)
-  );
-  
-  // Redirect unauthenticated users from protected routes
+
   if (isProtectedRoute && !isAuthenticated) {
     return NextResponse.redirect(new URL('/auth', request.url));
   }
-  
-  // Handle auth pages
-  if (isAuthRoute && isAuthenticated) {
-    // Always allow access to specific login pages regardless of role
-    if (isAdminLogin) {
+
+  if (isAuthenticated) {
+    if (farmerPath && userRole !== 'farmer') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (adminPath && userRole !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (visitorPath && userRole !== 'visitor') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+  }
+
+  if ((pathname.startsWith('/auth') || isAuthPage) && isAuthenticated) {
+    if (isAdminLogin || isVisitorLogin || isFarmerLogin || isFarmerRegister || isVisitorRegister || isAuthPage) {
       return NextResponse.next();
     }
-    if (isVisitorLogin) {
-      return NextResponse.next();
-    }
-    if (isFarmerLogin) {
-      return NextResponse.next();
-    }
-    // Allow registration pages
-    if (isFarmerRegister) {
-      return NextResponse.next();
-    }
-    if (isVisitorRegister) {
-      return NextResponse.next();
-    }
-    // Allow main auth page
-    if (isAuthPage) {
-      return NextResponse.next();
-    }
-    
-    // For any other auth routes, redirect to their dashboard
+
     if (userRole === 'farmer') {
       return NextResponse.redirect(new URL('/farmer/dashboard', request.url));
-    } else if (userRole === 'admin') {
+    }
+    if (userRole === 'admin') {
       return NextResponse.redirect(new URL('/admin/dashboard', request.url));
-    } else if (userRole === 'visitor') {
+    }
+    if (userRole === 'visitor') {
       return NextResponse.redirect(new URL('/marketing', request.url));
     }
   }
-  
+
   return NextResponse.next();
 }
 
