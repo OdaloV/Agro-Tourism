@@ -282,21 +282,22 @@ export default function FarmerSchedule() {
 
   // FIXED: High-contrast payment status badges (dark background + white text)
   const getPaymentStatusBadge = (paymentStatus?: string) => {
-    switch (paymentStatus) {
-      case "held":
-        return { color: "bg-emerald-700 text-white", text: "Paid (Escrow)" };
-      case "released":
-        return { color: "bg-teal-700 text-white", text: "Payment Released" };
-      case "refunded":
-        return { color: "bg-red-700 text-white", text: "Refunded" };
-      case "paid":
-        return { color: "bg-green-700 text-white", text: "Paid ✅" };
-      case "pending_cash":
-        return { color: "bg-blue-700 text-white", text: "Pay at Farm" };
-      default:
-        return { color: "bg-orange-600 text-white", text: "Payment Due" };
-    }
-  };
+  switch (paymentStatus) {
+    case "held":
+      return { color: "bg-emerald-700 text-white", text: "Paid (Escrow)" };
+    case "released":
+      return { color: "bg-teal-700 text-white", text: "Payment Released" };
+    case "refunded":
+      return { color: "bg-red-700 text-white", text: "Refunded" };
+    case "paid":
+    case "completed":  
+      return { color: "bg-green-700 text-white", text: "Paid ✅" };
+    case "pending_cash":
+      return { color: "bg-blue-700 text-white", text: "Pay at Farm" };
+    default:
+      return { color: "bg-orange-600 text-white", text: "Payment Due" };
+  }
+};
 
   // Loading skeleton
   if (loading && bookings.length === 0) {
