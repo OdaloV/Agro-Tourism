@@ -1,9 +1,11 @@
-const INTASEND_API_BASE = process.env.INTASEND_ENVIRONMENT === 'production'
-  ? 'https://api.intasend.com'
-  : 'https://sandbox.intasend.com';
+import IntaSend from 'intasend-node';
 
 const PUBLISHABLE_KEY = process.env.INTASEND_PUBLISHABLE_KEY!;
 const SECRET_KEY = process.env.INTASEND_SECRET_KEY!;
+const ENVIRONMENT = process.env.INTASEND_ENVIRONMENT === 'production' ? false : true; // true = sandbox
+
+// Initialize IntaSend client once
+const intasend = new IntaSend(PUBLISHABLE_KEY, SECRET_KEY, ENVIRONMENT);
 
 interface CreatePaymentParams {
   amount: number;
@@ -19,9 +21,13 @@ interface CreatePaymentParams {
 }
 
 /**
- * STK Push / collection
+ * STK Push / collection (uses raw fetch – SDK doesn't expose this endpoint)
  */
 export async function createPayment(params: CreatePaymentParams) {
+  const baseUrl = ENVIRONMENT
+    ? 'https://sandbox.intasend.com'
+    : 'https://api.intasend.com';
+
   if (params.payment_method === 'M-PESA' && !params.phone_number) {
     throw new Error('Phone number required for M-PESA');
   }
@@ -41,7 +47,7 @@ export async function createPayment(params: CreatePaymentParams) {
   if (params.webhook)      payload.webhook       = params.webhook;
   if (params.metadata)     payload.metadata      = params.metadata;
 
-  const response = await fetch(`${INTASEND_API_BASE}/api/v1/payment/collection/`, {
+  const response = await fetch(`${baseUrl}/api/v1/payment/collection/`, {
     method: 'POST',
     headers: {
       'Content-Type':  'application/json',
@@ -67,10 +73,14 @@ export async function createPayment(params: CreatePaymentParams) {
 }
 
 /**
- * Get payment status by IntaSend invoice/tracking ID
+ * Get payment status (raw fetch – SDK doesn't have this method)
  */
 export async function getPaymentStatus(intasendId: string) {
-  const response = await fetch(`${INTASEND_API_BASE}/api/v1/payment/collection/${intasendId}/`, {
+  const baseUrl = ENVIRONMENT
+    ? 'https://sandbox.intasend.com'
+    : 'https://api.intasend.com';
+
+  const response = await fetch(`${baseUrl}/api/v1/payment/collection/${intasendId}/`, {
     headers: { 'Authorization': `Bearer ${SECRET_KEY}` },
   });
 
@@ -87,37 +97,35 @@ export async function getPaymentStatus(intasendId: string) {
   return data;
 }
 
-/**
- * Refund a payment
- */
 export async function refundPayment(intasendId: string, amount?: number) {
-  const response = await fetch(`${INTASEND_API_BASE}/api/v1/payment/collection/refund/`, {
+  const baseUrl = ENVIRONMENT
+    ? 'https://sandbox.intasend.com'
+    : 'https://api.intasend.com';
+
+  const res = await fetch(`${baseUrl}/api/v1/chargebacks/`, {
     method: 'POST',
     headers: {
-      'Content-Type':  'application/json',
-      'Authorization': `Bearer ${SECRET_KEY}`,
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SECRET_KEY}`, 
     },
     body: JSON.stringify({
-      public_key:     PUBLISHABLE_KEY,
-      transaction_id: intasendId,
-      amount:         amount || null,
+      invoice: intasendId,
+      amount: amount,
+      reason: 'Customer refund',
+      reason_details: 'Refund processed via platform',
     }),
   });
 
-  const contentType = response.headers.get('content-type') || '';
-  if (!contentType.includes('application/json')) {
-    throw new Error(`IntaSend refund returned non-JSON (status ${response.status})`);
+  const text = await res.text();
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}: `;
+    try { msg += JSON.parse(text)?.errors?.[0]?.detail || text; } catch { msg += text; }
+    throw new Error(msg);
   }
-
-  const data = await response.json();
-  if (!response.ok) throw new Error(data?.errors?.[0]?.detail || data?.message || 'Refund failed');
-  return data;
+  return JSON.parse(text);
 }
 
-/**
- * Send a payout (M-PESA or Bank).
- * @param params - Payout details
- */
+
 export async function sendPayout(params: {
   amount: number;
   currency?: string;
@@ -141,7 +149,11 @@ export async function sendPayout(params: {
     throw new Error('Either mobileNumber or (bankAccount + bankCode + accountName) must be provided');
   }
 
-  const url = `${INTASEND_API_BASE}/api/v1/send-money/initiate/`;
+  const baseUrl = ENVIRONMENT
+    ? 'https://sandbox.intasend.com'
+    : 'https://api.intasend.com';
+  const url = `${baseUrl}/api/v1/send-money/initiate/`;
+  const provider = mobileNumber ? 'MPESA-B2C' : 'BANK';
 
   const transaction: any = {
     amount,
@@ -149,20 +161,20 @@ export async function sendPayout(params: {
   };
 
   if (mobileNumber) {
-    transaction.provider = 'MPESA-B2C';
     transaction.account = mobileNumber.replace(/\s/g, '');
     transaction.name = 'Farmer';
   } else {
-    transaction.provider = 'BANK';
     transaction.account = bankAccount;
     transaction.bank_code = bankCode;
     transaction.name = accountName;
   }
 
   const payload = {
+    provider,
     currency,
     transactions: [transaction],
   };
+  console.log('[sendPayout] Payload:', JSON.stringify(payload, null, 2));
 
   const response = await fetch(url, {
     method: 'POST',
@@ -188,9 +200,6 @@ export async function sendPayout(params: {
   return JSON.parse(rawText);
 }
 
-/**
- * Verify webhook signature (stub)
- */
 export function verifyWebhookSignature(
   payload: any,
   signature: string | null,
