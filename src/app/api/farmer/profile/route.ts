@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { checkMaintenanceMode } from '@/lib/utils/checkMaintenance';
+import { getUser, requireRole } from '@/lib/auth-middleware';
 
 async function getPlatformCommissionRate(): Promise<number> {
   try {
@@ -14,7 +15,11 @@ async function getPlatformCommissionRate(): Promise<number> {
   }
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const user = await getUser(request);
+  const err = requireRole(user, 'farmer');
+  if (err) return err;
+
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
@@ -197,7 +202,11 @@ export async function GET(request: Request) {
   }
 }
 
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
+  const user = await getUser(request);
+  const err = requireRole(user, 'farmer');
+  if (err) return err;
+
   try {
     const body = await request.json();
     const { userId, ...updateData } = body;

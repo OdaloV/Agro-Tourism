@@ -1,11 +1,16 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getUser, requireRole } from '@/lib/auth-middleware';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import pool from '@/lib/db';
 import { sendVerificationEmail } from '@/lib/services/notificationService';
 
 // GET - Check verification status
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const user = await getUser(request);
+  const err = requireRole(user, 'farmer');
+  if (err) return err;
+
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
@@ -70,7 +75,11 @@ export async function GET(request: Request) {
 }
 
 // POST - Submit verification documents
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const user = await getUser(request);
+  const err = requireRole(user, 'farmer');
+  if (err) return err;
+
   try {
     console.log("=== VERIFICATION API CALLED ===");
     
