@@ -20,6 +20,7 @@ interface Product {
   farmer_id: number;
   farmer_name: string;
   farm_name: string;
+  farm_profile_id: number;
   views: number;
   created_at: string;
 }
@@ -73,27 +74,18 @@ export default function ProductDetailPage() {
       return;
     }
 
+    if (!product.farm_profile_id) {
+      alert("Unable to start chat — farm profile not found.");
+      return;
+    }
+
     setStartingChat(true);
     try {
-      // ─── Step 1: get farmer_profiles.id (farmProfileId) from profile API ───
-      // The profile route now returns farmProfileId explicitly
-      const profileRes = await fetch(`/api/farmer/profile?userId=${product.farmer_id}`);
-      const profileData = await profileRes.json();
-
-      const farmProfileId = profileData.farmProfileId;
-
-      if (!farmProfileId) {
-        console.error("farmProfileId missing from profile response:", profileData);
-        alert("Unable to start chat — farm profile not found.");
-        return;
-      }
-
-      // ─── Step 2: create/reuse conversation using farmer_profiles.id ───
       const response = await fetch("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          farmId: farmProfileId,          // ← farmer_profiles.id ✓
+          farmId: product.farm_profile_id,
           product_id: product.id,
           message: `Hi, I'm interested in your product: ${product.product_name}. Price: KES ${product.price}`,
           subject: `Product Inquiry: ${product.product_name}`,
@@ -109,14 +101,11 @@ export default function ProductDetailPage() {
       const conversationId = data.conversationId ?? data.conversation_id;
 
       if (!conversationId) {
-        console.error("No conversationId in response:", data);
         router.push("/visitor/dashboard/messages");
         return;
       }
 
-      // ─── Step 3: redirect to correct path ───
       router.push(`/visitor/dashboard/messages?conversation=${conversationId}`);
-
     } catch (error: any) {
       console.error("Error starting chat:", error);
       alert(error.message || "Failed to start chat. Please try again.");
@@ -146,6 +135,7 @@ export default function ProductDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
+      {/* Header */}
       <div className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
           <Link href="/marketplace">
@@ -158,6 +148,7 @@ export default function ProductDetailPage() {
       </div>
 
       <div className="max-w-4xl mx-auto p-4">
+        {/* Photo */}
         {product.photos && product.photos.length > 0 && (
           <img
             src={product.photos[0]}
@@ -166,6 +157,7 @@ export default function ProductDetailPage() {
           />
         )}
 
+        {/* Price & Title */}
         <div className="bg-white rounded-xl p-5 mt-4 shadow-sm">
           <h1 className="text-2xl font-bold">{product.product_name}</h1>
           <p className="text-3xl text-emerald-600 font-bold mt-2">
@@ -180,15 +172,19 @@ export default function ProductDetailPage() {
           </div>
         </div>
 
+        {/* Location */}
         <div className="bg-white rounded-xl p-5 mt-4 shadow-sm">
           <h3 className="font-semibold flex items-center gap-2 mb-3">
             <MapPin className="h-5 w-5 text-emerald-600" />
             Farm Location
           </h3>
           <p className="text-gray-700">{product.location}</p>
-          <p className="text-sm text-gray-500 mt-1">{product.farm_name || product.farmer_name}</p>
+          <p className="text-sm text-gray-500 mt-1">
+            {product.farm_name || product.farmer_name}
+          </p>
         </div>
 
+        {/* Description */}
         {product.description && (
           <div className="bg-white rounded-xl p-5 mt-4 shadow-sm">
             <h3 className="font-semibold mb-2">Description</h3>
@@ -196,6 +192,7 @@ export default function ProductDetailPage() {
           </div>
         )}
 
+        {/* Seller Info */}
         <div className="bg-white rounded-xl p-5 mt-4 shadow-sm">
           <h3 className="font-semibold mb-3">Seller Information</h3>
           <p className="text-gray-700">{product.farm_name || product.farmer_name}</p>
@@ -245,14 +242,20 @@ export default function ProductDetailPage() {
               Contact {product.farm_name || "Farmer"}
             </h3>
             <div className="space-y-3">
-              <a href={`tel:${product.phone}`} className="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl">
+              <a
+                href={`tel:${product.phone}`}
+                className="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl"
+              >
                 <Phone className="h-6 w-6 text-emerald-600" />
                 <div>
                   <p className="font-semibold">Call</p>
                   <p className="text-sm text-gray-600">{product.phone}</p>
                 </div>
               </a>
-              <a href={`mailto:${product.email}`} className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl">
+              <a
+                href={`mailto:${product.email}`}
+                className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl"
+              >
                 <Mail className="h-6 w-6 text-blue-600" />
                 <div>
                   <p className="font-semibold">Email</p>
@@ -271,7 +274,10 @@ export default function ProductDetailPage() {
                 </div>
               </button>
             </div>
-            <button onClick={() => setShowContact(false)} className="w-full mt-4 p-3 border rounded-xl">
+            <button
+              onClick={() => setShowContact(false)}
+              className="w-full mt-4 p-3 border rounded-xl"
+            >
               Close
             </button>
           </div>

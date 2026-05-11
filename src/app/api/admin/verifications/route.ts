@@ -125,7 +125,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { profileId, status, notes, adminId } = body;
+    const { profileId, status, notes } = body;
 
     if (!profileId || !status) {
       return NextResponse.json(
@@ -155,7 +155,7 @@ export async function PUT(request: NextRequest) {
           WHERE id = $5
           RETURNING user_id, farm_name
         `;
-        queryParams = [status, notes, notes, adminId, profileId];
+        queryParams = [status, notes, notes, authenticatedUser.id, profileId];
       } else if (status === 'approved') {
         updateQuery = `
           UPDATE farmer_profiles 
@@ -171,7 +171,7 @@ export async function PUT(request: NextRequest) {
           WHERE id = $3
           RETURNING user_id, farm_name
         `;
-        queryParams = [status, adminId, profileId];
+        queryParams = [status, authenticatedUser.id, profileId];
       } else {
         updateQuery = `
           UPDATE farmer_profiles 
@@ -183,7 +183,7 @@ export async function PUT(request: NextRequest) {
           WHERE id = $3
           RETURNING user_id, farm_name
         `;
-        queryParams = [status, adminId, profileId];
+        queryParams = [status, authenticatedUser.id, profileId];
       }
       
       const profileResult = await client.query(updateQuery, queryParams);

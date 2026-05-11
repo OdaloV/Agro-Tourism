@@ -27,7 +27,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const { isOnline } = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (jsonError) {
+      // Handle empty or invalid JSON body
+      console.warn('Invalid JSON body in status update:', jsonError);
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
+    
+    const { isOnline } = body;
     
     if (isRedisAvailable() && redis) {
       const key = `online:${user.role}:${user.id}`;

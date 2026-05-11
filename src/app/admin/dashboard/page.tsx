@@ -17,6 +17,7 @@ import {
   TableSkeleton,
   ChartSkeleton,
 } from "@/components/ui/Skeleton";
+import { useCsrf } from "@/hooks/useCsrf";
 
 interface Farm {
   id: number;
@@ -52,6 +53,7 @@ interface Booking {
 export default function AdminDashboard() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const csrfToken = useCsrf();
   const [activeTab, setActiveTab] = useState<string>("pending");
   const [farms, setFarms] = useState<Farm[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -174,7 +176,10 @@ export default function AdminDashboard() {
     try {
       const response = await fetch('/api/admin/verifications', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-csrf-token': csrfToken
+        },
         body: JSON.stringify({
           profileId: farm.profile_id,
           status: 'approved',
@@ -207,7 +212,10 @@ export default function AdminDashboard() {
     try {
       const response = await fetch('/api/admin/verifications', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-csrf-token': csrfToken
+        },
         body: JSON.stringify({
           profileId: farm.profile_id,
           status: 'rejected',

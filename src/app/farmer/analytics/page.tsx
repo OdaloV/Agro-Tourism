@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, DollarSign, Calendar, TrendingUp, Users, Coffee } from "lucide-react";
-import { Skeleton, StatCardSkeleton, ChartSkeleton, ActivitySkeleton } from "@/components/ui/Skeleton";
+import { Skeleton, StatCardSkeleton, ChartSkeleton, ActivityCardSkeleton } from "@/components/ui/Skeleton";
 
 interface AnalyticsData {
   summary: {
@@ -106,7 +106,7 @@ export default function FarmerAnalytics() {
             </div>
             <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (
-                <ActivitySkeleton key={i} />
+                <ActivityCardSkeleton key={i} />
               ))}
             </div>
           </div>

@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Mail, Lock, ArrowRight, Eye, EyeOff, Tractor, AlertCircle, Shield } from "lucide-react";
 import { AuthCard } from "@/components/auth/AuthCard";
+import { useAuth } from "@/lib/context/AuthContext";
 
 export default function FarmerLogin() {
   const router = useRouter();
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -69,9 +71,7 @@ export default function FarmerLogin() {
       
       // Successful login (no 2FA)
       if (data.user) {
-        localStorage.setItem("userRole", "farmer");
-        localStorage.setItem("isAuthenticated", "true");
-        localStorage.setItem("userData", JSON.stringify(data.user));
+        login("farmer", data.user);
         localStorage.setItem("verificationStatus", data.user.verificationStatus || 'pending');
         console.log('Stored user data:', data.user);
       } else {
@@ -115,9 +115,7 @@ export default function FarmerLogin() {
       }
       
       if (data.success && data.user) {
-        localStorage.setItem("userRole", "farmer");
-        localStorage.setItem("isAuthenticated", "true");
-        localStorage.setItem("userData", JSON.stringify(data.user));
+        login("farmer", data.user);
         router.push("/farmer/dashboard");
       } else {
         throw new Error('Verification failed');

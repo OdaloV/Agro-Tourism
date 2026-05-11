@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { Search } from "lucide-react";
 import Image from "next/image";
 
 export function Hero() {
@@ -28,28 +27,11 @@ export function Hero() {
               <span className="block text-accent">Farm Experiences</span>
             </h1>
           </div>
-
           <p className="mx-auto mb-8 max-w-2xl text-lg text-white/90 drop-shadow-lg bg-black/20 backdrop-blur-sm p-4 rounded-xl border border-white/10">
             Connect with nature, learn about sustainable farming, and create
             unforgettable memories on working farms across Kenya.
           </p>
-
-          {/* Glassmorphism Search Bar */}
-          <div className="mx-auto max-w-2xl">
-            <div className="flex items-center gap-2 rounded-2xl bg-white/10 backdrop-blur-md p-2 shadow-2xl border border-white/20">
-              <div className="flex flex-1 items-center gap-2 px-3">
-                <Search className="h-5 w-5 text-white/70" />
-                <input
-                  type="text"
-                  placeholder="Search farms, activities, or produce..."
-                  className="w-full py-2 bg-transparent outline-none text-white placeholder:text-white/50"
-                />
-              </div>
-              <Button className="bg-primary hover:bg-primary/80 text-white rounded-xl px-6 shadow-lg border border-white/20">
-                Search
-              </Button>
-            </div>
-          </div>
+          {/* No search bar – removed */}
         </div>
       </div>
     </section>

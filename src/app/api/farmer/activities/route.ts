@@ -174,6 +174,18 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Activity not found' }, { status: 404 });
     }
 
+    const bookingsCheck = await pool.query(
+      'SELECT COUNT(*) AS count FROM bookings WHERE activity_id = $1',
+      [activityId]
+    );
+
+    if (parseInt(bookingsCheck.rows[0].count, 10) > 0) {
+      return NextResponse.json(
+        { error: 'Cannot delete activity with existing bookings' },
+        { status: 409 }
+      );
+    }
+
     await pool.query('DELETE FROM farmer_activities WHERE id = $1', [activityId]);
 
     return NextResponse.json({ success: true });

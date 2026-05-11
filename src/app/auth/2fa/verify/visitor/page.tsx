@@ -11,7 +11,6 @@ export default function VisitorTwoFAVerification() {
   const [twoFactorCode, setTwoFactorCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("Verification code sent to your email");
   const [userId, setUserId] = useState<number | null>(null);
   const [email, setEmail] = useState("");
 
@@ -22,14 +21,14 @@ export default function VisitorTwoFAVerification() {
     if (storedEmail) setEmail(storedEmail);
   }, []);
 
-  const handleTwoFactorSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!twoFactorCode || twoFactorCode.length !== 6) {
-      setError("Please enter a valid 6-digit verification code");
+      setError("Please enter a 6-digit verification code");
       return;
     }
     if (!userId) {
-      setError("Session error. Please try logging in again.");
+      setError("Session expired. Please login again.");
       return;
     }
     setLoading(true);
@@ -41,7 +40,7 @@ export default function VisitorTwoFAVerification() {
         body: JSON.stringify({ userId, code: twoFactorCode }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Invalid verification code');
+      if (!response.ok) throw new Error(data.error || 'Invalid code');
       if (data.success && data.user) {
         localStorage.removeItem("pending2FAUserId");
         localStorage.removeItem("pending2FAEmail");
@@ -54,13 +53,12 @@ export default function VisitorTwoFAVerification() {
       }
     } catch (err: any) {
       console.error("2FA error:", err);
-      setError(err.message || "Invalid verification code. Please try again.");
-    } finally {
+      setError(err.message || "Invalid verification code");
       setLoading(false);
     }
   };
 
-  const handleBackToLogin = () => {
+  const handleBack = () => {
     localStorage.removeItem("pending2FAUserId");
     localStorage.removeItem("pending2FAEmail");
     router.push("/auth/login/visitor");
@@ -75,60 +73,48 @@ export default function VisitorTwoFAVerification() {
           icon={<Shield className="w-8 h-8 text-accent" />}
           role="visitor"
         >
-          <form onSubmit={handleTwoFactorSubmit} className="space-y-5">
-            {message && (
-              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3">
-                <p className="text-sm text-emerald-400 text-center">{message}</p>
-              </div>
-            )}
+          <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex items-center gap-2">
+              <motion.div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex items-center gap-2">
                 <AlertCircle className="h-5 w-5 text-red-400" />
                 <p className="text-sm text-red-400">{error}</p>
-              </div>
+              </motion.div>
             )}
             {email && (
               <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
                 <p className="text-xs text-white/60">Code sent to:</p>
-                <p className="text-sm text-white font-mono font-medium mt-1">{email}</p>
+                <p className="text-sm text-white font-mono mt-1">{email}</p>
               </div>
             )}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-white/80">Verification Code</label>
+              <label className="block text-sm font-medium text-white/80">
+                Verification Code
+              </label>
               <input
                 type="text"
                 value={twoFactorCode}
-                onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0,6))}
                 placeholder="000000"
                 maxLength={6}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white text-center text-2xl tracking-widest placeholder:text-white/30 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white text-center text-2xl tracking-widest focus:outline-none focus:border-accent"
                 autoFocus
                 required
               />
-              <p className="text-xs text-white/40 text-center">6-digit code from your email</p>
             </div>
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={loading || twoFactorCode.length !== 6}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-accent hover:bg-accent/90 text-white rounded-xl transition-all font-medium disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-accent hover:bg-accent/90 text-white rounded-xl font-medium disabled:opacity-50"
             >
               {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  Verifying...
-                </>
+                <><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>Verifying...</>
               ) : (
-                <>
-                  Verify & Login
-                  <ArrowRight className="h-5 w-5" />
-                </>
+                <>Verify & Login <ArrowRight className="h-5 w-5" /></>
               )}
-            </button>
-            <button
-              type="button"
-              onClick={handleBackToLogin}
-              className="w-full text-center text-sm text-white/40 hover:text-white/60 transition"
-            >
+            </motion.button>
+            <button type="button" onClick={handleBack} className="w-full text-center text-sm text-white/40 hover:text-white/60">
               ← Back to login
             </button>
           </form>

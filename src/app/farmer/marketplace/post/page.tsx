@@ -87,7 +87,7 @@ export default function PostProductPage() {
       unit_type: formData.unit_type,
       description: formData.description || null,
       photos: photoBase64,
-      location: farmerProfile.farm_location,
+      location: farmerProfile.farm_location || farmerProfile.farmLocation || "",
       phone: farmerProfile.phone,
       email: farmerProfile.email,
       farmer_id: farmerProfile.user_id,

@@ -35,39 +35,28 @@ export default function VisitorLogin() {
       });
       
       const data = await response.json();
-      console.log('Login response:', { ok: response.ok, status: response.status, data });
       
-      // Check for 2FA requirement (response could be 200 or 401)
+      if (!response.ok) {
+        if (response.status === 403 && data.requiresVerification) {
+          localStorage.setItem("pendingVerificationEmail", formData.email);
+          router.push("/auth/verify-email");
+          return;
+        }
+        throw new Error(data.error || 'Login failed');
+      }
+      
+      // Check for 2FA requirement
       if (data.requiresTwoFactor) {
+        localStorage.setItem("pending2FAUserId", data.userId);
         localStorage.setItem("pending2FAEmail", formData.email);
-        localStorage.setItem("pending2FAUserId", data.userId.toString());
         router.push("/auth/verify-2fa/visitor");
         return;
       }
       
-      // Check for email verification required
-      if (data.requiresVerification) {
-        localStorage.setItem("pendingVerificationEmail", formData.email);
-        router.push("/auth/verify-email");
-        return;
-      }
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
-      }
-      
-      // Login successful (no 2FA required)
-      if (data.user) {
-        localStorage.setItem("userRole", "visitor");
-        localStorage.setItem("isAuthenticated", "true");
-        localStorage.setItem("userData", JSON.stringify(data.user));
-        console.log('Stored user data:', data.user);
-      } else {
-        console.error('No user data returned from API');
-        setError("Login failed: No user data returned");
-        return;
-      }
-
+      // Normal login (no 2FA)
+      localStorage.setItem("userRole", "visitor");
+      localStorage.setItem("isAuthenticated", "true");
+      localStorage.setItem("userData", JSON.stringify(data.user));
       router.push("/visitor/dashboard");
 
     } catch (err: any) {
@@ -88,7 +77,6 @@ export default function VisitorLogin() {
           role="visitor"
         >
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Error Message */}
             {error && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
@@ -101,18 +89,14 @@ export default function VisitorLogin() {
             )}
 
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-white/80">
-                Email Address
-              </label>
+              <label className="block text-sm font-medium text-white/80">Email Address</label>
               <div className="relative group">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40 group-focus-within:text-accent transition-colors" />
                 <input
                   type="email"
                   required
                   value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
                   placeholder="visitor@example.com"
                 />
@@ -120,18 +104,14 @@ export default function VisitorLogin() {
             </div>
 
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-white/80">
-                Password
-              </label>
+              <label className="block text-sm font-medium text-white/80">Password</label>
               <div className="relative group">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40 group-focus-within:text-accent transition-colors" />
                 <input
                   type={showPassword ? "text" : "password"}
                   required
                   value={formData.password}
-                  onChange={(e) =>
-                    setFormData({ ...formData, password: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   className="w-full pl-10 pr-12 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
                   placeholder="••••••••"
                 />
@@ -140,11 +120,7 @@ export default function VisitorLogin() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/60"
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5" />
-                  ) : (
-                    <Eye className="h-5 w-5" />
-                  )}
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
             </div>
@@ -154,17 +130,12 @@ export default function VisitorLogin() {
                 <input
                   type="checkbox"
                   checked={formData.rememberMe}
-                  onChange={(e) =>
-                    setFormData({ ...formData, rememberMe: e.target.checked })
-                  }
+                  onChange={(e) => setFormData({ ...formData, rememberMe: e.target.checked })}
                   className="h-4 w-4 rounded border-white/20 bg-white/10 text-accent focus:ring-accent"
                 />
                 <span className="text-sm text-white/60">Remember me</span>
               </label>
-              <Link
-                href="/auth/forgot-password"
-                className="text-sm text-accent hover:underline"
-              >
+              <Link href="/auth/forgot-password" className="text-sm text-accent hover:underline">
                 Forgot password?
               </Link>
             </div>
@@ -192,10 +163,7 @@ export default function VisitorLogin() {
 
           <p className="mt-6 text-center text-sm text-white/40">
             Don't have an account?{" "}
-            <Link
-              href="/auth/register/visitor"
-              className="text-accent hover:text-accent/80 font-medium hover:underline"
-            >
+            <Link href="/auth/register/visitor" className="text-accent hover:text-accent/80 font-medium hover:underline">
               Sign up
             </Link>
           </p>

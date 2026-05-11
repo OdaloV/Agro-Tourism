@@ -23,6 +23,7 @@ import {
 import Link from "next/link";
 import MediaGallery from './components/MediaGallery';
 import ThemeToggle from "@/app/components/ThemeToggle";
+import { useAuth } from "@/lib/context/AuthContext";
 
 interface Photo {
   id: number;
@@ -61,6 +62,7 @@ interface FarmerData {
 
 export default function FarmerDashboard() {
   const router = useRouter();
+  const { user, isAuthenticated, role } = useAuth();
   const [farmer, setFarmer] = useState<FarmerData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showFullDescription, setShowFullDescription] = useState(false);
@@ -74,22 +76,14 @@ export default function FarmerDashboard() {
   useEffect(() => {
     if (!mounted) return;
 
+    // Check authentication using AuthContext
+    if (!isAuthenticated || role !== "farmer" || !user) {
+      router.push("/auth/login/farmer");
+      return;
+    }
+
     const fetchFarmerData = async () => {
       try {
-        const userData = localStorage.getItem("userData");
-        if (!userData || userData === "undefined") {
-          router.push("/auth/login/farmer");
-          return;
-        }
-
-        let user;
-        try {
-          user = JSON.parse(userData);
-        } catch (parseError) {
-          console.error("Invalid JSON in localStorage:", parseError);
-          router.push("/auth/login/farmer");
-          return;
-        }
         
         if (user.verificationStatus === 'pending') {
           setFarmer({
@@ -176,7 +170,7 @@ export default function FarmerDashboard() {
     };
     
     fetchFarmerData();
-  }, [router, mounted]);
+  }, [mounted, isAuthenticated, role, user]);
 
   if (!mounted || loading) {
     return (

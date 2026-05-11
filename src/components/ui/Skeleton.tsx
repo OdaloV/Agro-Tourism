@@ -1,116 +1,23 @@
-"use client";
+import { cn } from "@/lib/utils";
 
-interface SkeletonProps {
-  className?: string;
-  variant?: "default" | "circular" | "rounded";
-}
-
-export function Skeleton({ className = "", variant = "default" }: SkeletonProps) {
-  const variants = {
-    default: "rounded-lg",
-    circular: "rounded-full",
-    rounded: "rounded-2xl",
-  };
-
+export function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={`animate-pulse bg-gray-200 dark:bg-gray-700 ${variants[variant]} ${className}`}
+      className={cn("animate-pulse rounded-md bg-gray-200", className)}
+      {...props}
     />
-  );
-}
-
-// Base skeleton components
-export function StatCardSkeleton() {
-  return (
-    <div className="bg-card rounded-2xl border border-border p-6">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <Skeleton className="h-4 w-24 mb-2" />
-          <Skeleton className="h-8 w-32" />
-        </div>
-        <Skeleton variant="circular" className="h-12 w-12" />
-      </div>
-      <div className="mt-4">
-        <Skeleton className="h-3 w-32" />
-      </div>
-    </div>
-  );
-}
-
-// Alias for StatsCardSkeleton (for compatibility)
-export const StatsCardSkeleton = StatCardSkeleton;
-
-// ActivityCardSkeleton - defined BEFORE its alias
-export function ActivityCardSkeleton() {
-  return (
-    <div className="bg-card rounded-2xl border border-border p-5">
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
-          <Skeleton className="h-5 w-40 mb-2" />
-          <Skeleton className="h-3 w-56" />
-        </div>
-        <Skeleton className="h-8 w-20 rounded-full" />
-      </div>
-      <div className="flex justify-between items-center">
-        <Skeleton className="h-5 w-24" />
-        <Skeleton className="h-9 w-20 rounded-xl" />
-      </div>
-    </div>
-  );
-}
-
-// Alias for ActivitySkeleton (for compatibility with farmer/analytics page)
-export const ActivitySkeleton = ActivityCardSkeleton;
-
-export function BookingCardSkeleton() {
-  return (
-    <div className="bg-card rounded-2xl border border-border overflow-hidden">
-      <div className="p-5">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex-1">
-            <Skeleton className="h-5 w-40 mb-2" />
-            <Skeleton className="h-3 w-32" />
-          </div>
-          <Skeleton className="h-8 w-20 rounded-full" />
-        </div>
-        <div className="space-y-2 mb-4">
-          <div className="flex justify-between">
-            <Skeleton className="h-4 w-20" />
-            <Skeleton className="h-4 w-24" />
-          </div>
-          <div className="flex justify-between">
-            <Skeleton className="h-4 w-20" />
-            <Skeleton className="h-4 w-24" />
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Skeleton className="h-9 flex-1 rounded-xl" />
-          <Skeleton className="h-9 w-24 rounded-xl" />
-        </div>
-      </div>
-    </div>
   );
 }
 
 export function FarmCardSkeleton() {
   return (
-    <div className="bg-card rounded-2xl border border-border overflow-hidden">
-      <Skeleton className="h-48 w-full" />
-      <div className="p-5">
-        <div className="flex justify-between items-start mb-2">
-          <Skeleton className="h-6 w-32" />
-          <Skeleton className="h-4 w-16" />
-        </div>
-        <Skeleton className="h-4 w-40 mb-3" />
-        <div className="flex gap-2 mb-4">
-          <Skeleton className="h-6 w-20 rounded-full" />
-          <Skeleton className="h-6 w-20 rounded-full" />
-          <Skeleton className="h-6 w-16 rounded-full" />
-        </div>
-        <div className="flex justify-between items-center">
-          <Skeleton className="h-5 w-24" />
-          <Skeleton className="h-9 w-28 rounded-xl" />
-        </div>
+    <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden">
+      <div className="h-48 bg-gray-200 animate-pulse" />
+      <div className="p-4 space-y-3">
+        <div className="h-5 bg-gray-200 rounded w-3/4 animate-pulse" />
+        <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse" />
+        <div className="h-4 bg-gray-200 rounded w-full animate-pulse" />
+        <div className="h-4 bg-gray-200 rounded w-2/3 animate-pulse" />
       </div>
     </div>
   );
@@ -118,229 +25,84 @@ export function FarmCardSkeleton() {
 
 export function FarmDetailSkeleton() {
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <div className="mb-6">
-        <Skeleton className="h-8 w-64 mb-2" />
-        <Skeleton className="h-4 w-48" />
+    <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden">
+      <div className="h-96 bg-gray-200 animate-pulse" />
+      <div className="p-6 space-y-4">
+        <div className="h-8 bg-gray-200 rounded w-2/3 animate-pulse" />
+        <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse" />
+        <div className="h-4 bg-gray-200 rounded w-full animate-pulse" />
+        <div className="h-4 bg-gray-200 rounded w-3/4 animate-pulse" />
       </div>
-      <div className="grid lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          <Skeleton className="h-96 w-full rounded-2xl" />
-          <div className="space-y-3">
-            <Skeleton className="h-6 w-32" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-          </div>
-          <div className="space-y-3">
-            <Skeleton className="h-6 w-40" />
-            <div className="space-y-2">
-              {[...Array(2)].map((_, i) => (
-                <ActivityCardSkeleton key={i} />
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="space-y-6">
-          <div className="bg-card rounded-2xl border border-border p-6">
-            <Skeleton className="h-6 w-40 mb-4" />
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-4 w-20" />
-              </div>
-              <div className="flex justify-between">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-4 w-20" />
-              </div>
-              <Skeleton className="h-10 w-full rounded-xl mt-4" />
-            </div>
-          </div>
+    </div>
+  );
+}
+
+export function BookingCardSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl border border-emerald-100 overflow-hidden">
+      <div className="p-5 space-y-3">
+        <div className="h-6 bg-gray-200 rounded w-2/3 animate-pulse" />
+        <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse" />
+        <div className="h-4 bg-gray-200 rounded w-full animate-pulse" />
+      </div>
+    </div>
+  );
+}
+
+export function ActivityCardSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl border border-emerald-100 overflow-hidden shadow-sm">
+      <div className="p-5 space-y-4">
+        <div className="h-5 bg-gray-200 rounded w-3/4 animate-pulse" />
+        <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse" />
+        <div className="h-4 bg-gray-200 rounded w-full animate-pulse" />
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-20 bg-gray-200 rounded-full animate-pulse" />
+          <div className="h-8 w-20 bg-gray-200 rounded-full animate-pulse" />
         </div>
       </div>
     </div>
   );
 }
 
-export function ChatHeaderSkeleton() {
+export function StatCardSkeleton() {
   return (
-    <div className="p-4 border-b border-border bg-gradient-to-r from-muted/50 to-card">
-      <div className="flex items-center gap-3">
-        <Skeleton variant="circular" className="h-10 w-10" />
-        <div className="flex-1">
-          <Skeleton className="h-5 w-32 mb-1" />
-          <Skeleton className="h-3 w-24" />
+    <div className="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100">
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <div className="h-4 bg-gray-200 rounded w-24 animate-pulse" />
+          <div className="h-8 bg-gray-200 rounded w-16 animate-pulse" />
         </div>
+        <div className="h-8 w-8 bg-gray-200 rounded-full animate-pulse" />
       </div>
     </div>
   );
 }
 
-export function MessageSkeleton({ isMyMessage = false }: { isMyMessage?: boolean }) {
+export function TableSkeleton() {
   return (
-    <div className={`flex ${isMyMessage ? "justify-end" : "justify-start"} mb-3`}>
-      <div className={`max-w-[70%] rounded-2xl px-4 py-2 ${
-        isMyMessage ? "bg-accent/20" : "bg-card border border-border"
-      }`}>
-        <Skeleton className="h-4 w-48 mb-2" />
-        <Skeleton className="h-3 w-24" />
-      </div>
-    </div>
-  );
-}
-
-export function ConversationSkeleton() {
-  return (
-    <div className="p-4 border-b border-border hover:bg-muted/30 transition-colors">
-      <div className="flex justify-between items-start">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <Skeleton variant="circular" className="h-10 w-10" />
-            <div>
-              <Skeleton className="h-5 w-32 mb-1" />
-              <Skeleton className="h-3 w-24" />
-            </div>
-          </div>
-          <Skeleton className="h-4 w-48 ml-12" />
-        </div>
-        <Skeleton className="h-3 w-12" />
-      </div>
-    </div>
-  );
-}
-
-export function FarmProfileSkeleton() {
-  return (
-    <div className="bg-card rounded-2xl border border-border p-6">
-      <div className="flex items-center gap-4 mb-4">
-        <Skeleton variant="circular" className="h-16 w-16" />
-        <div className="flex-1">
-          <Skeleton className="h-6 w-48 mb-2" />
-          <Skeleton className="h-4 w-32" />
-        </div>
-      </div>
-      <div className="space-y-3">
-        <div className="flex justify-between">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-4 w-20" />
-        </div>
-        <div className="flex justify-between">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-4 w-20" />
-        </div>
-        <div className="flex justify-between">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-4 w-20" />
-        </div>
-      </div>
-      <div className="mt-4 pt-4 border-t border-border">
-        <Skeleton className="h-9 w-full rounded-xl" />
-      </div>
-    </div>
-  );
-}
-
-export function EarningsSkeleton() {
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[...Array(4)].map((_, i) => (
-          <StatCardSkeleton key={i} />
-        ))}
-      </div>
-      <div className="flex gap-4">
-        <Skeleton className="h-10 flex-1 rounded-xl" />
-        <Skeleton className="h-10 flex-1 rounded-xl" />
-        <Skeleton className="h-10 w-32 rounded-xl" />
-      </div>
-      <div className="bg-card rounded-2xl border border-border overflow-hidden">
-        <div className="p-4 border-b border-border">
-          <Skeleton className="h-6 w-40" />
-        </div>
-        <TableSkeleton rows={5} columns={4} />
-      </div>
-    </div>
-  );
-}
-
-export function QuickActionsSkeleton() {
-  return (
-    <div className="bg-card rounded-2xl border border-border p-6">
-      <Skeleton className="h-6 w-32 mb-4" />
-      <div className="grid grid-cols-2 gap-3">
-        {[...Array(6)].map((_, i) => (
-          <Skeleton key={i} className="h-10 rounded-xl" />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-export function TableSkeleton({ rows = 5, columns = 4 }: { rows?: number; columns?: number }) {
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full">
-        <thead className="bg-muted/50 border-b border-border">
-          <tr>
-            {[...Array(columns)].map((_, i) => (
-              <th key={i} className="p-4">
-                <Skeleton className="h-4 w-24" />
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {[...Array(rows)].map((_, i) => (
-            <tr key={i} className="border-b border-border">
-              {[...Array(columns)].map((_, j) => (
-                <td key={j} className="p-4">
-                  <Skeleton className="h-4 w-32" />
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="space-y-3">
+      <div className="h-10 bg-gray-200 rounded animate-pulse" />
+      <div className="h-10 bg-gray-200 rounded animate-pulse" />
+      <div className="h-10 bg-gray-200 rounded animate-pulse" />
+      <div className="h-10 bg-gray-200 rounded animate-pulse" />
     </div>
   );
 }
 
 export function ChartSkeleton() {
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between">
-        <Skeleton className="h-4 w-32" />
-        <Skeleton className="h-4 w-24" />
-      </div>
-      <div className="space-y-2">
-        {[...Array(6)].map((_, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <Skeleton className="h-8 w-12" />
-            <Skeleton className="h-4 flex-1" />
-            <Skeleton className="h-4 w-16" />
-          </div>
-        ))}
-      </div>
-    </div>
+    <div className="h-64 w-full bg-gray-200 rounded animate-pulse" />
   );
 }
 
 export function ReviewCardSkeleton() {
   return (
-    <div className="bg-card rounded-2xl border border-border p-5">
-      <div className="flex items-start gap-3 mb-3">
-        <Skeleton variant="circular" className="h-10 w-10" />
-        <div className="flex-1">
-          <Skeleton className="h-5 w-32 mb-1" />
-          <Skeleton className="h-3 w-24" />
-        </div>
-        <Skeleton className="h-4 w-16" />
-      </div>
-      <Skeleton className="h-4 w-full mb-2" />
-      <Skeleton className="h-4 w-3/4" />
-      <div className="mt-3 flex gap-2">
-        <Skeleton className="h-8 w-20 rounded-lg" />
-        <Skeleton className="h-8 w-20 rounded-lg" />
+    <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden">
+      <div className="p-5 space-y-3">
+        <div className="h-6 bg-gray-200 rounded w-1/3 animate-pulse" />
+        <div className="h-4 bg-gray-200 rounded w-full animate-pulse" />
+        <div className="h-4 bg-gray-200 rounded w-2/3 animate-pulse" />
       </div>
     </div>
   );
@@ -348,36 +110,49 @@ export function ReviewCardSkeleton() {
 
 export function ReviewableBookingSkeleton() {
   return (
-    <div className="bg-card rounded-2xl border border-border p-5">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex-1">
-          <Skeleton className="h-5 w-40 mb-2" />
-          <Skeleton className="h-4 w-32" />
-          <div className="flex items-center gap-1 mt-2">
-            <Skeleton className="h-4 w-4 rounded-full" />
-            <Skeleton className="h-3 w-16" />
-          </div>
-        </div>
-        <Skeleton className="h-8 w-24 rounded-full" />
+    <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden">
+      <div className="p-5 space-y-3">
+        <div className="h-5 bg-gray-200 rounded w-3/4 animate-pulse" />
+        <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse" />
+        <div className="h-4 bg-gray-200 rounded w-full animate-pulse" />
+        <div className="h-4 bg-gray-200 rounded w-2/3 animate-pulse" />
       </div>
-      <div className="border-t border-border my-3"></div>
-      <div className="space-y-2">
-        <div className="flex justify-between">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-4 w-20" />
-        </div>
-        <div className="flex justify-between">
-          <Skeleton className="h-4 w-28" />
-          <Skeleton className="h-4 w-20" />
-        </div>
-        <div className="flex justify-between">
-          <Skeleton className="h-4 w-20" />
-          <Skeleton className="h-4 w-20" />
+    </div>
+  );
+}
+
+export function ConversationSkeleton() {
+  return (
+    <div className="bg-white rounded-xl p-4 border border-gray-100 animate-pulse">
+      <div className="flex items-center gap-3">
+        <div className="w-12 h-12 bg-gray-200 rounded-full" />
+        <div className="flex-1 space-y-2">
+          <div className="h-4 bg-gray-200 rounded w-1/3" />
+          <div className="h-3 bg-gray-200 rounded w-1/2" />
         </div>
       </div>
-      <div className="mt-4 flex gap-2">
-        <Skeleton className="h-9 flex-1 rounded-xl" />
-        <Skeleton className="h-9 w-24 rounded-xl" />
+    </div>
+  );
+}
+
+export function MessageSkeleton() {
+  return (
+    <div className="flex gap-2 mb-3 animate-pulse">
+      <div className="w-8 h-8 bg-gray-200 rounded-full" />
+      <div className="flex-1">
+        <div className="bg-gray-200 rounded-2xl h-10 w-3/4" />
+      </div>
+    </div>
+  );
+}
+
+export function ChatHeaderSkeleton() {
+  return (
+    <div className="border-b border-gray-100 p-4 flex items-center gap-3 animate-pulse">
+      <div className="w-8 h-8 bg-gray-200 rounded-full" />
+      <div className="flex-1">
+        <div className="h-5 bg-gray-200 rounded w-32" />
+        <div className="h-3 bg-gray-200 rounded w-24 mt-1" />
       </div>
     </div>
   );
@@ -385,79 +160,25 @@ export function ReviewableBookingSkeleton() {
 
 export function PaymentCardSkeleton() {
   return (
-    <div className="bg-card rounded-2xl border border-border p-5">
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
-          <Skeleton className="h-5 w-40 mb-2" />
-          <Skeleton className="h-3 w-32" />
-        </div>
-        <Skeleton className="h-8 w-20 rounded-full" />
-      </div>
-      <div className="space-y-2 mb-3">
-        <div className="flex justify-between">
-          <Skeleton className="h-4 w-20" />
-          <Skeleton className="h-4 w-24" />
-        </div>
-        <div className="flex justify-between">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-4 w-20" />
-        </div>
-      </div>
-      <div className="border-t border-border pt-3 mt-2">
-        <div className="flex justify-between">
-          <Skeleton className="h-5 w-24" />
-          <Skeleton className="h-5 w-28" />
-        </div>
-      </div>
-      <div className="mt-3 flex gap-2">
-        <Skeleton className="h-8 w-20 rounded-lg" />
-        <Skeleton className="h-8 w-20 rounded-lg" />
+    <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden">
+      <div className="p-5 space-y-3">
+        <div className="h-5 bg-gray-200 rounded w-2/3 animate-pulse" />
+        <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse" />
+        <div className="h-4 bg-gray-200 rounded w-full animate-pulse" />
       </div>
     </div>
   );
 }
 
-export function PaymentHistorySkeleton() {
+export function StatsCardSkeleton() {
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[...Array(3)].map((_, i) => (
-          <StatCardSkeleton key={i} />
-        ))}
-      </div>
-      <div className="bg-card rounded-2xl border border-border overflow-hidden">
-        <div className="p-4 border-b border-border">
-          <Skeleton className="h-6 w-40" />
+    <div className="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100">
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <div className="h-4 bg-gray-200 rounded w-24 animate-pulse" />
+          <div className="h-8 bg-gray-200 rounded w-16 animate-pulse" />
         </div>
-        <TableSkeleton rows={4} columns={5} />
-      </div>
-    </div>
-  );
-}
-
-export function CalendarDaySkeleton() {
-  return (
-    <div className="border border-border rounded-lg p-2 h-32">
-      <Skeleton className="h-5 w-8 mb-2" />
-      <div className="space-y-1">
-        <Skeleton className="h-3 w-full" />
-        <Skeleton className="h-3 w-3/4" />
-      </div>
-    </div>
-  );
-}
-
-export function AnalyticsCardSkeleton() {
-  return (
-    <div className="bg-card rounded-2xl border border-border p-6">
-      <div className="flex items-center justify-between mb-4">
-        <Skeleton className="h-5 w-32" />
-        <Skeleton variant="circular" className="h-10 w-10" />
-      </div>
-      <Skeleton className="h-8 w-40 mb-2" />
-      <Skeleton className="h-3 w-48" />
-      <div className="mt-4 pt-4 border-t border-border">
-        <Skeleton className="h-4 w-36" />
+        <div className="h-8 w-8 bg-gray-200 rounded-full animate-pulse" />
       </div>
     </div>
   );

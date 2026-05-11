@@ -1,13 +1,23 @@
-// src/proxy.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import pool from '@/lib/db';
 import { jwtVerify } from 'jose';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || '');
+const ADMIN_SECRET = process.env.ADMIN_SECRET; // server‑side secret
 
 export async function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, searchParams } = request.nextUrl;
+  
+  // Admin login page – require secret query param
+  if (pathname === '/auth/login/admin') {
+    const secret = searchParams.get('secret');
+    if (!ADMIN_SECRET || secret !== ADMIN_SECRET) {
+      return NextResponse.json({ error: 'Not Found' }, { status: 404 });
+    }
+    // If secret matches, let the page load normally
+    return NextResponse.next();
+  }
   
   try {
     const result = await pool.query(
@@ -16,8 +26,7 @@ export async function proxy(request: NextRequest) {
     const maintenanceMode = result.rows[0]?.value === 'true';
     
     const isAdminRoute = pathname.startsWith('/admin') ||
-                         pathname.startsWith('/api/admin') ||
-                         pathname === '/auth/login/admin';
+                         pathname.startsWith('/api/admin');
     const isLoginRoute = pathname === '/auth/login/admin' ||
                          pathname === '/auth/login/farmer' ||
                          pathname === '/auth/login/visitor';
@@ -82,7 +91,6 @@ export async function proxy(request: NextRequest) {
         );
         
         if (sessionCheck.rows.length === 0) {
-          // Session invalid or expired
           invalidAuthToken = true;
         } else {
           userRole = payload.role as string;

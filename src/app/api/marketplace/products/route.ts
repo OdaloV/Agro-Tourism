@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
+import { getUser, requireRole } from "@/lib/auth-middleware";
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,23 +11,29 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get("category") || "";
     const search = searchParams.get("search") || "";
     
-    let sql = "SELECT * FROM marketplace_products WHERE status = 'active'";
+    let sql = `
+      SELECT p.*, u.id as farmer_id, u.name as farmer_name
+      FROM marketplace_products p
+      JOIN farmer_profiles fp ON p.farmer_id = fp.user_id
+      JOIN users u ON fp.user_id = u.id
+      WHERE p.status = 'active'
+    `;
     const params: any[] = [];
     let paramIndex = 1;
     
     if (category) {
-      sql += ` AND category = $${paramIndex}`;
+      sql += ` AND p.category = $${paramIndex}`;
       params.push(category);
       paramIndex++;
     }
     
     if (search) {
-      sql += ` AND (product_name ILIKE $${paramIndex} OR description ILIKE $${paramIndex} OR location ILIKE $${paramIndex})`;
+      sql += ` AND (p.product_name ILIKE $${paramIndex} OR p.description ILIKE $${paramIndex} OR p.location ILIKE $${paramIndex})`;
       params.push(`%${search}%`);
       paramIndex++;
     }
     
-    sql += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    sql += ` ORDER BY p.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     params.push(limit, offset);
     
     const result = await pool.query(sql, params);
@@ -52,6 +59,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getUser(request);
+    const authErr = requireRole(user, "farmer");
+    if (authErr) return authErr;
+
+    const farmerId = user!.id;
     const body = await request.json();
     const {
       product_name,
@@ -65,17 +77,23 @@ export async function POST(request: NextRequest) {
       latitude,
       longitude,
       phone,
-      email,
-      farmer_id
+      email
     } = body;
-    
-    // Convert empty strings to null for numeric fields
-    const latitudeValue = latitude && latitude !== "" ? parseFloat(latitude) : null;
-    const longitudeValue = longitude && longitude !== "" ? parseFloat(longitude) : null;
+
+    // Validate required fields
+    if (!product_name || !category || price === undefined || quantity === undefined || !unit_type || !location) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
     const priceValue = parseFloat(price);
     const quantityValue = parseInt(quantity);
-    const farmerIdValue = parseInt(farmer_id);
-    
+    if (isNaN(priceValue) || isNaN(quantityValue)) {
+      return NextResponse.json({ error: "Price and quantity must be valid numbers" }, { status: 400 });
+    }
+
+    const latitudeValue = latitude && latitude !== "" ? parseFloat(latitude) : null;
+    const longitudeValue = longitude && longitude !== "" ? parseFloat(longitude) : null;
+
     const result = await pool.query(
       `INSERT INTO marketplace_products 
        (farmer_id, product_name, category, price, quantity, unit_type, 
@@ -83,18 +101,18 @@ export async function POST(request: NextRequest) {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING *`,
       [
-        farmerIdValue, 
-        product_name, 
-        category, 
-        priceValue, 
-        quantityValue, 
+        farmerId,
+        product_name,
+        category,
+        priceValue,
+        quantityValue,
         unit_type,
-        description || null, 
-        photos || [], 
-        location, 
-        latitudeValue, 
-        longitudeValue, 
-        phone, 
+        description || null,
+        photos || [],
+        location,
+        latitudeValue,
+        longitudeValue,
+        phone,
         email
       ]
     );

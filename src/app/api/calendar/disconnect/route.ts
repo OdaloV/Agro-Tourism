@@ -32,11 +32,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { userId } = await request.json();
-    
-    if (user.id !== userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Use the authenticated farmer user ID instead of relying on request body JSON.
+    const userId = user.id;
     
     // Get existing tokens to revoke
     const tokenResult = await pool.query(

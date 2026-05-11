@@ -1,19 +1,9 @@
-// src/app/auth/page.tsx
 'use client'
 
 import Link from 'next/link'
-import { Shield, User, Sprout } from 'lucide-react'
+import { User, Sprout } from 'lucide-react'
 
 const roles = [
-  {
-    id: "admin",
-    title: "Administrator",
-    description: "Manage platform, verify farmers, and monitor operations",
-    icon: Shield,
-    color: "text-purple-500",
-    bgColor: "bg-purple-500/10",
-    href: "/auth/login/admin"
-  },
   {
     id: "farmer",
     title: "Farmer",
@@ -37,13 +27,13 @@ const roles = [
 export default function AuthPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="max-w-4xl w-full">
+      <div className="max-w-2xl w-full">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900">Welcome to Harvest Host</h1>
           <p className="mt-2 text-gray-600">Choose your role to continue</p>
         </div>
         
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 gap-6">
           {roles.map((role) => {
             const Icon = role.icon
             return (

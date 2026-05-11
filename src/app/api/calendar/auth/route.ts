@@ -40,14 +40,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { userId } = await request.json();
-    
-    if (user.id !== userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Use the authenticated farmer user ID instead of relying on request body JSON.
+    const userId = user.id;
 
     // Generate a state parameter to prevent CSRF
-    const state = Buffer.from(JSON.stringify({ userId: user.id, timestamp: Date.now() })).toString('base64');
+    const state = Buffer.from(JSON.stringify({ userId, timestamp: Date.now() })).toString('base64');
     
     // Generate the authorization URL
     const authUrl = oauth2Client.generateAuthUrl({
