@@ -39,7 +39,7 @@ export default function EditFarmerProfile() {
   useEffect(() => {
     const fetchProfile = async () => {
       const userData = localStorage.getItem("userData");
-      if (!userData) {
+      if (!userData || userData === "undefined") {
         router.push("/auth/login/farmer");
         return;
       }

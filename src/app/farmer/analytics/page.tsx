@@ -38,7 +38,7 @@ export default function FarmerAnalytics() {
     setLoading(true);
     try {
       const userData = localStorage.getItem("userData");
-      if (!userData) {
+      if (!userData || userData === "undefined") {
         router.push("/auth/login/farmer");
         return;
       }

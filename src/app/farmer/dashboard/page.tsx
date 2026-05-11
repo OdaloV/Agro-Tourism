@@ -77,12 +77,19 @@ export default function FarmerDashboard() {
     const fetchFarmerData = async () => {
       try {
         const userData = localStorage.getItem("userData");
-        if (!userData) {
+        if (!userData || userData === "undefined") {
           router.push("/auth/login/farmer");
           return;
         }
 
-        const user = JSON.parse(userData);
+        let user;
+        try {
+          user = JSON.parse(userData);
+        } catch (parseError) {
+          console.error("Invalid JSON in localStorage:", parseError);
+          router.push("/auth/login/farmer");
+          return;
+        }
         
         if (user.verificationStatus === 'pending') {
           setFarmer({
