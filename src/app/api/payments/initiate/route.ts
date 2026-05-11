@@ -1,33 +1,21 @@
 // src/app/api/payments/initiate/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
-import { jwtVerify } from 'jose';
-
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'your-secret-key-change-in-production'
-);
-
-async function getUserFromToken(request: NextRequest) {
-  const token = request.cookies.get('auth_token')?.value;
-  if (!token) return null;
-  try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
-    return { id: payload.id as number, role: payload.role as string };
-  } catch {
-    return null;
-  }
-}
+import { getUser, requireAuth, requireCsrf } from '@/lib/auth-middleware';
 
 // Use IntaSend SDK for reliable STK push
 const IntaSend = require('intasend-node');
 
 export async function POST(request: NextRequest) {
-  try {
-    const user = await getUserFromToken(request);
-    if (!user || user.role !== 'visitor') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  const user = await getUser(request);
+  const authErr = requireAuth(user);
+  if (authErr) return authErr;
 
+  const authenticatedUser = user as NonNullable<typeof user>;  // Assert non-null
+  const csrfErr = await requireCsrf(request, authenticatedUser);
+  if (csrfErr) return csrfErr;
+
+  try {
     const { bookingId, phoneNumber, paymentMethod } = await request.json();
     if (!bookingId) {
       return NextResponse.json({ error: 'Booking ID required' }, { status: 400 });
@@ -43,7 +31,7 @@ export async function POST(request: NextRequest) {
        JOIN farmer_profiles fp ON b.farm_id = fp.id
        JOIN users u ON b.visitor_id = u.id
        WHERE b.id = $1 AND b.visitor_id = $2 AND b.payment_status = 'pending'`,
-      [bookingId, user.id]
+      [bookingId, authenticatedUser.id]  // Fixed: use authenticatedUser.id
     );
     if (bookingResult.rows.length === 0) {
       return NextResponse.json({ error: 'Booking not found or already paid' }, { status: 404 });

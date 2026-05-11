@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getUser, requireAuth } from '@/lib/auth-middleware';
 import pool from '@/lib/db';
 
 export async function GET() {
@@ -44,7 +45,11 @@ export async function GET() {
   }
 }
 
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
+  const user = await getUser(request);
+  const err = requireAuth(user);
+  if (err) return err;
+
   try {
     const body = await request.json();
     const {

@@ -1,9 +1,18 @@
 // src/app/api/bookings/create/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getUser, requireAuth, requireCsrf } from '@/lib/auth-middleware';
 import pool from '@/lib/db';
 import { checkMaintenanceMode } from '@/lib/utils/checkMaintenance'; 
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const user = await getUser(request);
+  const authErr = requireAuth(user);
+  if (authErr) return authErr;
+
+  const authenticatedUser = user as NonNullable<typeof user>;  // Assert non-null
+  const csrfErr = await requireCsrf(request, authenticatedUser);
+  if (csrfErr) return csrfErr;
+
   try {
     const body = await request.json();
     const { 

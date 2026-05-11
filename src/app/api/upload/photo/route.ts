@@ -1,9 +1,14 @@
 // src/app/api/upload/photo/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getUser, requireAuth } from '@/lib/auth-middleware';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const user = await getUser(request);
+  const err = requireAuth(user);
+  if (err) return err;
+
   try {
     const formData = await request.formData();
     const file = formData.get('photo') as File;
