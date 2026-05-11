@@ -1,8 +1,13 @@
 // src/app/api/admin/farms/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { getUser, requireRole } from '@/lib/auth-middleware';
 import pool from '@/lib/db';
 
 export async function GET(request: NextRequest) {
+  const user = await getUser(request);
+  const err = requireRole(user, 'admin');
+  if (err) return err;
+
   try {
     const { searchParams } = new URL(request.url);
     const all = searchParams.get('all') === 'true';

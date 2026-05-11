@@ -1,9 +1,14 @@
 // src/app/api/admin/verifications/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { notifyFarmerApproved, notifyFarmerRejected } from '@/lib/services/notificationService';
+import { getUser, requireRole, requireCsrf } from '@/lib/auth-middleware';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const user = await getUser(request);
+  const err = requireRole(user, 'admin');
+  if (err) return err;
+
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || 'pending';
@@ -97,7 +102,27 @@ export async function GET(request: Request) {
   }
 }
 
-export async function PUT(request: Request) {
+export async function POST(request: NextRequest) {
+  const user = await getUser(request);
+  const authErr = requireRole(user, 'admin');
+  if (authErr) return authErr;
+
+  const authenticatedUser = user as NonNullable<typeof user>;  // Assert non-null
+  const csrfErr = await requireCsrf(request, authenticatedUser);
+  if (csrfErr) return csrfErr;
+
+  return NextResponse.json({ message: 'POST request received' });
+}
+
+export async function PUT(request: NextRequest) {
+  const user = await getUser(request);
+  const authErr = requireRole(user, 'admin');
+  if (authErr) return authErr;
+
+  const authenticatedUser = user as NonNullable<typeof user>;
+  const csrfErr = await requireCsrf(request, authenticatedUser);
+  if (csrfErr) return csrfErr;
+
   try {
     const body = await request.json();
     const { profileId, status, notes, adminId } = body;

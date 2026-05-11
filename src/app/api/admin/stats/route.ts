@@ -1,7 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getUser, requireRole } from '@/lib/auth-middleware';
 import pool from '@/lib/db';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const user = await getUser(request);
+  const err = requireRole(user, 'admin');
+  if (err) return err;
+
   try {
     const bookingsRes = await pool.query('SELECT COUNT(*) as count FROM bookings');
     const totalBookings = parseInt(bookingsRes.rows[0]?.count || '0');

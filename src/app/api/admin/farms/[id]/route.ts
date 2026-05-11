@@ -1,11 +1,16 @@
 // src/app/api/admin/farms/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { getUser, requireRole } from '@/lib/auth-middleware';
 import pool  from '@/lib/db';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const user = await getUser(request);
+  const err = requireRole(user, 'admin');
+  if (err) return err;
+
   try {
     const profileId = parseInt(params.id);
     
