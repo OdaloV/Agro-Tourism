@@ -35,15 +35,23 @@ export default function AdminLogin() {
       });
       
       const data = await response.json();
+      console.log('Login response:', { ok: response.ok, status: response.status, data });
       
       if (!response.ok) {
         throw new Error(data.error || 'Login failed');
       }
       
       // Store user data
-      localStorage.setItem("userRole", "admin");
-      localStorage.setItem("isAuthenticated", "true");
-      localStorage.setItem("userData", JSON.stringify(data.user));
+      if (data.user) {
+        localStorage.setItem("userRole", "admin");
+        localStorage.setItem("isAuthenticated", "true");
+        localStorage.setItem("userData", JSON.stringify(data.user));
+        console.log('Stored user data:', data.user);
+      } else {
+        console.error('No user data returned from API');
+        setError("Login failed: No user data returned");
+        return;
+      }
       
       // Redirect to admin dashboard
       router.push("/admin/dashboard");

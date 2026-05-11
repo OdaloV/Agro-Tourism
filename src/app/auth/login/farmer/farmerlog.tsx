@@ -39,6 +39,7 @@ export default function FarmerLogin() {
       });
       
       const data = await response.json();
+      console.log('Login response:', { ok: response.ok, status: response.status, data });
       
       // Check for 2FA FIRST
       if (data.requiresTwoFactor) {
@@ -72,6 +73,11 @@ export default function FarmerLogin() {
         localStorage.setItem("isAuthenticated", "true");
         localStorage.setItem("userData", JSON.stringify(data.user));
         localStorage.setItem("verificationStatus", data.user.verificationStatus || 'pending');
+        console.log('Stored user data:', data.user);
+      } else {
+        console.error('No user data returned from API');
+        setError("Login failed: No user data returned");
+        return;
       }
 
       router.push("/farmer/dashboard");

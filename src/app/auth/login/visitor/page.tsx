@@ -35,6 +35,7 @@ export default function VisitorLogin() {
       });
       
       const data = await response.json();
+      console.log('Login response:', { ok: response.ok, status: response.status, data });
       
       // Check for 2FA requirement (response could be 200 or 401)
       if (data.requiresTwoFactor) {
@@ -56,9 +57,16 @@ export default function VisitorLogin() {
       }
       
       // Login successful (no 2FA required)
-      localStorage.setItem("userRole", "visitor");
-      localStorage.setItem("isAuthenticated", "true");
-      localStorage.setItem("userData", JSON.stringify(data.user));
+      if (data.user) {
+        localStorage.setItem("userRole", "visitor");
+        localStorage.setItem("isAuthenticated", "true");
+        localStorage.setItem("userData", JSON.stringify(data.user));
+        console.log('Stored user data:', data.user);
+      } else {
+        console.error('No user data returned from API');
+        setError("Login failed: No user data returned");
+        return;
+      }
 
       router.push("/visitor/dashboard");
 
