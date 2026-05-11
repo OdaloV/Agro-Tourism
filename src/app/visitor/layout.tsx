@@ -56,12 +56,13 @@ export default function VisitorLayout({ children }: { children: React.ReactNode 
     }
 
     const userData = localStorage.getItem("userData");
-    if (userData) {
+    if (userData && userData !== "undefined") {
       try {
         const user = JSON.parse(userData);
         setUserName(user.name || "Visitor");
       } catch (e) {
         console.error("Error parsing user data:", e);
+        setUserName("Visitor");
       }
     }
 

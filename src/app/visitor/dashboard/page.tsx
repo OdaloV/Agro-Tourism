@@ -85,12 +85,19 @@ export default function VisitorDashboard() {
         const userData = localStorage.getItem("userData");
         const userRole = localStorage.getItem("userRole");
         
-        if (!userData || userRole !== "visitor") {
+        if (!userData || userData === "undefined" || userRole !== "visitor") {
           router.push("/auth/login/visitor");
           return;
         }
         
-        const parsedUser = JSON.parse(userData);
+        let parsedUser;
+        try {
+          parsedUser = JSON.parse(userData);
+        } catch (parseError) {
+          console.error("Invalid JSON in localStorage:", parseError);
+          router.push("/auth/login/visitor");
+          return;
+        }
         setUser(parsedUser);
         
         // Fetch profile photo from database API

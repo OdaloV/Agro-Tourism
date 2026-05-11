@@ -130,7 +130,14 @@ export default function VisitorSettings() {
           return;
         }
 
-        const user = JSON.parse(userData);
+        let user;
+        try {
+          user = JSON.parse(userData);
+        } catch (parseError) {
+          console.error("Invalid JSON in localStorage:", parseError);
+          router.push("/auth/login/visitor");
+          return;
+        }
         
         // Fetch profile photo
         const photoResponse = await fetch('/api/user/visitorpfp');

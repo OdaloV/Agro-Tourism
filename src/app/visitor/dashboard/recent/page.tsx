@@ -43,7 +43,7 @@ export default function VisitorRecent() {
     const fetchRecentViews = async () => {
       try {
         const userData = localStorage.getItem("userData");
-        if (!userData) {
+        if (!userData || userData === "undefined") {
           router.push("/auth/login/visitor");
           return;
         }

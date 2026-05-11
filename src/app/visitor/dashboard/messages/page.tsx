@@ -110,12 +110,13 @@ export default function VisitorMessages() {
 
   useEffect(() => {
     const userData = localStorage.getItem("userData");
-    if (userData) {
+    if (userData && userData !== "undefined") {
       try {
         const user = JSON.parse(userData);
         setCurrentUserId(user.id);
       } catch (e) {
         console.error("Error parsing user data:", e);
+        setCurrentUserId(null);
       }
     }
   }, []);
