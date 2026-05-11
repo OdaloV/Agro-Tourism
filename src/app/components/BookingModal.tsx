@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Calendar, Users, Clock, MessageCircle, Smartphone, CalendarCheck } from "lucide-react";
+import { X, Calendar, Clock, MessageCircle, Smartphone, CalendarCheck } from "lucide-react";
 import PriceCalculator from "./PriceCalculator";
+import { useCsrf } from "@/hooks/useCsrf";
 
 interface Activity {
   id: number;
@@ -43,6 +44,8 @@ interface GroupSettings {
 }
 
 export default function BookingModal({ isOpen, onClose, activity, farmId, farmName, onBookingComplete }: BookingModalProps) {
+  const csrfToken = useCsrf();
+
   const [bookingDate, setBookingDate] = useState("");
   const [timeSlot, setTimeSlot] = useState("");
   const [participants, setParticipants] = useState(1);
@@ -56,11 +59,11 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
   const [phoneNumber, setPhoneNumber] = useState("");
   const [waiverAccepted, setWaiverAccepted] = useState(false);
   const [addToCalendar, setAddToCalendar] = useState(true);
-  
+
   const [groupSettings, setGroupSettings] = useState<GroupSettings | null>(null);
   const [showGroupWarning, setShowGroupWarning] = useState(false);
   const [advanceNoticeDays, setAdvanceNoticeDays] = useState(0);
-  
+
   const [userEmail, setUserEmail] = useState("");
   const [userPhone, setUserPhone] = useState("");
   const [userFirstName, setUserFirstName] = useState("");
@@ -125,7 +128,6 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
   useEffect(() => {
     const required = getAdvanceNoticeRequired(participants);
     setAdvanceNoticeDays(required);
-    
     if (bookingDate && required > 0) {
       const selectedDate = new Date(bookingDate);
       const today = new Date();
@@ -147,51 +149,44 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
 
   const formatPhoneNumber = (raw: string): string => {
     let digits = raw.replace(/\D/g, '');
-    if (digits.startsWith('0')) {
-      digits = '254' + digits.slice(1);
-    }
-    if (!digits.startsWith('254') && digits.length === 12 && digits.startsWith('254')) {
-      // already correct
-    } else if (digits.length === 9 && digits.startsWith('7')) {
-      digits = '254' + digits;
-    }
-    if (digits.length !== 12 || !digits.startsWith('254')) {
-      return '';
-    }
+    if (digits.startsWith('0')) digits = '254' + digits.slice(1);
+    else if (digits.length === 9 && digits.startsWith('7')) digits = '254' + digits;
+    if (digits.length !== 12 || !digits.startsWith('254')) return '';
     return digits;
   };
 
   const handleSubmit = async () => {
-    if (!bookingDate) {
-      alert("Please select a date");
-      return;
-    }
-
+    if (!bookingDate) { alert("Please select a date"); return; }
     if (showGroupWarning) {
       alert(`Groups of this size require ${advanceNoticeDays} days advance notice. Please select a later date.`);
       return;
     }
-
     if (participants >= 50 && groupSettings?.requirements.require_waiver && !waiverAccepted) {
       alert("Please accept the waiver requirement to continue.");
       return;
     }
 
-    let finalPhone = phoneNumber.trim();
-    if (!finalPhone) {
-      finalPhone = userPhone;
-    }
+    let finalPhone = phoneNumber.trim() || userPhone;
     const formattedPhone = formatPhoneNumber(finalPhone);
     if (!formattedPhone) {
       alert("Please enter a valid phone number (e.g., 0712345678 or 254712345678)");
       return;
     }
 
+    if (!csrfToken) {
+      alert("Security token not ready. Please wait a moment and try again.");
+      return;
+    }
+
     setLoading(true);
     try {
+      // Step 1 — Create booking
       const bookingResponse = await fetch('/api/bookings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-csrf-token': csrfToken,
+        },
         body: JSON.stringify({
           farmId,
           activityId: activity.id,
@@ -212,7 +207,6 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
       });
 
       const bookingData = await bookingResponse.json();
-
       if (!bookingResponse.ok) {
         alert(bookingData.error || "Booking failed");
         setLoading(false);
@@ -227,10 +221,14 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
       }
 
       setBooking(bookingData.booking);
-      
+
+      // Step 2 — Initiate payment
       const paymentResponse = await fetch('/api/payments/initiate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-csrf-token': csrfToken,
+        },
         credentials: 'include',
         body: JSON.stringify({
           bookingId: bookingData.booking.id,
@@ -412,7 +410,7 @@ export default function BookingModal({ isOpen, onClose, activity, farmId, farmNa
           </button>
 
           <p className="text-xs text-gray-400 text-center">
-            {isLargeGroup 
+            {isLargeGroup
               ? "Large groups require farmer approval. You'll receive a custom quote within 24 hours."
               : "You'll receive an STK Push on your phone to complete payment"}
           </p>
