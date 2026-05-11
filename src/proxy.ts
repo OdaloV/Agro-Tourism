@@ -65,14 +65,33 @@ export async function proxy(request: NextRequest) {
   const authToken = request.cookies.get('auth_token')?.value;
   let userRole: string | null = null;
   let isAuthenticated = false;
+  let invalidAuthToken = false;
 
   if (authToken) {
     try {
-      const { payload } = await jwtVerify(authToken, JWT_SECRET);
-      userRole = payload.role as string;
-      isAuthenticated = true;
+      if (authToken.split('.').length !== 3) {
+        invalidAuthToken = true;
+      } else {
+        const { payload } = await jwtVerify(authToken, JWT_SECRET);
+        const userId = payload.id as number;
+        
+        // Check if session is still valid in database (one session per user)
+        const sessionCheck = await pool.query(
+          'SELECT id FROM user_sessions WHERE user_id = $1 AND expires_at > NOW()',
+          [userId]
+        );
+        
+        if (sessionCheck.rows.length === 0) {
+          // Session invalid or expired
+          invalidAuthToken = true;
+        } else {
+          userRole = payload.role as string;
+          isAuthenticated = true;
+        }
+      }
     } catch (error) {
-      console.error('JWT verification failed:', error);
+      console.warn('JWT verification failed:', error);
+      invalidAuthToken = true;
     }
   }
 
@@ -121,7 +140,11 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  if (invalidAuthToken) {
+    response.cookies.delete('auth_token');
+  }
+  return response;
 }
 
 export const config = {
