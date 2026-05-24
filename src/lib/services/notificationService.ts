@@ -69,8 +69,7 @@ export async function sendSMS(to: string, message: string) {
       formattedNumber = `+254${to.replace(/^0/, '')}`;
     }
     
-    // This would integrate with Africa's Talking
-    console.log(`SMS would be sent to ${formattedNumber}: ${message}`);
+    // This would integrate with Africa's Talking (no console logging)
     return { success: true };
   } catch (error) {
     console.error('Failed to send SMS:', error);
@@ -81,10 +80,7 @@ export async function sendSMS(to: string, message: string) {
 // Send booking confirmation (respects user preferences)
 export async function sendBookingConfirmation(userId: number, email: string, bookingDetails: any) {
   const shouldSend = await shouldSendEmail(userId, 'booking_update');
-  if (!shouldSend) {
-    console.log(`User ${userId} opted out of booking update emails`);
-    return;
-  }
+  if (!shouldSend) return;
   
   const subject = `Booking Confirmed: ${bookingDetails.farmName}`;
   const html = `
@@ -115,10 +111,7 @@ export async function sendBookingConfirmation(userId: number, email: string, boo
 // Send reminder notification (respects user preferences)
 export async function sendReminderNotification(userId: number, email: string, reminderDetails: any) {
   const shouldSend = await shouldSendEmail(userId, 'reminder');
-  if (!shouldSend) {
-    console.log(`User ${userId} opted out of reminder emails`);
-    return;
-  }
+  if (!shouldSend) return;
   
   const subject = `Reminder: Your farm visit at ${reminderDetails.farmName} is tomorrow!`;
   const html = `
@@ -147,9 +140,7 @@ export async function sendReminderNotification(userId: number, email: string, re
 
 // Send visitor verification email
 export async function sendVisitorVerificationEmail(email: string, name: string, code: string) {
-  console.log(`=================================`);
-  console.log(`🔐 VISITOR VERIFICATION CODE FOR ${email}: ${code}`);
-  console.log(`=================================`);
+  // verification code emailed to user (do not log codes to console)
   
   const subject = 'Verify Your Email - HarvestHost';
   const html = `
@@ -169,9 +160,7 @@ export async function sendVisitorVerificationEmail(email: string, name: string, 
 
 // Send farmer verification email
 export async function sendVerificationEmail(email: string, name: string, code: string) {
-  console.log(`=================================`);
-  console.log(`🔐 FARMER VERIFICATION CODE FOR ${email}: ${code}`);
-  console.log(`=================================`);
+  // verification code emailed to farmer (do not log codes to console)
   
   const subject = 'Verify Your Email - Complete Your HarvestHost Registration';
   const html = `

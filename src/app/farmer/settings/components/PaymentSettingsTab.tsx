@@ -48,7 +48,6 @@ export default function PaymentSettingsTab({ payment, onSave, saving }: PaymentS
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Submitting payment data:", formData);
     if (!formData.bank_code) {
       alert("Please select a bank code.");
       return;

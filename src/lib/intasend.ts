@@ -174,7 +174,6 @@ export async function sendPayout(params: {
     currency,
     transactions: [transaction],
   };
-  console.log('[sendPayout] Payload:', JSON.stringify(payload, null, 2));
 
   const response = await fetch(url, {
     method: 'POST',

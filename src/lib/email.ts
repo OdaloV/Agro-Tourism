@@ -32,7 +32,7 @@ async function sendViaSMTP(to: string, subject: string, html: string) {
     html,
   });
 
-  console.log(`Email sent via SMTP to ${to}:`, info.messageId);
+  // Email sent via SMTP (no console logging)
   return { success: true, data: info };
 }
 
@@ -51,18 +51,15 @@ export async function sendEmail(to: string, subject: string, html: string) {
       if (error) {
         console.error('Resend email error:', error);
         if (smtpTransporter) {
-          console.log('Falling back to SMTP after Resend validation failure');
           return sendViaSMTP(to, subject, html);
         }
         return { success: false, error };
       }
 
-      console.log(`Email sent to ${to}:`, data?.id);
       return { success: true, data };
     } catch (error: any) {
       console.error('Failed to send email via Resend:', error);
       if (smtpTransporter) {
-        console.log('Falling back to SMTP after Resend failure');
         return sendViaSMTP(to, subject, html);
       }
       return { success: false, error };

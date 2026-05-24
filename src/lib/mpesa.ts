@@ -35,7 +35,6 @@ export async function getAccessToken(): Promise<string> {
       expiresAt: Date.now() + 3600 * 1000,
     };
     
-    console.log('✅ M-Pesa access token obtained');
     return token;
   } catch (error: any) {
     console.error('Failed to get M-Pesa token:', error.response?.data || error.message);
@@ -84,7 +83,6 @@ export async function stkPush(phoneNumber: string, amount: number, accountRefere
       }
     );
     
-    console.log('✅ STK Push initiated:', response.data);
     return response.data;
   } catch (error: any) {
     console.error('STK Push failed:', error.response?.data || error.message);

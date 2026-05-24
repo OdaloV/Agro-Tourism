@@ -83,7 +83,7 @@ export default function MapPage() {
           <Button
             size="sm"
             className="bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl mr-1"
-            onClick={() => console.log("Searching for:", searchQuery)}
+            onClick={() => { /* trigger search */ }}
           >
             Go
           </Button>
@@ -111,7 +111,7 @@ export default function MapPage() {
         <Button
           size="icon"
           className="h-12 w-12 rounded-2xl bg-white/90 backdrop-blur-md hover:bg-white shadow-xl border border-white/30 text-emerald-700"
-          onClick={() => console.log("Recenter to GPS")}
+          onClick={() => { /* recenter map */ }}
         >
           <LocateFixed className="h-5 w-5" />
         </Button>

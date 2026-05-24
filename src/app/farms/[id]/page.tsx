@@ -191,7 +191,6 @@ export default function FarmDetailsPage() {
   };
 
   const handleBookingComplete = (booking: any) => {
-    console.log("Booking created:", booking);
     alert(`Booking created successfully! Booking reference: ${booking.reference}`);
   };
 
@@ -618,7 +617,7 @@ export default function FarmDetailsPage() {
         farmId={parseInt(farmId)}
         farmName={farm?.farm_name || ""}
         farmerName={farm?.farmer_name || ""}
-        onMessageSent={() => { console.log("Message sent successfully"); }}
+        onMessageSent={() => {}}
       />
     </div>
   );

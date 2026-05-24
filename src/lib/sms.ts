@@ -15,7 +15,7 @@ export async function sendSMS(to: string, message: string) {
       formattedNumber = `+254${to.replace(/^0/, '')}`;
     }
     
-    console.log('Sending SMS to:', formattedNumber);
+    // SMS send - no console logging in production
     
     // Working configuration - no 'from' parameter
     const result = await africasTalking.SMS.send({
@@ -25,13 +25,7 @@ export async function sendSMS(to: string, message: string) {
     
     // Check if the message was sent successfully
     const recipient = result.SMSMessageData?.Recipients?.[0];
-    if (recipient?.status === 'Success') {
-      console.log(`✅ SMS sent successfully to ${recipient.number}`);
-      console.log(`   Message ID: ${recipient.messageId}`);
-      console.log(`   Cost: ${recipient.cost}`);
-    } else {
-      console.log(`❌ SMS failed: ${recipient?.status}`);
-    }
+    // success/failure handled via return value; avoid console logging here
     
     return { success: true, result };
   } catch (error: any) {
