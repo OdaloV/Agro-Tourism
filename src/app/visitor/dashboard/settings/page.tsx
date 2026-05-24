@@ -36,7 +36,6 @@ interface UserProfile {
   notifications: {
     email: boolean;
     push: boolean;
-    marketing: boolean;
     bookingUpdates: boolean;
     reminders: boolean;
   };
@@ -65,7 +64,6 @@ export default function VisitorSettings() {
     notifications: {
       email: true,
       push: true,
-      marketing: false,
       bookingUpdates: true,
       reminders: true,
     },
@@ -80,7 +78,6 @@ export default function VisitorSettings() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
 
-  // Helper to apply theme (only called when user changes dropdown)
   const applyTheme = (theme: string) => {
     if (theme === "dark") {
       document.documentElement.classList.add("dark");
@@ -96,21 +93,17 @@ export default function VisitorSettings() {
     }
   };
 
-  // Save theme to localStorage and apply, then dispatch event for layout
   const saveAndApplyTheme = (theme: string) => {
     localStorage.setItem("visitor-theme", theme);
     applyTheme(theme);
-    // Dispatch a storage event so layout picks up change (in case layout is already mounted)
     window.dispatchEvent(new StorageEvent("storage", { key: "visitor-theme", newValue: theme }));
   };
 
-  // On mount, only set the theme value from localStorage for the dropdown, but DO NOT apply it (layout already did)
   useEffect(() => {
     const savedTheme = localStorage.getItem("visitor-theme") as "light" | "dark" | "system" | null;
     if (savedTheme) {
       setProfile(prev => ({ ...prev, theme: savedTheme }));
     } else {
-      // If no saved theme, default to light but DO NOT apply (layout already did)
       setProfile(prev => ({ ...prev, theme: "light" }));
     }
   }, []);
@@ -139,7 +132,6 @@ export default function VisitorSettings() {
           return;
         }
         
-        // Fetch profile photo
         const photoResponse = await fetch('/api/user/visitorpfp');
         let profilePhoto = null;
         if (photoResponse.ok) {
@@ -147,11 +139,9 @@ export default function VisitorSettings() {
           profilePhoto = photoData.visitorpfp;
         }
         
-        // Fetch notification preferences
         let notifications = {
           email: true,
           push: true,
-          marketing: false,
           bookingUpdates: true,
           reminders: true,
         };
@@ -163,7 +153,6 @@ export default function VisitorSettings() {
             notifications = {
               email: prefsData.email ?? true,
               push: prefsData.push ?? true,
-              marketing: prefsData.marketing ?? false,
               bookingUpdates: prefsData.bookingUpdates ?? true,
               reminders: prefsData.reminders ?? true,
             };
@@ -172,7 +161,6 @@ export default function VisitorSettings() {
           console.error("Error fetching notification preferences:", e);
         }
         
-        // Fetch 2FA status
         let twoFactorEnabled = false;
         try {
           const twofaRes = await fetch('/api/user/2fa/status');
@@ -191,7 +179,6 @@ export default function VisitorSettings() {
           email: user.email || "visitor@example.com",
           phone: user.phone || "+254712345678",
           location: "Nairobi, Kenya",
-          // theme: keep existing value (already set from localStorage on mount)
           profilePhoto: profilePhoto,
           twoFactorEnabled: twoFactorEnabled,
           notifications: notifications,
@@ -282,7 +269,6 @@ export default function VisitorSettings() {
     setSaving(true);
     
     try {
-      // Save profile info to localStorage
       const userData = localStorage.getItem("userData");
       if (userData) {
         const user = JSON.parse(userData);
@@ -293,7 +279,6 @@ export default function VisitorSettings() {
         localStorage.setItem("userData", JSON.stringify(user));
       }
       
-      // Save notification preferences
       await fetch('/api/user/notification-preferences', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -302,18 +287,14 @@ export default function VisitorSettings() {
           push: profile.notifications.push,
           bookingUpdates: profile.notifications.bookingUpdates,
           reminders: profile.notifications.reminders,
-          marketing: profile.notifications.marketing,
         })
       });
       
-      // Save 2FA preference
       await fetch('/api/user/2fa/toggle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled: profile.twoFactorEnabled })
       });
-      
-      // Note: Theme is NOT saved here – it's already saved when dropdown changes.
       
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
@@ -527,7 +508,7 @@ export default function VisitorSettings() {
           </div>
         </div>
 
-        {/* Notification Preferences */}
+        {/* Notification Preferences (Marketing removed) */}
         <div className="bg-white rounded-2xl border border-emerald-100 overflow-hidden mb-6">
           <div className="p-5 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-white">
             <h2 className="text-lg font-heading font-semibold text-emerald-900">Notification Preferences</h2>
@@ -538,7 +519,6 @@ export default function VisitorSettings() {
             <NotificationToggle icon={Bell} title="Push Notifications" description="Browser notifications" checked={profile.notifications.push} onChange={() => toggleNotification("push")} />
             <NotificationToggle icon={Bell} title="Booking Updates" description="Status changes for your bookings" checked={profile.notifications.bookingUpdates} onChange={() => toggleNotification("bookingUpdates")} />
             <NotificationToggle icon={Bell} title="Reminders" description="Upcoming farm visits" checked={profile.notifications.reminders} onChange={() => toggleNotification("reminders")} />
-            <NotificationToggle icon={Mail} title="Marketing Emails" description="Special offers and promotions" checked={profile.notifications.marketing} onChange={() => toggleNotification("marketing")} />
           </div>
         </div>
 
@@ -570,7 +550,7 @@ export default function VisitorSettings() {
           </div>
         </div>
 
-        {/* Save button (does NOT save theme) */}
+        {/* Save button */}
         <div className="flex justify-end">
           <button onClick={handleSaveProfile} disabled={saving} className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition disabled:opacity-50">
             {saving ? "Saving..." : <><Save className="h-5 w-5" /> Save Profile & Notifications</>}
@@ -578,7 +558,7 @@ export default function VisitorSettings() {
         </div>
       </div>
 
-      {/* Modals unchanged – they remain as before */}
+      {/* Change Password Modal */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-md w-full">
@@ -597,6 +577,7 @@ export default function VisitorSettings() {
         </div>
       )}
 
+      {/* Delete Account Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-md w-full">
@@ -620,7 +601,13 @@ export default function VisitorSettings() {
 function NotificationToggle({ icon: Icon, title, description, checked, onChange }: { icon: any; title: string; description: string; checked: boolean; onChange: () => void }) {
   return (
     <div className="flex items-center justify-between py-2">
-      <div className="flex items-center gap-3"><div className="p-2 bg-emerald-50 rounded-lg"><Icon className="h-5 w-5 text-emerald-500" /></div><div><p className="font-medium text-emerald-900">{title}</p><p className="text-sm text-emerald-500">{description}</p></div></div>
+      <div className="flex items-center gap-3">
+        <div className="p-2 bg-emerald-50 rounded-lg"><Icon className="h-5 w-5 text-emerald-500" /></div>
+        <div>
+          <p className="font-medium text-emerald-900">{title}</p>
+          <p className="text-sm text-emerald-500">{description}</p>
+        </div>
+      </div>
       <label className="relative inline-flex items-center cursor-pointer">
         <input type="checkbox" checked={checked} onChange={onChange} className="sr-only peer" />
         <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-500/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>

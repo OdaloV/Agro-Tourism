@@ -28,6 +28,7 @@ import {
   Upload,
 } from "lucide-react";
 import { AuthCard } from "@/components/auth/AuthCard";
+import { useAuth } from "@/lib/context/AuthContext";
 import { ACTIVITY_CATEGORIES } from "@/app/profile/farmerprofile/options";
 
 // Dynamically import LocationPicker to avoid SSR issues
@@ -45,6 +46,7 @@ const STORAGE_KEY = "farmer_registration_form";
 
 export default function Farmereg() {
   const router = useRouter();
+  const { login } = useAuth();
   const [step, setStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -321,10 +323,10 @@ export default function Farmereg() {
     });
   };
 
-  const validateStep = () => {
+  const validateStep = (stepToValidate = step) => {
     const newErrors = { ...errors };
 
-    if (step === 1) {
+    if (stepToValidate === 1) {
       if (!formData.name) newErrors.name = "Name is required";
       if (!formData.email) newErrors.email = "Email is required";
       else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = "Email is invalid";
@@ -336,14 +338,14 @@ export default function Farmereg() {
       }
     }
 
-    if (step === 2) {
+    if (stepToValidate === 2) {
       if (!formData.farmName) newErrors.farmName = "Farm name is required";
       if (!formData.farmSize) newErrors.farmSize = "Farm size is required";
       if (!formData.location) newErrors.location = "Location is required";
       if (!formData.farmDescription) newErrors.farmDescription = "Farm description is required";
     }
 
-    if (step === 3) {
+    if (stepToValidate === 3) {
       if (formData.accommodation === true) {
         if (!formData.maxGuests || formData.maxGuests.trim() === "") {
           newErrors.maxGuests = "Please enter the maximum number of guests";
@@ -416,18 +418,35 @@ export default function Farmereg() {
     };
     
     try {
-      console.log("📤 Sending registration with", photoBase64.length, "photos");
+      const payload = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password,
+        role: "farmer",
+        farmerData: farmerData,
+      };
+
+      console.log("📤 Sending registration payload", {
+        name: payload.name,
+        email: payload.email,
+        phone: payload.phone,
+        role: payload.role,
+        farmName: payload.farmerData.farmName,
+        location: payload.farmerData.location,
+      });
+
+      if (!validateStep(1) || !validateStep(2) || !validateStep(3) || !validateStep(4)) {
+        setError("Please complete all required fields before submitting.");
+        setSubmitting(false);
+        return;
+      }
+
       const response = await fetch("/api/auth/register", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          password: formData.password,
-          role: "farmer",
-          farmerData: farmerData,
-        }),
+        body: JSON.stringify(payload),
       });
       
       const data = await response.json();
@@ -435,18 +454,17 @@ export default function Farmereg() {
       
       console.log("✅ Registration successful!");
       localStorage.removeItem(STORAGE_KEY);
-      localStorage.setItem("userRole", "farmer");
-      localStorage.setItem("isAuthenticated", "true");
-      localStorage.setItem("userData", JSON.stringify({
+      const userData = {
         id: data.user.id,
         name: formData.name,
         email: formData.email,
         role: "farmer",
         verificationStatus: "pending",
         farmName: formData.farmName,
-      }));
-      
-      router.push("/farmer/verification");
+      };
+      login("farmer", userData);
+      // Use window.location.href for a full page reload to ensure cookies and auth state are ready
+      window.location.href = "/farmer/verification";
     } catch (error: any) {
       console.error("Registration error:", error);
       setError(error.message);
