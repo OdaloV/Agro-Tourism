@@ -151,7 +151,7 @@ export async function POST(request: Request) {
             farmerData.farmType,
             farmerData.accommodation,
             toIntOrNull(farmerData.maxGuests),
-            verificationRequired ? 'pending' : 'approved',
+            verificationRequired ? 'not_submitted' : 'approved',
             new Date()
           ]
         );
@@ -207,6 +207,13 @@ export async function POST(request: Request) {
         .setProtectedHeader({ alg: 'HS256' })
         .setExpirationTime('7d')
         .sign(JWT_SECRET);
+
+      // Insert session for single-session-per-user
+      await pool.query(
+        `INSERT INTO user_sessions (user_id, session_token, expires_at)
+         VALUES ($1, $2, NOW() + INTERVAL '7 days')`,
+        [userResult.rows[0].id, `session_${userResult.rows[0].id}_${Date.now()}`]
+      );
 
       const user = userResult.rows[0];
 

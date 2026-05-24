@@ -109,14 +109,12 @@ export async function proxy(request: NextRequest) {
 
   const isProtectedRoute = farmerPath || adminPath || visitorPath;
 
-  const isAdminLogin = pathname === '/auth/login/admin';
-  const isVisitorLogin = pathname === '/auth/login/visitor';
-  const isFarmerLogin = pathname === '/auth/login/farmer';
-  const isFarmerRegister = pathname === '/auth/register/farmer';
-  const isVisitorRegister = pathname === '/auth/register/visitor';
-  const isAuthPage = pathname === '/auth';
+  // Allow pending farmers to access verification page without full auth
+  const isFarmerVerification = pathname === '/farmer/verification' || 
+                                pathname.startsWith('/farmer/verification');
 
   if (isProtectedRoute && !isAuthenticated) {
+    if (isFarmerVerification) return NextResponse.next(); // allow through without session
     return NextResponse.redirect(new URL('/auth', request.url));
   }
 
@@ -131,6 +129,13 @@ export async function proxy(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
   }
+
+  const isAdminLogin = pathname === '/auth/login/admin';
+  const isVisitorLogin = pathname === '/auth/login/visitor';
+  const isFarmerLogin = pathname === '/auth/login/farmer';
+  const isFarmerRegister = pathname === '/auth/register/farmer';
+  const isVisitorRegister = pathname === '/auth/register/visitor';
+  const isAuthPage = pathname === '/auth';
 
   if ((pathname.startsWith('/auth') || isAuthPage) && isAuthenticated) {
     if (isAdminLogin || isVisitorLogin || isFarmerLogin || isFarmerRegister || isVisitorRegister || isAuthPage) {
