@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -11,21 +11,19 @@ import {
   ChevronLeft,
   Share2,
   X,
-  Calendar,
-  Users,
   DollarSign,
-  CheckCircle,
 } from "lucide-react";
-import { FarmCardSkeleton, StatCardSkeleton } from "@/components/ui/Skeleton";
+import { FarmCardSkeleton } from "@/components/ui/Skeleton";
 
 interface FavoriteFarm {
   id: number;
-  farmName: string;
+  farm_name: string;
   location: string;
-  rating: number;
-  activities: string[];
-  pricePerPerson: number;
-  imageUrl?: string;
+  rating: number | string;
+  cover_photo?: string;
+  // Additional fields you might want to fetch
+  activities?: string[];
+  pricePerPerson?: number;
 }
 
 export default function VisitorFavorites() {
@@ -35,67 +33,66 @@ export default function VisitorFavorites() {
   const [favorites, setFavorites] = useState<FavoriteFarm[]>([]);
   const [showShareModal, setShowShareModal] = useState(false);
   const [selectedFarm, setSelectedFarm] = useState<FavoriteFarm | null>(null);
+  const [removingId, setRemovingId] = useState<number | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  const fetchFavorites = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("/api/favorites", {
+        credentials: "include", // Important for cookies
+      });
+
+      if (response.status === 401) {
+        router.push("/auth/login/visitor");
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch favorites");
+      }
+
+      const data = await response.json();
+      setFavorites(data.favorites || []);
+    } catch (error) {
+      console.error("Error fetching favorites:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [router]);
+
   useEffect(() => {
     if (!mounted) return;
-
-    const fetchFavorites = async () => {
-      try {
-        const userData = localStorage.getItem("userData");
-        if (!userData) {
-          router.push("/auth/login/visitor");
-          return;
-        }
-
-        // Mock favorites data - replace with API call
-        const mockFavorites: FavoriteFarm[] = [
-          {
-            id: 1,
-            farmName: "Highland Orchard",
-            location: "Nyeri, Kenya",
-            rating: 4.8,
-            activities: ["Apple Picking", "Cider Tasting", "Farm Tours"],
-            pricePerPerson: 2500,
-          },
-          {
-            id: 2,
-            farmName: "Sunrise Dairy",
-            location: "Nakuru, Kenya",
-            rating: 4.6,
-            activities: ["Milking Demo", "Cheese Making", "Farm Tours"],
-            pricePerPerson: 1800,
-          },
-          {
-            id: 3,
-            farmName: "Green Acres Farm",
-            location: "Kiambu, Kenya",
-            rating: 4.9,
-            activities: ["Farm Tours", "Harvesting", "Vegetable Picking"],
-            pricePerPerson: 3000,
-          },
-        ];
-
-        // Simulate API delay
-        setTimeout(() => {
-          setFavorites(mockFavorites);
-          setLoading(false);
-        }, 1000);
-      } catch (error) {
-        console.error("Error fetching favorites:", error);
-        setLoading(false);
-      }
-    };
-
     fetchFavorites();
-  }, [router, mounted]);
+  }, [mounted, fetchFavorites]);
 
-  const handleRemoveFavorite = (farmId: number) => {
-    setFavorites(favorites.filter((f) => f.id !== farmId));
-    alert("Removed from favorites");
+  const handleRemoveFavorite = async (farmId: number) => {
+    setRemovingId(farmId);
+    try {
+      const response = await fetch("/api/favorites", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ farmId }),
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        setFavorites(favorites.filter((f) => f.id !== farmId));
+      } else {
+        const error = await response.json();
+        alert(error.error || "Failed to remove from favorites");
+      }
+    } catch (error) {
+      console.error("Error removing favorite:", error);
+      alert("Failed to remove from favorites");
+    } finally {
+      setRemovingId(null);
+    }
   };
 
   const handleShare = (farm: FavoriteFarm) => {
@@ -105,23 +102,39 @@ export default function VisitorFavorites() {
 
   const handleShareSocial = (platform: string) => {
     if (!selectedFarm) return;
-    
+
     const url = `${window.location.origin}/farms/${selectedFarm.id}`;
-    const text = `Check out ${selectedFarm.farmName} on HarvestHost!`;
-    
+    const text = `Check out ${selectedFarm.farm_name} on HarvestHost!`;
+
     if (platform === "copy") {
       navigator.clipboard.writeText(url);
       alert("Link copied to clipboard!");
     } else if (platform === "whatsapp") {
-      window.open(`https://wa.me/?text=${encodeURIComponent(text + " " + url)}`, "_blank");
+      window.open(
+        `https://wa.me/?text=${encodeURIComponent(text + " " + url)}`,
+        "_blank"
+      );
     } else if (platform === "facebook") {
-      window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, "_blank");
+      window.open(
+        `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+        "_blank"
+      );
     } else if (platform === "twitter") {
-      window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, "_blank");
+      window.open(
+        `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,
+        "_blank"
+      );
     }
-    
+
     setShowShareModal(false);
     setSelectedFarm(null);
+  };
+
+  // Format rating to 1 decimal place
+  const formatRating = (rating: number | string | undefined) => {
+    if (!rating) return "0";
+    const num = typeof rating === "string" ? parseFloat(rating) : rating;
+    return isNaN(num) ? "0" : num.toFixed(1);
   };
 
   // Skeleton Loading State
@@ -129,14 +142,12 @@ export default function VisitorFavorites() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-100/30 py-8">
         <div className="container mx-auto px-4 max-w-5xl">
-          {/* Header Skeleton */}
           <div className="mb-6">
             <div className="h-5 w-32 bg-muted rounded-lg animate-pulse mb-4"></div>
             <div className="h-8 w-48 bg-muted rounded-lg animate-pulse"></div>
             <div className="h-4 w-64 bg-muted rounded-lg animate-pulse mt-2"></div>
           </div>
 
-          {/* Stats Card Skeleton */}
           <div className="bg-white rounded-2xl p-4 mb-6 border border-emerald-100">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -150,7 +161,6 @@ export default function VisitorFavorites() {
             </div>
           </div>
 
-          {/* Favorites Grid Skeleton */}
           <div className="grid md:grid-cols-2 gap-6">
             {[...Array(4)].map((_, i) => (
               <FarmCardSkeleton key={i} />
@@ -164,15 +174,21 @@ export default function VisitorFavorites() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-100/30 py-8">
       <div className="container mx-auto px-4 max-w-5xl">
-        
         {/* Header */}
         <div className="mb-6">
-          <Link href="/visitor/dashboard" className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700 mb-4">
+          <Link
+            href="/visitor/dashboard"
+            className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700 mb-4"
+          >
             <ChevronLeft className="h-5 w-5" />
             Back to Dashboard
           </Link>
-          <h1 className="text-2xl font-heading font-bold text-emerald-900">Favorite Farms</h1>
-          <p className="text-emerald-600 mt-1">Your saved farms for quick booking</p>
+          <h1 className="text-2xl font-heading font-bold text-emerald-900">
+            Favorite Farms
+          </h1>
+          <p className="text-emerald-600 mt-1">
+            Your saved farms for quick booking
+          </p>
         </div>
 
         {/* Stats */}
@@ -182,7 +198,9 @@ export default function VisitorFavorites() {
               <Heart className="h-6 w-6 text-red-500 fill-red-500" />
               <div>
                 <p className="text-sm text-emerald-600">Total Favorites</p>
-                <p className="text-2xl font-bold text-emerald-900">{favorites.length}</p>
+                <p className="text-2xl font-bold text-emerald-900">
+                  {favorites.length}
+                </p>
               </div>
             </div>
             <Link href="/farms">
@@ -197,8 +215,12 @@ export default function VisitorFavorites() {
         {favorites.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-emerald-100">
             <Heart className="h-16 w-16 text-emerald-300 mx-auto mb-4" />
-            <p className="text-emerald-600 text-lg mb-2">No favorite farms yet</p>
-            <p className="text-emerald-500 mb-6">Heart farms you love to save them here</p>
+            <p className="text-emerald-600 text-lg mb-2">
+              No favorite farms yet
+            </p>
+            <p className="text-emerald-500 mb-6">
+              Heart farms you love to save them here
+            </p>
             <Link href="/farms">
               <button className="px-6 py-3 bg-accent text-white rounded-xl">
                 Discover Farms
@@ -213,6 +235,8 @@ export default function VisitorFavorites() {
                 farm={farm}
                 onRemove={handleRemoveFavorite}
                 onShare={handleShare}
+                isRemoving={removingId === farm.id}
+                formatRating={formatRating}
               />
             ))}
           </div>
@@ -225,7 +249,7 @@ export default function VisitorFavorites() {
           <div className="bg-white rounded-2xl max-w-sm w-full">
             <div className="p-4 border-b border-emerald-100 flex justify-between items-center">
               <h3 className="text-lg font-heading font-semibold text-emerald-900">
-                Share {selectedFarm.farmName}
+                Share {selectedFarm.farm_name}
               </h3>
               <button
                 onClick={() => setShowShareModal(false)}
@@ -273,49 +297,70 @@ export default function VisitorFavorites() {
 }
 
 // Favorite Card Component
-function FavoriteCard({ farm, onRemove, onShare }: { 
-  farm: FavoriteFarm; 
-  onRemove: (id: number) => void; 
+function FavoriteCard({
+  farm,
+  onRemove,
+  onShare,
+  isRemoving,
+  formatRating,
+}: {
+  farm: FavoriteFarm;
+  onRemove: (id: number) => void;
   onShare: (farm: FavoriteFarm) => void;
+  isRemoving: boolean;
+  formatRating: (rating: number | string | undefined) => string;
 }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
       className="bg-white rounded-2xl border border-emerald-100 overflow-hidden hover:shadow-md transition"
     >
+      {/* Optional: Cover Photo */}
+      {farm.cover_photo && (
+        <div className="h-40 w-full relative">
+          <img
+            src={farm.cover_photo}
+            alt={farm.farm_name}
+            className="w-full h-full object-cover"
+          />
+        </div>
+      )}
+
       <div className="p-5">
         <div className="flex justify-between items-start">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
               <h3 className="text-lg font-heading font-semibold text-emerald-900">
-                {farm.farmName}
+                {farm.farm_name}
               </h3>
               <div className="flex items-center gap-1">
                 <Star className="h-4 w-4 fill-accent text-accent" />
-                <span className="text-sm text-emerald-700">{farm.rating}</span>
+                <span className="text-sm text-emerald-700">
+                  {formatRating(farm.rating)}
+                </span>
               </div>
             </div>
             <div className="flex items-center gap-1 text-sm text-emerald-600 mb-3">
               <MapPin className="h-4 w-4" />
-              <span>{farm.location}</span>
+              <span>{farm.location || "Location not specified"}</span>
             </div>
+
+            {/* You can fetch activities separately if needed */}
             <div className="flex flex-wrap gap-2 mb-4">
-              {farm.activities.slice(0, 3).map((activity, idx) => (
-                <span key={idx} className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">
-                  {activity}
-                </span>
-              ))}
-              {farm.activities.length > 3 && (
-                <span className="text-xs text-emerald-500">
-                  +{farm.activities.length - 3} more
-                </span>
-              )}
+              <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">
+                Farm Visit
+              </span>
+              <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">
+                Agritourism
+              </span>
             </div>
+
+            {/* Price - You may need to fetch this from another endpoint */}
             <div className="flex items-center gap-1 text-sm text-emerald-800">
               <DollarSign className="h-4 w-4" />
-              <span className="font-semibold">KES {farm.pricePerPerson.toLocaleString()}</span>
-              <span className="text-emerald-500">/person</span>
+              <span className="font-semibold">Price on request</span>
             </div>
           </div>
           <div className="flex flex-col gap-2">
@@ -328,10 +373,15 @@ function FavoriteCard({ farm, onRemove, onShare }: {
             </button>
             <button
               onClick={() => onRemove(farm.id)}
-              className="p-2 hover:bg-red-50 rounded-lg transition"
+              disabled={isRemoving}
+              className="p-2 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
               title="Remove from favorites"
             >
-              <X className="h-5 w-5 text-red-400" />
+              {isRemoving ? (
+                <div className="h-5 w-5 border-2 border-red-300 border-t-red-500 rounded-full animate-spin" />
+              ) : (
+                <X className="h-5 w-5 text-red-400" />
+              )}
             </button>
           </div>
         </div>

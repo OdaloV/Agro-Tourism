@@ -90,3 +90,36 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
+
+// GET - List user's favorites
+export async function GET(request: NextRequest) {
+  try {
+    const user = await getUserFromToken(request);
+    if (!user || user.role !== 'visitor') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const result = await pool.query(
+      `SELECT
+         f.farm_id as id,
+         fp.farm_name,
+         fp.farm_location as location,
+         fp.average_rating as rating,
+         COALESCE(
+           (SELECT photo_url FROM farm_photos WHERE farmer_id = fp.id LIMIT 1),
+           fp.profile_photo_url
+         ) as cover_photo
+       FROM favorites f
+       JOIN farmer_profiles fp ON f.farm_id = fp.id
+       WHERE f.visitor_id = $1
+       ORDER BY f.id DESC
+       LIMIT 100`,
+      [user.id]
+    );
+
+    return NextResponse.json({ favorites: result.rows });
+  } catch (error) {
+    console.error('Error fetching favorites:', error);
+    return NextResponse.json({ favorites: [] });
+  }
+}

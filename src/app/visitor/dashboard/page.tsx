@@ -34,9 +34,10 @@ interface FavoriteFarm {
 
 interface RecentView {
   id: number;
-  farmName: string;
-  location: string;
-  viewedAt: string;
+  farm_id: number;
+  farm_name: string;
+  farm_location: string;
+  viewed_at: string;
 }
 
 export default function VisitorDashboard() {
@@ -45,39 +46,12 @@ export default function VisitorDashboard() {
   const [user, setUser] = useState<any>(null);
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   
-  // Mock data
-  const [bookings, setBookings] = useState<Booking[]>([
-    {
-      id: 1,
-      farmId: 1,
-      farmName: "Green Acres Farm",
-      activity: "Farm Tour",
-      date: "2024-04-15",
-      participants: 2,
-      status: "confirmed",
-      totalPrice: 3000,
-    },
-    {
-      id: 2,
-      farmId: 2,
-      farmName: "Sunrise Dairy",
-      activity: "Milking Experience",
-      date: "2024-04-20",
-      participants: 4,
-      status: "pending",
-      totalPrice: 6000,
-    },
-  ]);
-  
-  const [favorites, setFavorites] = useState<FavoriteFarm[]>([
-    { id: 1, farmName: "Highland Orchard", location: "Nyeri, Kenya", rating: 4.8 },
-    { id: 2, farmName: "Sunrise Dairy", location: "Nakuru, Kenya", rating: 4.6 },
-  ]);
-  
-  const [recentViews, setRecentViews] = useState<RecentView[]>([
-    { id: 1, farmName: "Green Valley Farm", location: "Kiambu, Kenya", viewedAt: "2024-04-01" },
-    { id: 2, farmName: "Sunrise Dairy", location: "Nakuru, Kenya", viewedAt: "2024-03-30" },
-  ]);
+  // Data will be loaded dynamically
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [favorites, setFavorites] = useState<FavoriteFarm[]>([]);
+  const [recentViews, setRecentViews] = useState<RecentView[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviewableBookings, setReviewableBookings] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -101,26 +75,73 @@ export default function VisitorDashboard() {
         setUser(parsedUser);
         
         // Fetch profile photo from database API
-        const photoResponse = await fetch('/api/user/visitorpfp');
-        if (photoResponse.ok) {
-          const photoData = await photoResponse.json();
-          console.log("Fetched profile photo:", photoData.visitorpfp ? "Yes" : "No");
-          if (photoData.visitorpfp) {
-            setProfilePhoto(photoData.visitorpfp);
-            localStorage.setItem("visitor_profile_photo", photoData.visitorpfp);
+        try {
+          const photoResponse = await fetch('/api/user/visitorpfp');
+          if (photoResponse.ok) {
+            const photoData = await photoResponse.json();
+            console.log("Fetched profile photo:", photoData.visitorpfp ? "Yes" : "No");
+            if (photoData.visitorpfp) {
+              setProfilePhoto(photoData.visitorpfp);
+              localStorage.setItem("visitor_profile_photo", photoData.visitorpfp);
+            } else {
+              const localPhoto = localStorage.getItem("visitor_profile_photo");
+              if (localPhoto) setProfilePhoto(localPhoto);
+            }
           } else {
             const localPhoto = localStorage.getItem("visitor_profile_photo");
-            if (localPhoto) {
-              setProfilePhoto(localPhoto);
-            }
+            if (localPhoto) setProfilePhoto(localPhoto);
           }
-        } else {
-          const localPhoto = localStorage.getItem("visitor_profile_photo");
-          if (localPhoto) {
-            setProfilePhoto(localPhoto);
-          }
+        } catch (err) {
+          console.error('Profile photo fetch failed', err);
         }
-        
+
+        // Fetch dashboard data in parallel
+        try {
+          const [bookingsRes, favoritesRes, recentRes, reviewsRes] = await Promise.all([
+            fetch('/api/bookings').then(r => r.ok ? r.json() : { bookings: [] }),
+            fetch('/api/favorites').then(r => r.ok ? r.json() : { favorites: [] }),
+            fetch('/api/recent-views').then(r => r.ok ? r.json() : { recentViews: [] }),
+            fetch('/api/reviews').then(r => r.ok ? r.json() : { reviews: [], reviewableBookings: [] })
+          ]);
+
+          // Map bookings to interface (farm_name -> farmName, etc)
+          const mappedBookings: Booking[] = (bookingsRes.bookings || []).map((b: any) => ({
+            id: b.id,
+            farmId: b.farm_id,
+            farmName: b.farm_name,
+            activity: b.activity_name,
+            date: b.booking_date,
+            participants: b.participants,
+            status: b.status,
+            totalPrice: b.total_amount
+          }));
+
+          // Map favorites
+          const mappedFavorites: FavoriteFarm[] = (favoritesRes.favorites || []).map((f: any) => ({
+            id: f.id,
+            farmName: f.farm_name,
+            location: f.location,
+            rating: f.rating || 0
+          }));
+
+          // Map recent views
+          const mappedRecentViews: RecentView[] = (recentRes.recentViews || []).map((rv: any) => ({
+            id: rv.id,
+            farm_id: rv.farm_id,
+            farm_name: rv.farm_name,
+            farm_location: rv.farm_location,
+            viewed_at: rv.viewed_at
+          }));
+
+          setBookings(mappedBookings);
+          setFavorites(mappedFavorites);
+          setRecentViews(mappedRecentViews);
+          setReviews(reviewsRes.reviews || []);
+          setReviewableBookings(reviewsRes.reviewableBookings || []);
+        } catch (err) {
+          console.error('Error fetching dashboard data:', err);
+        }
+
         setLoading(false);
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -142,7 +163,7 @@ export default function VisitorDashboard() {
         {/* Header Skeleton */}
         <div className="mb-8">
           <div className="flex items-center gap-4">
-            <Skeleton variant="circular" className="h-16 w-16" />
+            <div className="h-16 w-16 rounded-full bg-gray-200 animate-pulse flex-shrink-0" />
             <div>
               <Skeleton className="h-8 w-64 mb-2" />
               <Skeleton className="h-5 w-48" />
@@ -235,7 +256,7 @@ export default function VisitorDashboard() {
         <StatCard 
           icon={Star} 
           label="Reviews" 
-          value={3} 
+          value={reviews.length} 
           color="amber"
         />
       </div>
@@ -312,13 +333,13 @@ export default function VisitorDashboard() {
                 {recentViews.map((view) => (
                   <div key={view.id} className="flex items-center justify-between p-3 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition">
                     <div>
-                      <p className="font-medium text-emerald-900">{view.farmName}</p>
-                      <p className="text-sm text-emerald-600">{view.location}</p>
+                      <p className="font-medium text-emerald-900">{view.farm_name}</p>
+                      <p className="text-sm text-emerald-600">{view.farm_location}</p>
                       <p className="text-xs text-emerald-400 mt-1">
-                        Viewed: {new Date(view.viewedAt).toLocaleDateString()}
+                        Viewed: {new Date(view.viewed_at).toLocaleDateString()}
                       </p>
                     </div>
-                    <Link href={`/farms/${view.id}`}>
+                    <Link href={`/farms/${view.farm_id}`}>
                       <button className="px-3 py-1.5 bg-accent text-white rounded-lg text-sm">
                         View Again
                       </button>
@@ -382,10 +403,37 @@ export default function VisitorDashboard() {
             </Link>
           </div>
           <div className="p-5">
-            <div className="text-center py-8">
-              <Star className="h-12 w-12 text-emerald-300 mx-auto mb-3" />
-              <p className="text-emerald-500">No pending reviews</p>
-            </div>
+            {reviewableBookings.length === 0 ? (
+              <div className="text-center py-8">
+                <Star className="h-12 w-12 text-emerald-300 mx-auto mb-3" />
+                <p className="text-emerald-500">No pending reviews</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {reviewableBookings.slice(0, 3).map((booking) => (
+                  <div key={booking.booking_id} className="flex items-center justify-between p-3 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition">
+                    <div>
+                      <p className="font-medium text-emerald-900">{booking.farm_name}</p>
+                      <div className="flex items-center gap-3 text-sm text-emerald-600 mt-1">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {new Date(booking.booking_date).toLocaleDateString()}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Star className="h-3 w-3" />
+                          Review
+                        </span>
+                      </div>
+                    </div>
+                    <Link href="/visitor/dashboard/reviews">
+                      <button className="px-3 py-1.5 bg-accent text-white rounded-lg text-sm">
+                        Review Now
+                      </button>
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
