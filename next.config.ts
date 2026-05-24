@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
   reactCompiler: process.env.NODE_ENV === 'production',
   
   // Allow dev access from network devices
-  allowedDevOrigins: ['192.168.100.7', 'localhost', '*.local'],
+  allowedDevOrigins: ['192.168.100.7', 'localhost', '*.local', '1086-129-222-187-33.ngrok-free.app', '*.ngrok-free.app'],
   
   // React strict mode - disable in dev for faster compilation
   reactStrictMode: process.env.NODE_ENV === 'production',
@@ -44,7 +44,7 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withPWA({
+const pwaOptions: any = {
   dest: "public",
   register: true,
   skipWaiting: true,
@@ -52,4 +52,6 @@ export default withPWA({
   workboxOptions: {
     // ... (keep your existing workboxOptions)
   },
-})(nextConfig);
+};
+
+export default withPWA(pwaOptions)(nextConfig);
