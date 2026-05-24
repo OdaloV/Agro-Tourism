@@ -2,16 +2,10 @@ import type { NextConfig } from "next";
 import withPWA from "@ducanh2912/next-pwa";
 
 const nextConfig: NextConfig = {
-  // React compiler - disable in dev for faster compilation, enable in production
+  output: "standalone",
   reactCompiler: process.env.NODE_ENV === 'production',
-  
-  // Allow dev access from network devices
   allowedDevOrigins: ['192.168.100.7', 'localhost', '*.local', '1086-129-222-187-33.ngrok-free.app', '*.ngrok-free.app'],
-  
-  // React strict mode - disable in dev for faster compilation
   reactStrictMode: process.env.NODE_ENV === 'production',
-  
-  // Image configuration
   images: {
     remotePatterns: [
       {
@@ -32,13 +26,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  
-  // Turbopack configuration
-  turbopack: {
-    // Optional: Add turbopack-specific configuration here if needed
-  },
-  
-  // Experimental features
+  turbopack: {},
   experimental: {
     optimizeCss: process.env.NODE_ENV === 'production',
   },
@@ -49,9 +37,7 @@ const pwaOptions: any = {
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === "development",
-  workboxOptions: {
-    // ... (keep your existing workboxOptions)
-  },
+  workboxOptions: {},
 };
 
 export default withPWA(pwaOptions)(nextConfig);
