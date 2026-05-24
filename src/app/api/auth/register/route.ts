@@ -46,13 +46,40 @@ const savePhotos = async (client: any, farmerId: number, photos: string[]) => {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { name, email, phone, password, role, farmerData } = body;
-
-    // Validate required fields
-    if (!name || !email || !password || !role) {
+    let body: any;
+    try {
+      body = await request.json();
+    } catch (err) {
+      console.error("Invalid JSON body for registration request:", err);
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Invalid JSON body' },
+        { status: 400 }
+      );
+    }
+
+    const { name, email, phone, password, role, farmerData } = body || {};
+
+    const missingFields = [
+      { key: 'name', value: name },
+      { key: 'email', value: email },
+      { key: 'password', value: password },
+      { key: 'role', value: role },
+    ]
+      .filter(field => !field.value || typeof field.value !== 'string' || field.value.trim() === '')
+      .map(field => field.key);
+
+    if (missingFields.length > 0) {
+      console.error('Registration request missing fields:', missingFields, 'body:', body);
+      return NextResponse.json(
+        { error: `Missing required fields: ${missingFields.join(', ')}` },
+        { status: 400 }
+      );
+    }
+
+    if (role === 'farmer' && !farmerData) {
+      console.error('Registration request missing farmerData:', body);
+      return NextResponse.json(
+        { error: 'Missing farmer profile data' },
         { status: 400 }
       );
     }

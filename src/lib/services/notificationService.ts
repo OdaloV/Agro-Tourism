@@ -1,12 +1,9 @@
-// src/lib/services/notificationService.ts
 import nodemailer from 'nodemailer';
 import pool from '@/lib/db';
 import { Resend } from 'resend';
+import { sendEmail } from '@/lib/email';
 
-// Initialize Resend for email
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-// Email transporter (fallback if Resend not available)
+// Email transporter (fallback if Resend not available - uses your SMTP config)
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: parseInt(process.env.SMTP_PORT || '587'),
@@ -63,30 +60,7 @@ async function shouldSendSMS(userId: number): Promise<boolean> {
   }
 }
 
-// Send email notification using Resend
-export async function sendEmail(to: string, subject: string, html: string) {
-  try {
-    const { data, error } = await resend.emails.send({
-      from: 'HarvestHost <noreply@harvesthost.com>',
-      to,
-      subject,
-      html,
-    });
-    
-    if (error) {
-      console.error('Email error:', error);
-      return { success: false, error };
-    }
-    
-    console.log(`Email sent to ${to}:`, data?.id);
-    return { success: true, data };
-  } catch (error) {
-    console.error('Failed to send email:', error);
-    return { success: false, error };
-  }
-}
-
-// Send SMS notification (using Africa's Talking)
+// Send SMS notification (using Africa's Talking - placeholder)
 export async function sendSMS(to: string, message: string) {
   try {
     // Format phone number for Kenya
