@@ -69,7 +69,7 @@ export async function createCalendarEvent(booking: any, farm: any, activity: any
   const response = await calendar.events.insert({
     calendarId: 'primary',
     requestBody: event,
-    sendUpdates: 'all',
+    sendUpdates: 'none', // Avoid email delays; use 'all' only if needed
   });
   
   return response.data;
@@ -98,7 +98,7 @@ export async function updateCalendarEvent(eventId: string, booking: any, farm: a
     calendarId: 'primary',
     eventId: eventId,
     requestBody: event,
-    sendUpdates: 'all',
+    sendUpdates: 'none', // Avoid email delays; use 'all' only if needed
   });
   
   return response.data;
@@ -110,7 +110,7 @@ export async function deleteCalendarEvent(eventId: string) {
   await calendar.events.delete({
     calendarId: 'primary',
     eventId: eventId,
-    sendUpdates: 'all',
+    sendUpdates: 'none', // Avoid email delays
   });
   
   return true;

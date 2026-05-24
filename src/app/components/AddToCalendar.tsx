@@ -29,11 +29,15 @@ export default function AddToCalendar({
     if (added) return;
     
     setLoading(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    
     try {
       const response = await fetch('/api/calendar/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bookingId }),
+        signal: controller.signal,
       });
       
       const data = await response.json();
@@ -43,12 +47,17 @@ export default function AddToCalendar({
         window.open(data.eventUrl, '_blank');
         setTimeout(() => setAdded(false), 3000);
       } else {
-        alert('Failed to add to calendar. Please try again.');
+        alert(data.error || 'Failed to add to calendar. Please try again.');
       }
     } catch (error) {
-      console.error('Error adding to calendar:', error);
-      alert('Failed to add to calendar');
+      if (error instanceof Error && error.name === 'AbortError') {
+        alert('Request timed out. Please check your connection and try again.');
+      } else {
+        console.error('Error adding to calendar:', error);
+        alert('Failed to add to calendar');
+      }
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   };
