@@ -3,7 +3,6 @@ import pool from '@/lib/db';
 import { getUser, requireAuth, requireCsrf } from '@/lib/auth-middleware';
 import { createCalendarEvent } from '@/lib/google-calendar';
 
-// Calculate pricing based on group size
 function calculatePricing(pricePerPerson: number, participants: number): {
   discountPercent: number;
   discountAmount: number;
@@ -32,24 +31,20 @@ function calculatePricing(pricePerPerson: number, participants: number): {
   return { discountPercent, discountAmount, totalAmount, category, requiresQuote };
 }
 
-// POST - Create a new booking
 export async function POST(request: NextRequest) {
   try {
-    // Auth check
     const user = await getUser(request);
     const authErr = requireAuth(user);
     if (authErr) return authErr;
-    
-    // Explicit null check before using user
+
     if (!user) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
-    
+
     if (user.role !== 'visitor') {
       return NextResponse.json({ error: 'Only visitors can create bookings' }, { status: 403 });
     }
 
-    // CSRF check - user is definitely not null here
     const csrfErr = await requireCsrf(request, user);
     if (csrfErr) return csrfErr;
 
@@ -64,12 +59,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Get user email from database
     const userEmailResult = await pool.query('SELECT email, name FROM users WHERE id = $1', [user.id]);
     const userEmail = userEmailResult.rows[0]?.email || '';
     const visitorName = userEmailResult.rows[0]?.name || 'Guest';
 
-    // Get activity details
     const activityResult = await pool.query(
       `SELECT id, activity_name, price, currency, max_capacity, farmer_id
        FROM farmer_activities WHERE id = $1`,
@@ -82,14 +75,12 @@ export async function POST(request: NextRequest) {
     const activity = activityResult.rows[0];
     const pricePerPerson = parseFloat(activity.price);
 
-    // Check capacity
     if (activity.max_capacity && participants > activity.max_capacity) {
       return NextResponse.json({
         error: `Maximum ${activity.max_capacity} guests allowed for this activity`
       }, { status: 400 });
     }
 
-    // Calculate pricing
     let pricing;
     if (customDiscount && customDiscount > 0) {
       const discountAmount = (pricePerPerson * participants) * (customDiscount / 100);
@@ -104,7 +95,6 @@ export async function POST(request: NextRequest) {
       pricing = calculatePricing(pricePerPerson, participants);
     }
 
-    // Large group — create quote request instead
     if (pricing.requiresQuote) {
       const quoteResult = await pool.query(
         `INSERT INTO booking_quotes (
@@ -137,11 +127,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Calculate fees
     const platformFee = pricing.totalAmount * 0.10;
     const farmerEarning = pricing.totalAmount * 0.90;
 
-    // Check date availability
     const blockedCheck = await pool.query(
       `SELECT EXISTS(
         SELECT 1 FROM farmer_availability
@@ -153,7 +141,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Selected date is not available' }, { status: 400 });
     }
 
-    // Create booking
     const bookingResult = await pool.query(
       `INSERT INTO bookings (
         visitor_id, farm_id, activity_id, activity_name,
@@ -175,7 +162,6 @@ export async function POST(request: NextRequest) {
 
     const booking = bookingResult.rows[0];
 
-    // Google Calendar event
     let googleEventId = null;
     if (addToCalendar) {
       try {
@@ -213,11 +199,9 @@ export async function POST(request: NextRequest) {
         await pool.query('UPDATE bookings SET google_event_id = $1 WHERE id = $2', [googleEventId, booking.id]);
       } catch (calendarError) {
         console.error('Error creating Google Calendar event:', calendarError);
-        // Don't fail booking if calendar fails
       }
     }
 
-    // Notify farmer
     await pool.query(
       `INSERT INTO notifications (user_id, type, title, message, data, created_at)
        VALUES ($1, $2, $3, $4, $5, NOW())`,
@@ -253,14 +237,12 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET - Fetch user's bookings
 export async function GET(request: NextRequest) {
   try {
     const user = await getUser(request);
     const authErr = requireAuth(user);
     if (authErr) return authErr;
-    
-    // Explicit null check
+
     if (!user) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
