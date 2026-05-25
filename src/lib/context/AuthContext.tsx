@@ -10,11 +10,22 @@ interface User {
   id: number;
   name: string;
   email: string;
-  role: string;
   phone?: string;
+  role?: string;
   verificationStatus?: string;
+  // farm-specific fields
   farmName?: string;
-  twoFactorEnabled?: boolean;
+  farmLocation?: string;
+  farmSize?: string;
+  yearEstablished?: string;
+  farmDescription?: string;
+  farmType?: string;
+  activities?: string[];
+  facilities?: string[];
+  accommodation?: boolean;
+  maxGuests?: string;
+  farmPhotos?: number;
+  videoLink?: string;
 }
 
 interface AuthContextType {
