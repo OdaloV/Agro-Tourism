@@ -50,8 +50,12 @@ export async function POST(request: Request) {
       [resetToken, user.id]
     );
 
-    // Send reset email
-    const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/auth/reset-password?token=${resetToken}`;
+    // Get base URL safely for build time
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
+                    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
+                    'http://localhost:3000';
+    
+    const resetUrl = `${baseUrl}/auth/reset-password?token=${resetToken}`;
     
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -77,7 +81,10 @@ export async function POST(request: Request) {
       </div>
     `;
 
-    await sendEmail(email, 'Reset Your HarvestHost Password', html);
+    // Only send email if not during build time
+    if (process.env.NODE_ENV !== 'production' || process.env.VERCEL_ENV !== 'build') {
+      await sendEmail(email, 'Reset Your HarvestHost Password', html);
+    }
 
     return NextResponse.json({
       success: true,
