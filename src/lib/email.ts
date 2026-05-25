@@ -1,12 +1,30 @@
-import { Resend } from 'resend';
-import nodemailer from 'nodemailer';
+// src/lib/email.ts
+let resend: any = null;
+let nodemailer: any = null;
+let smtpTransporter: any = null;
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-const resendFromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
-const smtpFromEmail = process.env.SMTP_FROM_EMAIL || resendFromEmail;
+// Lazy load Resend
+async function getResend() {
+  if (!resend && process.env.RESEND_API_KEY && typeof window === 'undefined') {
+    const { Resend } = await import('resend');
+    resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resend;
+}
 
-const smtpTransporter = process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS
-  ? nodemailer.createTransport({
+// Lazy load nodemailer
+async function getNodemailer() {
+  if (!nodemailer && typeof window === 'undefined') {
+    nodemailer = await import('nodemailer');
+  }
+  return nodemailer;
+}
+
+// Lazy create SMTP transporter
+async function getSmtpTransporter() {
+  if (!smtpTransporter && process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS && typeof window === 'undefined') {
+    const nodemailerModule = await getNodemailer();
+    smtpTransporter = nodemailerModule.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || '587', 10),
       secure: false,
@@ -14,34 +32,47 @@ const smtpTransporter = process.env.SMTP_HOST && process.env.SMTP_USER && proces
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
-    })
-  : null;
+    });
+  }
+  return smtpTransporter;
+}
 
 async function sendViaSMTP(to: string, subject: string, html: string) {
-  if (!smtpTransporter) {
+  const transporter = await getSmtpTransporter();
+  if (!transporter) {
     return {
       success: false,
       error: new Error('SMTP is not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS.'),
     };
   }
 
-  const info = await smtpTransporter.sendMail({
+  const resendFromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+  const smtpFromEmail = process.env.SMTP_FROM_EMAIL || resendFromEmail;
+
+  const info = await transporter.sendMail({
     from: smtpFromEmail,
     to,
     subject,
     html,
   });
 
-  // Email sent via SMTP (no console logging)
   return { success: true, data: info };
 }
 
 export async function sendEmail(to: string, subject: string, html: string) {
+  // During build time, don't actually send emails
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    console.log('Build mode: skipping email send');
+    return { success: true, message: 'Build mode - email not sent' };
+  }
+
+  const resendInstance = await getResend();
+  const resendFromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
   const from = process.env.RESEND_FROM_EMAIL ? resendFromEmail : 'onboarding@resend.dev';
 
-  if (process.env.RESEND_API_KEY) {
+  if (resendInstance) {
     try {
-      const { data, error } = await resend.emails.send({
+      const { data, error } = await resendInstance.emails.send({
         from,
         to,
         subject,
@@ -50,7 +81,8 @@ export async function sendEmail(to: string, subject: string, html: string) {
 
       if (error) {
         console.error('Resend email error:', error);
-        if (smtpTransporter) {
+        const transporter = await getSmtpTransporter();
+        if (transporter) {
           return sendViaSMTP(to, subject, html);
         }
         return { success: false, error };
@@ -59,7 +91,8 @@ export async function sendEmail(to: string, subject: string, html: string) {
       return { success: true, data };
     } catch (error: any) {
       console.error('Failed to send email via Resend:', error);
-      if (smtpTransporter) {
+      const transporter = await getSmtpTransporter();
+      if (transporter) {
         return sendViaSMTP(to, subject, html);
       }
       return { success: false, error };

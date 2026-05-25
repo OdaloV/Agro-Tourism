@@ -1,14 +1,28 @@
+// src/app/api/auth/forgot-password/route.ts
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 import { NextResponse } from 'next/server';
-import pool from '@/lib/db';
-import { SignJWT } from 'jose';
-import { sendEmail } from '@/lib/email';
 
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'your-secret-key-change-in-production'
+  process.env.JWT_SECRET || 'your-super-secret-key-change-this-in-production'
 );
 
 export async function POST(request: Request) {
+  // During build time, return a mock response
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return NextResponse.json({
+      success: true,
+      message: 'Build mode - reset link would be sent'
+    });
+  }
+
   try {
+    // Dynamic imports to avoid build-time issues
+    const { SignJWT } = await import('jose');
+    const { sendEmail } = await import('@/lib/email');
+    const pool = (await import('@/lib/db')).default;
+    
     const { email } = await request.json();
 
     if (!email) {
@@ -25,7 +39,6 @@ export async function POST(request: Request) {
     );
 
     if (result.rows.length === 0) {
-      // For security, don't reveal that user doesn't exist
       return NextResponse.json({
         success: true,
         message: 'If an account exists, you will receive a reset link'
@@ -34,7 +47,7 @@ export async function POST(request: Request) {
 
     const user = result.rows[0];
 
-    // Generate reset token (valid for 1 hour)
+    // Generate reset token
     const resetToken = await new SignJWT({
       id: user.id,
       email: user.email,
@@ -44,15 +57,14 @@ export async function POST(request: Request) {
       .setExpirationTime('1h')
       .sign(JWT_SECRET);
 
-    // Store reset token in database
+    // Store reset token
     await pool.query(
       `UPDATE users SET reset_token = $1, reset_token_expires = NOW() + INTERVAL '1 hour' WHERE id = $2`,
       [resetToken, user.id]
     );
 
-    // Get base URL safely for build time
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
-                    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
+                    process.env.NEXT_PUBLIC_BASE_URL ||
                     'http://localhost:3000';
     
     const resetUrl = `${baseUrl}/auth/reset-password?token=${resetToken}`;
@@ -71,8 +83,6 @@ export async function POST(request: Request) {
               Reset Password
             </a>
           </div>
-          <p>If the button doesn't work, copy and paste this link:</p>
-          <p style="background: #f3f4f6; padding: 10px; word-break: break-all; font-size: 12px;">${resetUrl}</p>
           <p>This link will expire in <strong>1 hour</strong>.</p>
           <p>If you didn't request this, please ignore this email.</p>
           <hr style="margin: 20px 0;" />
@@ -81,10 +91,7 @@ export async function POST(request: Request) {
       </div>
     `;
 
-    // Only send email if not during build time
-    if (process.env.NODE_ENV !== 'production' || process.env.VERCEL_ENV !== 'build') {
-      await sendEmail(email, 'Reset Your HarvestHost Password', html);
-    }
+    await sendEmail(email, 'Reset Your HarvestHost Password', html);
 
     return NextResponse.json({
       success: true,
