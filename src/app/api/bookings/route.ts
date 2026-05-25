@@ -39,7 +39,8 @@ export async function POST(request: NextRequest) {
     const user = await getUser(request);
     const authErr = requireAuth(user);
     if (authErr) return authErr;
-    if (user!.role !== 'visitor') {
+    if (!user) return authErr;
+    if (user.role !== 'visitor') {
       return NextResponse.json({ error: 'Only visitors can create bookings' }, { status: 403 });
     }
 
