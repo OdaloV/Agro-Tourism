@@ -724,7 +724,7 @@ export default function VisitorMessages() {
                     {Array.from({ length: 3 }).map((_, i) => (
                       <div key={i} className="p-3 rounded-lg border border-gray-200">
                         <div className="flex items-start gap-3">
-                          <Skeleton variant="circular" className="h-10 w-10" />
+                          <div className="h-10 w-10 bg-gray-200 rounded-full animate-pulse" />
                           <div className="flex-1">
                             <Skeleton className="h-5 w-40 mb-2" />
                             <Skeleton className="h-3 w-32" />
