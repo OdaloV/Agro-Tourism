@@ -39,12 +39,17 @@ export async function POST(request: NextRequest) {
     const user = await getUser(request);
     const authErr = requireAuth(user);
     if (authErr) return authErr;
-    if (!user) return authErr;
+    
+    // Explicit null check before using user
+    if (!user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+    
     if (user.role !== 'visitor') {
       return NextResponse.json({ error: 'Only visitors can create bookings' }, { status: 403 });
     }
 
-    // CSRF check
+    // CSRF check - user is definitely not null here
     const csrfErr = await requireCsrf(request, user);
     if (csrfErr) return csrfErr;
 
@@ -58,6 +63,11 @@ export async function POST(request: NextRequest) {
     if (!farmId || !bookingDate || !participants || !activityId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
+
+    // Get user email from database
+    const userEmailResult = await pool.query('SELECT email, name FROM users WHERE id = $1', [user.id]);
+    const userEmail = userEmailResult.rows[0]?.email || '';
+    const visitorName = userEmailResult.rows[0]?.name || 'Guest';
 
     // Get activity details
     const activityResult = await pool.query(
@@ -103,7 +113,7 @@ export async function POST(request: NextRequest) {
           status, created_at
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
         RETURNING id`,
-        [user!.id, activity.farmer_id, activityId, participants,
+        [user.id, activity.farmer_id, activityId, participants,
           bookingDate, specialRequests, groupName || null, 'pending']
       );
 
@@ -143,10 +153,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Selected date is not available' }, { status: 400 });
     }
 
-    // Get visitor name
-    const visitorResult = await pool.query('SELECT name FROM users WHERE id = $1', [user!.id]);
-    const visitorName = visitorResult.rows[0]?.name || 'Guest';
-
     // Create booking
     const bookingResult = await pool.query(
       `INSERT INTO bookings (
@@ -158,10 +164,10 @@ export async function POST(request: NextRequest) {
       ) VALUES ($1, $2, $3, $4, $5::date, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW(), NOW())
       RETURNING id, booking_reference`,
       [
-        user!.id, farmId, activityId, activity.activity_name,
+        user.id, farmId, activityId, activity.activity_name,
         bookingDate, timeSlot || null, participants, pricing.totalAmount,
         platformFee, farmerEarning, specialRequests || null, groupName || null,
-        contactPhone || user!.email, contactEmail || user!.email,
+        contactPhone || userEmail, contactEmail || userEmail,
         'pending', 'pending', activity.currency,
         pricing.discountPercent, pricing.totalAmount + pricing.discountAmount
       ]
@@ -188,8 +194,8 @@ export async function POST(request: NextRequest) {
             participants,
             special_requests: specialRequests || 'None',
             visitor_name: visitorName,
-            visitor_phone: contactPhone || user!.email,
-            visitor_email: contactEmail || user!.email,
+            visitor_phone: contactPhone || userEmail,
+            visitor_email: contactEmail || userEmail,
             total_amount: pricing.totalAmount,
             booking_date: bookingDate,
           },
@@ -253,6 +259,11 @@ export async function GET(request: NextRequest) {
     const user = await getUser(request);
     const authErr = requireAuth(user);
     if (authErr) return authErr;
+    
+    // Explicit null check
+    if (!user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
@@ -276,7 +287,7 @@ export async function GET(request: NextRequest) {
       WHERE b.visitor_id = $1
     `;
 
-    const params: any[] = [user!.id];
+    const params: any[] = [user.id];
     let paramIndex = 2;
 
     if (status && status !== 'all') {
