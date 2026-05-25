@@ -136,13 +136,14 @@ export function ConversationSkeleton() {
   );
 }
 
-export function MessageSkeleton() {
+export function MessageSkeleton({ isMyMessage = false }: { isMyMessage?: boolean }) {
   return (
-    <div className="flex gap-2 mb-3 animate-pulse">
-      <div className="w-8 h-8 bg-gray-200 rounded-full" />
-      <div className="flex-1">
-        <div className="bg-gray-200 rounded-2xl h-10 w-3/4" />
+    <div className={`flex gap-2 mb-3 animate-pulse ${isMyMessage ? 'justify-end' : 'justify-start'}`}>
+      {!isMyMessage && <div className="w-8 h-8 bg-gray-200 rounded-full" />}
+      <div className={`flex-1 ${isMyMessage ? 'flex justify-end' : ''}`}>
+        <div className={`bg-gray-200 rounded-2xl h-10 ${isMyMessage ? 'w-3/4' : 'w-3/4'}`} />
       </div>
+      {isMyMessage && <div className="w-8 h-8 bg-gray-200 rounded-full" />}
     </div>
   );
 }
