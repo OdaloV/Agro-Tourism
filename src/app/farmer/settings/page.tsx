@@ -57,6 +57,7 @@ interface SettingsData {
     bank_name: string;
     account_name: string;
     account_number: string;
+    bank_code: string;
     tax_id: string;
   };
   business_hours: Array<{
@@ -147,7 +148,6 @@ export default function FarmerSettings() {
         return;
       }
 
-      // Initiate Google OAuth flow
       const response = await fetch('/api/calendar/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -157,7 +157,6 @@ export default function FarmerSettings() {
       const data = await response.json();
 
       if (response.ok && data.authUrl) {
-        // Redirect to Google OAuth consent screen
         window.location.href = data.authUrl;
       } else {
         alert(data.error || "Failed to connect Google Calendar");
@@ -229,7 +228,7 @@ export default function FarmerSettings() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-emerald-100/30">
       <div className="container mx-auto px-4 py-8 max-w-6xl">
-        
+
         {/* Header */}
         <div className="mb-6">
           <Link href="/farmer/dashboard" className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 mb-4">
@@ -274,7 +273,7 @@ export default function FarmerSettings() {
               saving={saving}
             />
           )}
-          
+
           {activeTab === "farm" && (
             <FarmSettingsTab
               farmer={settings.farmer}
@@ -283,7 +282,7 @@ export default function FarmerSettings() {
               saving={saving}
             />
           )}
-          
+
           {activeTab === "calendar" && (
             <div className="space-y-6">
               <div>
@@ -298,7 +297,7 @@ export default function FarmerSettings() {
                   <div>
                     <h3 className="font-semibold text-emerald-900 mb-1">Calendar Sync</h3>
                     <p className="text-sm text-emerald-600">
-                      {settings.googleCalendar?.connected 
+                      {settings.googleCalendar?.connected
                         ? "Your Google Calendar is connected. Bookings will be automatically added."
                         : "Connect your Google Calendar to sync bookings and get reminders."}
                     </p>
@@ -308,7 +307,7 @@ export default function FarmerSettings() {
                       </p>
                     )}
                   </div>
-                  
+
                   {settings.googleCalendar?.connected ? (
                     <button
                       onClick={handleDisconnectGoogleCalendar}
@@ -359,7 +358,7 @@ export default function FarmerSettings() {
               )}
             </div>
           )}
-          
+
           {activeTab === "notifications" && (
             <NotificationSettingsTab
               settings={settings.settings}
@@ -367,7 +366,7 @@ export default function FarmerSettings() {
               saving={saving}
             />
           )}
-          
+
           {activeTab === "payment" && (
             <PaymentSettingsTab
               payment={settings.payment}
@@ -375,7 +374,7 @@ export default function FarmerSettings() {
               saving={saving}
             />
           )}
-          
+
           {activeTab === "hours" && (
             <BusinessHoursTab
               hours={settings.business_hours}
@@ -383,7 +382,7 @@ export default function FarmerSettings() {
               saving={saving}
             />
           )}
-          
+
           {activeTab === "security" && (
             <SecurityTab
               twoFactorEnabled={settings.two_factor_enabled}
