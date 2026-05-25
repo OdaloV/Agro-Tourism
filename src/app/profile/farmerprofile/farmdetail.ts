@@ -6,6 +6,7 @@ import { FarmerProfileData, FORM_STEPS } from './options'
 
 const initialFormData: FarmerProfileData = {
   profilePhoto: null, 
+  photoUrls: [],
   farmName: '', farmLocation: '', farmSize: '', yearEstablished: '', farmDescription: '',
   animals: [], customAnimals: [], newAnimalInput: '',
   crops: [], customCrops: [], newCropInput: '',
