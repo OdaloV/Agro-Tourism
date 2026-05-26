@@ -20,7 +20,7 @@ const getSslConfig = () => {
   // If you have a self-signed cert in production, you need to provide the CA
   if (process.env.DB_CA_CERT) {
     return {
-      rejectUnauthorized: true,
+      rejectUnauthorized: false,
       ca: process.env.DB_CA_CERT,
     };
   }
