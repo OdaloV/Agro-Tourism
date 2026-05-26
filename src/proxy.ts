@@ -1,76 +1,69 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import pool from '@/lib/db';
 import { jwtVerify } from 'jose';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || '');
-const ADMIN_SECRET = process.env.ADMIN_SECRET; // server‑side secret
+const ADMIN_SECRET = process.env.ADMIN_SECRET;
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
-  
+
   // Admin login page – require secret query param
   if (pathname === '/auth/login/admin') {
     const secret = searchParams.get('secret');
     if (!ADMIN_SECRET || secret !== ADMIN_SECRET) {
       return NextResponse.json({ error: 'Not Found' }, { status: 404 });
     }
-    // If secret matches, let the page load normally
     return NextResponse.next();
   }
-  
-  try {
-    const result = await pool.query(
-      "SELECT value FROM platform_settings WHERE key = 'maintenance_mode'"
+
+  // Maintenance mode – read from cookie set by admin API (no DB call)
+  const maintenanceMode = request.cookies.get('maintenance_mode')?.value === 'true';
+
+  const isAdminRoute = pathname.startsWith('/admin') || pathname.startsWith('/api/admin');
+  const isLoginRoute =
+    pathname === '/auth/login/admin' ||
+    pathname === '/auth/login/farmer' ||
+    pathname === '/auth/login/visitor';
+  const isSettingsApi = pathname.startsWith('/api/settings');
+
+  if (maintenanceMode && !isAdminRoute && !isLoginRoute && !isSettingsApi) {
+    return new NextResponse(
+      `<!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Under Maintenance</title>
+        <style>
+          body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: linear-gradient(135deg, #065f46, #047857); color: white; text-align: center; }
+          .container { padding: 2rem; }
+          h1 { font-size: 3rem; margin-bottom: 1rem; font-weight: 700; }
+          p { font-size: 1.2rem; opacity: 0.9; margin-bottom: 0.5rem; }
+          .icon { font-size: 5rem; margin-bottom: 1rem; }
+          .subtext { font-size: 0.9rem; opacity: 0.6; margin-top: 2rem; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="icon">🔧</div>
+          <h1>Under Maintenance</h1>
+          <p>We're currently updating our platform.</p>
+          <p>Please check back soon!</p>
+          <div class="subtext">Thank you for your patience.</div>
+        </div>
+      </body>
+      </html>`,
+      {
+        status: 503,
+        headers: {
+          'Content-Type': 'text/html',
+          'Content-Security-Policy': "default-src 'self'; script-src 'none'; style-src 'unsafe-inline';",
+        },
+      }
     );
-    const maintenanceMode = result.rows[0]?.value === 'true';
-    
-    const isAdminRoute = pathname.startsWith('/admin') ||
-                         pathname.startsWith('/api/admin');
-    const isLoginRoute = pathname === '/auth/login/admin' ||
-                         pathname === '/auth/login/farmer' ||
-                         pathname === '/auth/login/visitor';
-    const isSettingsApi = pathname.startsWith('/api/settings');
-    
-    if (maintenanceMode && !isAdminRoute && !isLoginRoute && !isSettingsApi) {
-      return new NextResponse(
-        `<!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <title>Under Maintenance</title>
-          <style>
-            body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: linear-gradient(135deg, #065f46, #047857); color: white; text-align: center; }
-            .container { padding: 2rem; }
-            h1 { font-size: 3rem; margin-bottom: 1rem; font-weight: 700; }
-            p { font-size: 1.2rem; opacity: 0.9; margin-bottom: 0.5rem; }
-            .icon { font-size: 5rem; margin-bottom: 1rem; }
-            .subtext { font-size: 0.9rem; opacity: 0.6; margin-top: 2rem; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="icon">🔧</div>
-            <h1>Under Maintenance</h1>
-            <p>We're currently updating our platform.</p>
-            <p>Please check back soon!</p>
-            <div class="subtext">Thank you for your patience.</div>
-          </div>
-        </body>
-        </html>`,
-        {
-          status: 503,
-          headers: {
-            'Content-Type': 'text/html',
-            'Content-Security-Policy': "default-src 'self'; script-src 'none'; style-src 'unsafe-inline';",
-          },
-        }
-      );
-    }
-  } catch (error) {
-    console.error('Error checking maintenance mode:', error);
   }
 
+  // Auth – decode JWT only, no DB call
   const authToken = request.cookies.get('auth_token')?.value;
   let userRole: string | null = null;
   let isAuthenticated = false;
@@ -82,39 +75,27 @@ export async function proxy(request: NextRequest) {
         invalidAuthToken = true;
       } else {
         const { payload } = await jwtVerify(authToken, JWT_SECRET);
-        const userId = payload.id as number;
-        
-        // Check if session is still valid in database (one session per user)
-        const sessionCheck = await pool.query(
-          'SELECT id FROM user_sessions WHERE user_id = $1 AND expires_at > NOW()',
-          [userId]
-        );
-        
-        if (sessionCheck.rows.length === 0) {
-          invalidAuthToken = true;
-        } else {
-          userRole = payload.role as string;
-          isAuthenticated = true;
-        }
+        userRole = payload.role as string;
+        isAuthenticated = true;
       }
-    } catch (error) {
-      console.warn('JWT verification failed:', error);
+    } catch {
       invalidAuthToken = true;
     }
   }
 
   const farmerPath = pathname.startsWith('/farmer') || pathname.startsWith('/api/farmer');
   const adminPath = pathname.startsWith('/admin') || pathname.startsWith('/api/admin');
-  const visitorPath = pathname.startsWith('/bookings') || pathname.startsWith('/api/bookings') || pathname.startsWith('/visitor') || pathname.startsWith('/api/visitor');
+  const visitorPath =
+    pathname.startsWith('/bookings') ||
+    pathname.startsWith('/api/bookings') ||
+    pathname.startsWith('/visitor') ||
+    pathname.startsWith('/api/visitor');
 
   const isProtectedRoute = farmerPath || adminPath || visitorPath;
-
-  // Allow pending farmers to access verification page without full auth
-  const isFarmerVerification = pathname === '/farmer/verification' || 
-                                pathname.startsWith('/farmer/verification');
+  const isFarmerVerification = pathname.startsWith('/farmer/verification');
 
   if (isProtectedRoute && !isAuthenticated) {
-    if (isFarmerVerification) return NextResponse.next(); // allow through without session
+    if (isFarmerVerification) return NextResponse.next();
     return NextResponse.redirect(new URL('/auth', request.url));
   }
 
@@ -141,16 +122,9 @@ export async function proxy(request: NextRequest) {
     if (isAdminLogin || isVisitorLogin || isFarmerLogin || isFarmerRegister || isVisitorRegister || isAuthPage) {
       return NextResponse.next();
     }
-
-    if (userRole === 'farmer') {
-      return NextResponse.redirect(new URL('/farmer/dashboard', request.url));
-    }
-    if (userRole === 'admin') {
-      return NextResponse.redirect(new URL('/admin/dashboard', request.url));
-    }
-    if (userRole === 'visitor') {
-      return NextResponse.redirect(new URL('/marketing', request.url));
-    }
+    if (userRole === 'farmer') return NextResponse.redirect(new URL('/farmer/dashboard', request.url));
+    if (userRole === 'admin') return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+    if (userRole === 'visitor') return NextResponse.redirect(new URL('/marketing', request.url));
   }
 
   const response = NextResponse.next();
