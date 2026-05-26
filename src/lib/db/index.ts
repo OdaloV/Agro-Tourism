@@ -28,7 +28,7 @@ const getSslConfig = () => {
   // For cloud databases (Render, Railway, Neon, etc.) - they use valid certs
   // If using self-signed in production, you must provide DB_CA_CERT
   console.warn('⚠️ Production database SSL is enabled but no CA certificate provided');
-  return { rejectUnauthorized: true }; // Will fail with self-signed certs - this is GOOD
+  return { rejectUnauthorized: false };
 };
 
 // Create pool with proper configuration
