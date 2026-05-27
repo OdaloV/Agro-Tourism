@@ -132,7 +132,7 @@ export async function POST(request: Request) {
         const settingsResult = await client.query(
           "SELECT value FROM platform_settings WHERE key = 'verification_required'"
         );
-        const verificationRequired = settingsResult.rows[0]?.value === 'true';
+        const verificationRequired = settingsResult.rows[0]?.value !== 'false';
        
         const profileResult = await client.query(
           `INSERT INTO farmer_profiles (
