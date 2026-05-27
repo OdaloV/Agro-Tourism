@@ -119,7 +119,7 @@ export async function proxy(request: NextRequest) {
   const isAuthPage = pathname === '/auth';
 
   if ((pathname.startsWith('/auth') || isAuthPage) && isAuthenticated) {
-    if (isAdminLogin || isVisitorLogin || isFarmerLogin || isFarmerRegister || isVisitorRegister || isAuthPage) {
+ if (isAdminLogin || isVisitorLogin || isFarmerLogin || isFarmerRegister || isVisitorRegister || isAuthPage || pathname.startsWith('/auth/verify')) {
       return NextResponse.next();
     }
     if (userRole === 'farmer') return NextResponse.redirect(new URL('/farmer/dashboard', request.url));
