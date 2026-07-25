@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUser, requireRole } from '@/lib/auth-middleware';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
 import pool from '@/lib/db';
 import { sendVerificationEmail } from '@/lib/services/notificationService';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 // GET - Check verification status
 export async function GET(request: NextRequest) {
@@ -142,10 +147,6 @@ export async function POST(request: NextRequest) {
     const userEmail = farmerResult.rows[0].email;
     const userName = farmerResult.rows[0].name;
     
-    // Create uploads directory
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'documents');
-    await mkdir(uploadDir, { recursive: true });
-    
     const documents: { id: string; file: File; type?: string }[] = [];
     
     // Process uploaded files
@@ -173,24 +174,43 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Save each document
+    // ✅ UPLOAD EACH DOCUMENT TO SUPABASE STORAGE
     for (const doc of documents) {
       const fileExt = doc.file.name.split('.').pop() || 'pdf';
       const fileName = `${farmerId}_${doc.id}_${Date.now()}.${fileExt}`;
-      const filePath = path.join(uploadDir, fileName);
+      const filePath = `documents/${userId}/${fileName}`;
+      
       const bytes = await doc.file.arrayBuffer();
       const buffer = Buffer.from(bytes);
-      await writeFile(filePath, buffer);
       
-      const fileUrl = `/uploads/documents/${fileName}`;
+      // Upload to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('verification-documents')
+        .upload(filePath, buffer, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: doc.file.type
+        });
+      
+      if (uploadError) {
+        console.error('Error uploading to Supabase:', uploadError);
+        throw new Error(`Failed to upload ${doc.id}: ${uploadError.message}`);
+      }
+      
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('verification-documents')
+        .getPublicUrl(filePath);
+      
       const documentTypeValue = doc.type || doc.id;
       
+      // Store URL in database
       await pool.query(
         `INSERT INTO farmer_documents (farmer_id, document_type, document_url, status, uploaded_at)
          VALUES ($1, $2, $3, 'pending', CURRENT_TIMESTAMP)
          ON CONFLICT (farmer_id, document_type) 
          DO UPDATE SET document_url = $3, status = 'pending', uploaded_at = CURRENT_TIMESTAMP`,
-        [farmerId, documentTypeValue, fileUrl]
+        [farmerId, documentTypeValue, publicUrl]
       );
     }
     
