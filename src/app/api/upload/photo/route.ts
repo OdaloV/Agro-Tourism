@@ -1,8 +1,13 @@
 // src/app/api/upload/photo/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getUser, requireAuth } from '@/lib/auth-middleware';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export async function POST(request: NextRequest) {
   const user = await getUser(request);
@@ -18,28 +23,48 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
     
-    // Create uploads directory if it doesn't exist
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'farm-photos');
-    await mkdir(uploadDir, { recursive: true });
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID required' }, { status: 400 });
+    }
     
     // Generate unique filename
     const timestamp = Date.now();
-    const ext = file.name.split('.').pop();
+    const ext = file.name.split('.').pop() || 'jpg';
     const filename = `${userId}_${timestamp}.${ext}`;
-    const filePath = path.join(uploadDir, filename);
+    const filePath = `farm-photos/${userId}/${filename}`;
     
-    // Save file
+    // Convert file to buffer
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
     
-    const fileUrl = `/uploads/farm-photos/${filename}`;
+    // Upload to Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('farm-photos') // Make sure this bucket exists!
+      .upload(filePath, buffer, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: file.type
+      });
+    
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      return NextResponse.json(
+        { error: uploadError.message },
+        { status: 500 }
+      );
+    }
+    
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('farm-photos')
+      .getPublicUrl(filePath);
     
     return NextResponse.json({ 
       success: true, 
-      url: fileUrl,
+      url: publicUrl,
       filename 
     });
+    
   } catch (error: any) {
     console.error('Upload error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
