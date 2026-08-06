@@ -1,30 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 
 export default function AdminLoginContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const secret = searchParams.get("secret");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [authorized, setAuthorized] = useState(false);
-
-  useEffect(() => {
-    // Check secret against environment variable
-    const validSecret = process.env.NEXT_PUBLIC_ADMIN_SECRET || process.env.ADMIN_SECRET;
-    if (secret === validSecret) {
-      setAuthorized(true);
-    } else {
-      // Redirect to 404 or home if secret invalid
-      router.replace("/404");
-    }
-  }, [secret, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,8 +35,6 @@ export default function AdminLoginContent() {
       setLoading(false);
     }
   };
-
-  if (!authorized) return null;
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
