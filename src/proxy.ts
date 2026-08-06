@@ -24,6 +24,9 @@ export async function proxy(request: NextRequest) {
   const isLoginRoute =
     pathname === '/auth/login/admin' ||
     pathname === '/auth/login/farmer' ||
+    pathname === '/setup' ||
+    pathname === '/api/setup' ||
+    pathname === '/api/setup/status';
     pathname === '/auth/login/visitor';
   const isSettingsApi = pathname.startsWith('/api/settings');
 
